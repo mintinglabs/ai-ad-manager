@@ -39,6 +39,7 @@ export const AdAccountSelector = ({ token, onSelect, onBack }) => {
   const { adAccounts, error } = useAdAccounts(token);
   const [fetching, setFetching] = useState(true);
   const [showDevInfo, setShowDevInfo] = useState(false);
+  const [connecting, setConnecting] = useState(null);
 
   // Simulate a 1s API fetch delay
   useEffect(() => {
@@ -108,8 +109,17 @@ export const AdAccountSelector = ({ token, onSelect, onBack }) => {
             </div>
           )}
 
+          {/* Connecting overlay */}
+          {connecting && (
+            <div className="flex flex-col items-center gap-3 py-12">
+              <Spinner />
+              <p className="text-sm text-slate-600 font-medium">Connecting to {connecting.name}…</p>
+              <p className="text-xs text-slate-400">Authorizing via Meta Graph API</p>
+            </div>
+          )}
+
           {/* Account list grouped by Business Portfolio */}
-          {!fetching && !error && adAccounts.length > 0 && (
+          {!fetching && !connecting && !error && adAccounts.length > 0 && (
             <div className="space-y-6">
               {groups.map((group) => (
                 <div key={group.business_name}>
@@ -131,8 +141,12 @@ export const AdAccountSelector = ({ token, onSelect, onBack }) => {
                     {group.accounts.map((account) => (
                       <button
                         key={account.id}
-                        onClick={() => onSelect(account)}
-                        className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-blue-400 hover:shadow-sm transition-all text-left group"
+                        onClick={() => {
+                          setConnecting(account);
+                          setTimeout(() => { setConnecting(null); onSelect(account); }, 1500);
+                        }}
+                        disabled={!!connecting}
+                        className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 flex items-center gap-4 hover:border-blue-400 hover:shadow-sm transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {/* Account icon */}
                         <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
