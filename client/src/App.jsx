@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useAuth } from './hooks/useAuth.js';
 import { LoginPage } from './components/LoginPage.jsx';
+import { BusinessSelector } from './components/BusinessSelector.jsx';
 import { AdAccountSelector } from './components/AdAccountSelector.jsx';
 import { Dashboard } from './components/Dashboard.jsx';
 
 export default function App() {
   const { longLivedToken, isLoading, error, login, logout } = useAuth();
-  const [selectedAccount, setSelectedAccount] = useState(null);
+  const [selectedBusiness, setSelectedBusiness] = useState(null);
+  const [selectedAccount,  setSelectedAccount]  = useState(null);
 
-  // Checking stored token
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -23,22 +24,40 @@ export default function App() {
     );
   }
 
-  // Step 1: Login with Facebook
+  // Step 1: Facebook login
   if (!longLivedToken) {
     return <LoginPage onLogin={login} isLoading={isLoading} error={error} />;
   }
 
-  // Step 2: Select ad account
-  if (!selectedAccount) {
-    return <AdAccountSelector token={longLivedToken} onSelect={setSelectedAccount} onBack={logout} />;
+  // Step 2: Select Business Portfolio
+  if (!selectedBusiness) {
+    return (
+      <BusinessSelector
+        onSelect={setSelectedBusiness}
+        onBack={logout}
+      />
+    );
   }
 
-  // Step 3: Dashboard
+  // Step 3: Select Ad Account (filtered to selected business)
+  if (!selectedAccount) {
+    return (
+      <AdAccountSelector
+        token={longLivedToken}
+        business={selectedBusiness}
+        onSelect={setSelectedAccount}
+        onBack={() => setSelectedBusiness(null)}
+      />
+    );
+  }
+
+  // Step 4: Dashboard
   return (
     <Dashboard
       token={longLivedToken}
       adAccountId={selectedAccount.id}
-      onLogout={logout}
+      selectedAccount={selectedAccount}
+      onLogout={() => { logout(); setSelectedBusiness(null); setSelectedAccount(null); }}
     />
   );
 }

@@ -75,12 +75,6 @@ const FbLoginModal = ({ onConfirm, onCancel }) => {
                   <p className="text-xs text-blue-700 font-mono">{TEST_EMAIL}</p>
                   <p className="text-xs text-blue-700 font-mono">{TEST_PASSWORD}</p>
                 </div>
-                <button
-                  onClick={() => { setEmail(TEST_EMAIL); setPassword(TEST_PASSWORD); setError(''); }}
-                  className="text-xs text-[#1877F2] font-semibold hover:underline"
-                >
-                  Use test credentials →
-                </button>
               </div>
 
               {error && (

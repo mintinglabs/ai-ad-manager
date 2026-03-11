@@ -5,9 +5,9 @@ const makeId = () => Date.now().toString(36) + Math.random().toString(36).slice(
 
 // ── Mock campaign data ────────────────────────────────────────────────────────
 const MOCK_CAMPAIGNS = [
-  { id: 'c1', name: 'Brand Awareness Q1', status: 'ACTIVE', daily_budget: 5000,  spend: 350, impressions: 42000, clicks: 820,  roas: 1.2 },
-  { id: 'c2', name: 'Lookalike Audience',  status: 'ACTIVE', daily_budget: 8000,  spend: 560, impressions: 61000, clicks: 1540, roas: 3.8 },
-  { id: 'c3', name: 'Retargeting — Cart',  status: 'PAUSED', daily_budget: 3000,  spend: 0,   impressions: 0,     clicks: 0,    roas: 0   },
+  { id: 'c1', name: 'Brand Awareness Q1', status: 'ACTIVE', daily_budget: 5000,  spend: 350.40, impressions: 42180, clicks: 820,  roas: 1.2, cpm: 8.31,  ctr: 1.94 },
+  { id: 'c2', name: 'Lookalike Audience',  status: 'ACTIVE', daily_budget: 8000,  spend: 561.20, impressions: 61340, clicks: 1540, roas: 3.8, cpm: 9.15,  ctr: 2.51 },
+  { id: 'c3', name: 'Retargeting — Cart',  status: 'PAUSED', daily_budget: 3000,  spend: 0,      impressions: 0,     clicks: 0,    roas: 0,   cpm: 0,     ctr: 0    },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -15,14 +15,16 @@ const budgetDollars = (cents) => (cents / 100).toFixed(0);
 const roasBadge     = (r)     => r >= 3 ? '✅' : r >= 2 ? '🟡' : r > 0 ? '⚠️' : '—';
 
 const buildReportTable = (campaigns) => {
-  const columns = ['Campaign', 'Status', 'Spend', 'ROAS', 'Impressions', 'Clicks'];
+  const columns = ['Campaign', 'Status', 'Spend', 'ROAS', 'Impressions', 'Clicks', 'CPM', 'CTR'];
   const rows = campaigns.map((c) => [
     c.name,
     c.status === 'ACTIVE' ? 'Active' : 'Paused',
-    c.spend > 0 ? `$${c.spend.toFixed(0)}` : '$0',
+    c.spend > 0 ? `$${c.spend.toFixed(2)}` : '$0.00',
     c.roas > 0  ? `${c.roas}x ${roasBadge(c.roas)}` : '—',
     c.impressions > 0 ? c.impressions.toLocaleString() : '—',
     c.clicks > 0      ? c.clicks.toLocaleString()      : '—',
+    c.cpm > 0         ? `$${c.cpm.toFixed(2)}`         : '—',
+    c.ctr > 0         ? `${c.ctr.toFixed(2)}%`         : '—',
   ]);
   const totalSpend = campaigns.reduce((s, c) => s + c.spend, 0);
   const activeCampaigns = campaigns.filter((c) => c.roas > 0);
@@ -122,11 +124,19 @@ const WELCOME = {
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 export const useChatAgent = (_opts = {}) => {
-  const [messages,     setMessages]     = useState([WELCOME]);
-  const [isTyping,     setIsTyping]     = useState(false);
-  const [thinkingText, setThinkingText] = useState('');
-  const [campaigns,    setCampaigns]    = useState(MOCK_CAMPAIGNS);
-  const pendingRef = useRef(null);
+  const [messages,      setMessages]      = useState([WELCOME]);
+  const [isTyping,      setIsTyping]      = useState(false);
+  const [thinkingText,  setThinkingText]  = useState('');
+  const [campaigns,     setCampaigns]     = useState(MOCK_CAMPAIGNS);
+  const [notification,  setNotification]  = useState(null);
+  const pendingRef     = useRef(null);
+  const notifTimerRef  = useRef(null);
+
+  const showNotification = useCallback((msg) => {
+    if (notifTimerRef.current) clearTimeout(notifTimerRef.current);
+    setNotification(msg);
+    notifTimerRef.current = setTimeout(() => setNotification(null), 3500);
+  }, []);
 
   const addMsg = useCallback((msgOrRole, text) => {
     const msg = typeof msgOrRole === 'string'
@@ -254,14 +264,17 @@ export const useChatAgent = (_opts = {}) => {
           updatedCampaigns = campaigns.map((c) => c.id === campaign.id ? { ...c, status: 'PAUSED' } : c);
           setCampaigns(updatedCampaigns);
           addMsg('agent', `✅ **${campaign.name}** paused.\nAPI: \`POST /${campaign.id}\` → \`{"status":"PAUSED"}\``);
+          showNotification('Meta API: Campaign successfully updated.');
         } else if (action === 'ENABLE') {
           updatedCampaigns = campaigns.map((c) => c.id === campaign.id ? { ...c, status: 'ACTIVE' } : c);
           setCampaigns(updatedCampaigns);
           addMsg('agent', `✅ **${campaign.name}** is now active.\nAPI: \`POST /${campaign.id}\` → \`{"status":"ACTIVE"}\``);
+          showNotification('Meta API: Campaign successfully updated.');
         } else if (action === 'BUDGET') {
           updatedCampaigns = campaigns.map((c) => c.id === campaign.id ? { ...c, daily_budget: newBudget } : c);
           setCampaigns(updatedCampaigns);
           addMsg('agent', `✅ **${campaign.name}** budget updated to **$${budgetDollars(newBudget)}/day**.\nAPI: \`POST /${campaign.id}\` → \`{"daily_budget":"${newBudget}"}\``);
+          showNotification('Meta API: Campaign successfully updated.');
         }
         // Show refreshed table
         await delay(400);
@@ -340,5 +353,5 @@ export const useChatAgent = (_opts = {}) => {
     setIsTyping(false);
   }, [isTyping, addMsg, think, campaigns]);
 
-  return { messages, isTyping, thinkingText, sendMessage, resetChat };
+  return { messages, isTyping, thinkingText, sendMessage, resetChat, notification };
 };
