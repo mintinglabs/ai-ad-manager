@@ -5,7 +5,7 @@ import * as metaClient from '../services/metaClient.js';
 const router = Router();
 const USE_MOCK = process.env.USE_MOCK_DATA !== 'false';
 
-const getToken = (req) => req.headers.authorization?.replace('Bearer ', '');
+const getToken = () => process.env.META_DEMO_TOKEN;
 
 router.get('/', async (req, res, next) => {
   try {

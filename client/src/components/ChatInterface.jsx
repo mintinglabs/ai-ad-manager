@@ -48,13 +48,119 @@ const QuickReplies = ({ actions, onSend, disabled }) => (
   </div>
 );
 
+// ── Report renderer (Meta-style) ─────────────────────────────────────────────
+const roasColor = (r) => r >= 3 ? 'text-emerald-600' : r >= 2 ? 'text-amber-600' : r > 0 ? 'text-red-500' : 'text-slate-400';
+const truncate = (s, n = 28) => s.length > n ? s.slice(0, n) + '…' : s;
+const fmtUSD = (n) => n > 0 ? `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00';
+const fmtNum = (n) => n > 0 ? n.toLocaleString() : '—';
+
+const SummaryCard = ({ label, value, sub }) => (
+  <div className="flex flex-col gap-0.5 bg-white/60 rounded-xl px-3 py-2.5 flex-1 min-w-0">
+    <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">{label}</p>
+    <p className="text-lg font-bold text-slate-800 leading-tight">{value}</p>
+    {sub && <p className="text-[10px] text-slate-400">{sub}</p>}
+  </div>
+);
+
+const ReportMessage = ({ message, timestamp }) => {
+  const { campaigns = [], insights, adAccountId } = message;
+
+  const totSpend   = insights?.totalSpend   ?? campaigns.reduce((s, c) => s + c.spend, 0);
+  const totImp     = insights?.impressions  ?? campaigns.reduce((s, c) => s + c.impressions, 0);
+  const totClicks  = insights?.clicks       ?? campaigns.reduce((s, c) => s + c.clicks, 0);
+  const avgRoas    = insights?.roas         ?? (() => {
+    const active = campaigns.filter(c => c.roas > 0);
+    return active.length ? active.reduce((s, c) => s + c.roas, 0) / active.length : 0;
+  })();
+
+  return (
+    <div className="flex items-end gap-3 mb-6">
+      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shrink-0 mb-0.5">
+        <Bot size={15} className="text-white" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl rounded-bl-sm overflow-hidden shadow-sm">
+
+          {/* Report header */}
+          <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-slate-800">Campaign Performance Report</p>
+              <p className="text-xs text-slate-400 mt-0.5">Last 7 days · <span className="font-mono">{adAccountId}</span></p>
+            </div>
+            <span className="text-xs bg-blue-50 text-blue-600 border border-blue-100 px-2 py-0.5 rounded font-medium">Meta Ads API</span>
+          </div>
+
+          {/* Summary cards */}
+          <div className="px-3 py-3 flex gap-2 border-b border-slate-200 bg-slate-50/80">
+            <SummaryCard label="Total Spend"   value={fmtUSD(totSpend)}   sub="Last 7 days" />
+            <SummaryCard label="Impressions"   value={fmtNum(totImp)}     sub="Last 7 days" />
+            <SummaryCard label="Clicks"        value={fmtNum(totClicks)}  sub="Last 7 days" />
+            <SummaryCard label="Avg ROAS"      value={avgRoas > 0 ? `${avgRoas.toFixed(1)}x` : '—'} sub="Across campaigns" />
+          </div>
+
+          {/* Campaign table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-slate-100/80 border-b border-slate-200">
+                  <th className="px-4 py-2.5 text-left font-semibold text-slate-600">Campaign</th>
+                  <th className="px-3 py-2.5 text-left font-semibold text-slate-600">Delivery</th>
+                  <th className="px-3 py-2.5 text-right font-semibold text-slate-600">Budget</th>
+                  <th className="px-3 py-2.5 text-right font-semibold text-slate-600">Spend</th>
+                  <th className="px-3 py-2.5 text-right font-semibold text-slate-600">ROAS</th>
+                  <th className="px-3 py-2.5 text-right font-semibold text-slate-600">Impressions</th>
+                  <th className="px-3 py-2.5 text-right font-semibold text-slate-600">Clicks</th>
+                  <th className="px-3 py-2.5 text-right font-semibold text-slate-600">CTR</th>
+                </tr>
+              </thead>
+              <tbody>
+                {campaigns.map((c, i) => (
+                  <tr key={c.id} className={`border-b border-slate-100 last:border-0 ${i % 2 === 1 ? 'bg-white/60' : 'bg-white'}`}>
+                    <td className="px-4 py-2.5 max-w-[180px]">
+                      <p className="font-medium text-slate-800" title={c.name}>{truncate(c.name)}</p>
+                      <p className="text-[10px] text-slate-400 font-mono mt-0.5 truncate">{c.id}</p>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {c.status === 'ACTIVE'
+                        ? <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded-full font-medium text-[10px]"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />Active</span>
+                        : <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded-full font-medium text-[10px]">⏸ Paused</span>
+                      }
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-slate-600">${(c.daily_budget / 100).toFixed(0)}/day</td>
+                    <td className="px-3 py-2.5 text-right font-semibold text-slate-800">{fmtUSD(c.spend)}</td>
+                    <td className={`px-3 py-2.5 text-right font-bold ${roasColor(c.roas)}`}>
+                      {c.roas > 0 ? `${c.roas}x` : '—'}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-slate-600">{fmtNum(c.impressions)}</td>
+                    <td className="px-3 py-2.5 text-right text-slate-600">{fmtNum(c.clicks)}</td>
+                    <td className="px-3 py-2.5 text-right text-slate-500">{c.ctr > 0 ? `${c.ctr.toFixed(2)}%` : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* API source footer */}
+          <div className="px-4 py-2.5 border-t border-slate-100 bg-white/50 flex items-center gap-1.5">
+            <span className="text-slate-300">📡</span>
+            <code className="text-[10px] text-slate-400 font-mono">GET /{adAccountId}/insights</code>
+            <span className="text-slate-300">·</span>
+            <code className="text-[10px] text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded font-mono">ads_read</code>
+            <span className="ml-auto text-[10px] text-slate-400">{fmtTime(timestamp)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Table renderer ────────────────────────────────────────────────────────────
 const TableMessage = ({ message }) => (
   <div className="flex items-end gap-3 mb-2">
     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shrink-0 mb-0.5">
       <Bot size={15} className="text-white" />
     </div>
-    <div className="max-w-[90%] w-full">
+    <div className="max-w-[95%] w-full">
       <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-sm shadow-sm overflow-hidden">
         <table className="w-full text-xs border-collapse">
           <thead>
@@ -87,6 +193,15 @@ const TableMessage = ({ message }) => (
 
 // ── Message bubble ────────────────────────────────────────────────────────────
 const MessageBubble = ({ message, isLatest, onSend, isTyping }) => {
+  if (message.type === 'report') {
+    return (
+      <>
+        <ReportMessage message={message} timestamp={message.timestamp} />
+        <div className="mb-2" />
+      </>
+    );
+  }
+
   if (message.type === 'table') {
     return (
       <>
@@ -134,12 +249,31 @@ const MessageBubble = ({ message, isLatest, onSend, isTyping }) => {
   );
 };
 
+// ── Suggested action chips ────────────────────────────────────────────────────
+const SuggestedActions = ({ actions, onSend, disabled }) => (
+  <div className="px-3 pb-2 flex flex-col gap-1.5">
+    <p className="text-xs text-slate-400 text-center mb-0.5">Quick actions</p>
+    {actions.map(({ label, prompt }) => (
+      <button
+        key={label}
+        onClick={() => onSend(prompt)}
+        disabled={disabled}
+        className="w-full text-left px-3 py-2 rounded-xl text-xs font-medium bg-slate-50 hover:bg-blue-50 hover:text-blue-700 text-slate-600 border border-slate-200 hover:border-blue-200 transition-colors disabled:opacity-40"
+      >
+        {label}
+      </button>
+    ))}
+  </div>
+);
+
 // ── Main component ────────────────────────────────────────────────────────────
-export const ChatInterface = ({ messages, isTyping, thinkingText, onSend }) => {
+export const ChatInterface = ({ messages, isTyping, thinkingText, onSend, suggestedActions = [] }) => {
   const [input, setInput] = useState('');
   const endRef   = useRef(null);
   const inputRef = useRef(null);
   const lastId   = messages[messages.length - 1]?.id;
+  // Show chips only while only the WELCOME message is present
+  const showChips = messages.length === 1 && suggestedActions.length > 0;
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -175,7 +309,13 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, onSend }) => {
         </div>
       </div>
 
-      <div className="shrink-0 border-t border-slate-200 bg-white px-4 py-4">
+      {showChips && (
+        <div className="shrink-0 border-t border-slate-200 bg-white pt-3">
+          <SuggestedActions actions={suggestedActions} onSend={onSend} disabled={isTyping} />
+        </div>
+      )}
+
+      <div className="shrink-0 border-t border-slate-200 bg-white px-4 py-3">
         <div className="max-w-3xl mx-auto flex gap-3 items-end">
           <textarea
             ref={inputRef}
@@ -196,8 +336,8 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, onSend }) => {
             <Send size={16} />
           </button>
         </div>
-        <p className="text-center text-xs text-slate-400 mt-2">
-          AI Ad Manager can make changes to your campaigns. Always review before confirming.
+        <p className="text-center text-xs text-slate-400 mt-1.5">
+          Always review before confirming changes.
         </p>
       </div>
     </div>

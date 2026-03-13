@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import api from '../services/api.js';
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 const makeId = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -54,12 +55,14 @@ const buildManageTable = (campaigns) => {
     actions.push({ label: `💰 Raise Budget: ${bestRoas.name}`, value: `${n} budget`, variant: 'default' });
   }
 
+  const truncate = (s, n = 28) => s.length > n ? s.slice(0, n) + '…' : s;
+
   return {
     role: 'agent', type: 'table',
     columns: ['#', 'Campaign', 'Status', 'Daily Budget'],
     rows: campaigns.map((c, i) => [
       String(i + 1),
-      c.name,
+      truncate(c.name),
       c.status === 'ACTIVE' ? '🟢 Active' : '⏸ Paused',
       `$${budgetDollars(c.daily_budget)}/day`,
     ]),
@@ -99,6 +102,7 @@ const parseIntent = (text, pending) => {
   }
 
   if (pending?.step === 'AUDIENCE_TYPE') {
+    if (/\bcreate\b/.test(t) || t === 'create') return { type: 'AUDIENCE_CREATE_NEW' };
     const num = parseInt(t);
     if (!isNaN(num) && num >= 1 && num <= 3) return { type: 'AUDIENCE_SELECT', num };
     if (/\b(cancel|stop|quit|back)\b/.test(t)) return { type: 'CANCEL' };
@@ -111,6 +115,8 @@ const parseIntent = (text, pending) => {
 
   if (/\b(report|performance|stats|summary|results|metrics|spend|this week)\b/.test(t)) return { type: 'REPORT' };
   if (/\b(manage|status|pause|stop|enable|resume|budget|adjust|on|off)\b/.test(t))      return { type: 'MANAGE' };
+  if (/\b(page|pages|page insight|engagement|fan|followers|fanpage)\b/.test(t))         return { type: 'PAGES' };
+  if (/\b(business|portfolio|business portfolio|business manager|bm)\b/.test(t))        return { type: 'BUSINESSES' };
   if (/\b(audience|custom audience|create audience|lookalike|retarget)\b/.test(t))      return { type: 'AUDIENCE' };
 
   return { type: 'UNKNOWN' };
@@ -123,14 +129,56 @@ const WELCOME = {
 };
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
-export const useChatAgent = (_opts = {}) => {
-  const [messages,      setMessages]      = useState([WELCOME]);
-  const [isTyping,      setIsTyping]      = useState(false);
-  const [thinkingText,  setThinkingText]  = useState('');
-  const [campaigns,     setCampaigns]     = useState(MOCK_CAMPAIGNS);
-  const [notification,  setNotification]  = useState(null);
+export const useChatAgent = ({ token, adAccountId } = {}) => {
+  const [messages,           setMessages]           = useState([WELCOME]);
+  const [isTyping,           setIsTyping]           = useState(false);
+  const [thinkingText,       setThinkingText]       = useState('');
+  const [campaigns,          setCampaigns]          = useState([]);
+  const [insights,           setInsights]           = useState(null);
+  const [pages,              setPages]              = useState([]);
+  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(false);
+  const [notification,       setNotification]       = useState(null);
   const pendingRef     = useRef(null);
   const notifTimerRef  = useRef(null);
+
+  // Fetch campaigns + account-level insights when ad account changes
+  useEffect(() => {
+    if (!adAccountId) return;
+    setIsLoadingCampaigns(true);
+    api.get('/campaigns', { params: { adAccountId } })
+      .then(({ data }) => {
+        if (!data || data.length === 0) return;
+        const normalized = data.map(c => {
+          const ins = c.insights?.data?.[0] || {};
+          const spend = parseFloat(ins.spend || 0);
+          const revenue = parseFloat(ins.action_values?.find(a => a.action_type === 'purchase')?.value || 0);
+          return {
+            id:           c.id,
+            name:         c.name,
+            status:       c.status,
+            daily_budget: parseInt(c.daily_budget || 0),
+            spend,
+            impressions:  parseInt(ins.impressions || 0),
+            clicks:       parseInt(ins.clicks || 0),
+            roas:         spend > 0 ? parseFloat((revenue / spend).toFixed(1)) : 0,
+            cpm:          parseFloat(ins.cpm || 0),
+            ctr:          parseFloat(ins.ctr || 0),
+          };
+        });
+        setCampaigns(normalized);
+      })
+      .catch((err) => console.error('[useChatAgent] campaigns fetch failed:', err?.response?.data || err?.message))
+      .finally(() => setIsLoadingCampaigns(false));
+  }, [adAccountId]);
+
+  // Fetch account-level insights (metric cards)
+  useEffect(() => {
+    if (!adAccountId) return;
+    setInsights(null);
+    api.get('/insights', { params: { adAccountId } })
+      .then(({ data }) => setInsights(data))
+      .catch((err) => console.error('[useChatAgent] insights fetch failed:', err?.response?.data || err?.message));
+  }, [adAccountId]);
 
   const showNotification = useCallback((msg) => {
     if (notifTimerRef.current) clearTimeout(notifTimerRef.current);
@@ -155,7 +203,6 @@ export const useChatAgent = (_opts = {}) => {
     setMessages([WELCOME]);
     setIsTyping(false);
     setThinkingText('');
-    setCampaigns(MOCK_CAMPAIGNS);
     pendingRef.current = null;
   }, []);
 
@@ -292,6 +339,21 @@ export const useChatAgent = (_opts = {}) => {
         return;
       }
 
+      // ── Audience: show create options after list ──────────────────────────
+      if (intent.type === 'AUDIENCE_CREATE_NEW' && pendingRef.current?.step === 'AUDIENCE_TYPE') {
+        addMsg({ role: 'agent',
+          text: "Which type of custom audience would you like to create?",
+          actions: [
+            { label: '🌐 Website Visitors',  value: '1', variant: 'default' },
+            { label: '📋 Customer List',      value: '2', variant: 'default' },
+            { label: '▶️ Video Engagement',   value: '3', variant: 'default' },
+          ],
+        });
+        pendingRef.current = { step: 'AUDIENCE_TYPE' };
+        setIsTyping(false);
+        return;
+      }
+
       // ── Audience type selection ───────────────────────────────────────────
       if (intent.type === 'AUDIENCE_SELECT' && pendingRef.current?.step === 'AUDIENCE_TYPE') {
         const types = ['Website Visitors (Pixel)', 'Customer List (Upload)', 'Video Engagement'];
@@ -320,38 +382,117 @@ export const useChatAgent = (_opts = {}) => {
 
       // ── REPORT ────────────────────────────────────────────────────────────
       if (intent.type === 'REPORT') {
-        await think('Calling Meta Ads API — GET /insights…', 1200);
-        addMsg(buildReportTable(campaigns));
+        await think(`Calling Meta Ads API — GET /${adAccountId}/insights…`, 1200);
+        if (campaigns.length === 0) {
+          addMsg('agent', `No campaigns found for this ad account in the last 7 days.\n\n\`GET /${adAccountId}/insights\` — \`ads_read\``);
+        } else {
+          addMsg({ role: 'agent', type: 'report', campaigns, insights, adAccountId });
+        }
 
       // ── MANAGE (on/off + budget) ───────────────────────────────────────────
       } else if (intent.type === 'MANAGE') {
-        await think('Fetching campaigns from Meta Ads API…', 1000);
-        addMsg({ ...buildManageTable(campaigns), summary: 'Tap an action button below, or type e.g. "1 pause" or "2 budget $100"' });
-        pendingRef.current = { step: 'AWAITING_SELECTION', options: campaigns };
+        await think(`Fetching campaigns — GET /${adAccountId}/campaigns…`, 1000);
+        if (campaigns.length === 0) {
+          addMsg('agent', `No campaigns found for this ad account.\n\n\`GET /${adAccountId}/campaigns\` — \`ads_management\``);
+        } else {
+          addMsg({
+            ...buildManageTable(campaigns),
+            summary: `📡 \`GET /${adAccountId}/campaigns\` · \`ads_management\` · Tap an action or type e.g. "1 pause"`,
+          });
+          pendingRef.current = { step: 'AWAITING_SELECTION', options: campaigns };
+        }
+
+      // ── PAGES (pages_read_engagement) ─────────────────────────────────────
+      } else if (intent.type === 'PAGES') {
+        await think('Calling Meta Graph API — GET /me/accounts…', 1200);
+        try {
+          const { data: pagesData } = await api.get('/meta/pages');
+          if (!pagesData || pagesData.length === 0) {
+            addMsg('agent', 'No Facebook Pages found for this account.\n\n`GET /me/accounts` — `pages_read_engagement`');
+          } else {
+            setPages(pagesData);
+            addMsg('agent', `**${pagesData.length} Page${pagesData.length !== 1 ? 's' : ''}** loaded — see the data panel on the left.\n\n\`GET /me/accounts\` · \`pages_read_engagement\``);
+          }
+        } catch {
+          addMsg('agent', 'Could not fetch pages. Please check your permissions.');
+        }
+
+      // ── BUSINESSES (business_management) ──────────────────────────────────
+      } else if (intent.type === 'BUSINESSES') {
+        await think('Calling Meta Graph API — GET /me/businesses…', 1200);
+        try {
+          const { data: businesses } = await api.get('/meta/businesses');
+          if (!businesses || businesses.length === 0) {
+            addMsg('agent', 'No Business Manager portfolios found.\n\n`GET /me/businesses` — `business_management`');
+          } else {
+            const columns = ['Business Name', 'Business ID', 'Verified'];
+            const rows = businesses.map(b => [
+              b.name,
+              b.id,
+              b.verification_status === 'verified' ? '✅ Verified' : b.verification_status || '—',
+            ]);
+            addMsg({
+              role: 'agent', type: 'table', columns, rows,
+              summary: `📡 \`GET /me/businesses\` · \`business_management\` · ${businesses.length} Business Portfolio${businesses.length !== 1 ? 's' : ''} connected`,
+            });
+          }
+        } catch {
+          addMsg('agent', 'Could not fetch business portfolios. Please check your permissions.');
+        }
 
       // ── AUDIENCE ──────────────────────────────────────────────────────────
       } else if (intent.type === 'AUDIENCE') {
-        await think('Connecting to Meta Custom Audiences API…', 1000);
-        addMsg({ role: 'agent',
-          text: "I can create a custom audience for you via the Meta Ads API.\n\nWhich type would you like?",
-          actions: [
-            { label: '🌐 Website Visitors',  value: '1', variant: 'default' },
-            { label: '📋 Customer List',      value: '2', variant: 'default' },
-            { label: '▶️ Video Engagement',   value: '3', variant: 'default' },
-          ],
-        });
-        pendingRef.current = { step: 'AUDIENCE_TYPE' };
+        await think(`Fetching custom audiences — GET /act_${adAccountId}/customaudiences…`, 1200);
+        try {
+          const { data: existingAudiences } = await api.get('/meta/customaudiences', { params: { adAccountId } });
+          if (existingAudiences && existingAudiences.length > 0) {
+            const columns = ['Audience Name', 'Type', 'Size', 'Description'];
+            const rows = existingAudiences.map(a => [
+              a.name,
+              a.subtype || a.type || '—',
+              a.approximate_count != null ? (a.approximate_count < 0 ? '<1,000' : Number(a.approximate_count).toLocaleString()) : '—',
+              a.description || '—',
+            ]);
+            addMsg({
+              role: 'agent', type: 'table', columns, rows,
+              summary: `📡 \`GET /act_${adAccountId}/customaudiences\` · \`ads_management\` · ${existingAudiences.length} audience${existingAudiences.length !== 1 ? 's' : ''} found`,
+              actions: [{ label: '➕ Create New Audience', value: 'create', variant: 'confirm' }],
+            });
+            pendingRef.current = { step: 'AUDIENCE_TYPE', showedList: true };
+          } else {
+            addMsg({ role: 'agent',
+              text: `No existing custom audiences found.\n\n\`GET /act_${adAccountId}/customaudiences\` · \`ads_management\`\n\nWhich type would you like to create?`,
+              actions: [
+                { label: '🌐 Website Visitors',  value: '1', variant: 'default' },
+                { label: '📋 Customer List',      value: '2', variant: 'default' },
+                { label: '▶️ Video Engagement',   value: '3', variant: 'default' },
+              ],
+            });
+            pendingRef.current = { step: 'AUDIENCE_TYPE' };
+          }
+        } catch {
+          // Fallback if API fails
+          addMsg({ role: 'agent',
+            text: "I can create a custom audience for you via the Meta Ads API.\n\nWhich type would you like?",
+            actions: [
+              { label: '🌐 Website Visitors',  value: '1', variant: 'default' },
+              { label: '📋 Customer List',      value: '2', variant: 'default' },
+              { label: '▶️ Video Engagement',   value: '3', variant: 'default' },
+            ],
+          });
+          pendingRef.current = { step: 'AUDIENCE_TYPE' };
+        }
 
       // ── UNKNOWN ───────────────────────────────────────────────────────────
       } else {
-        addMsg('agent', "I can help you with:\n• **Campaign Report** — this week's performance\n• **On/Off & Budget** — pause, enable or adjust budget\n• **Custom Audience** — create a new audience via Meta API\n\nWhat would you like to do?");
+        addMsg('agent', "I can help you with:\n• **Campaign Report** — live spend, ROAS, impressions (`ads_read`)\n• **Manage Campaigns** — pause, enable, adjust budget (`ads_management`)\n• **Page Insights** — follower counts & engagement (`pages_read_engagement`)\n• **Business Portfolio** — view connected BM accounts (`business_management`)\n• **Custom Audience** — create audiences via Meta API\n\nWhat would you like to do?");
       }
     } catch (err) {
       addMsg('agent', `Sorry, something went wrong: ${err.message}`);
     }
 
     setIsTyping(false);
-  }, [isTyping, addMsg, think, campaigns]);
+  }, [isTyping, addMsg, think, campaigns, adAccountId]);
 
-  return { messages, isTyping, thinkingText, sendMessage, resetChat, notification };
+  return { messages, isTyping, thinkingText, sendMessage, resetChat, notification, campaigns, insights, pages, isLoadingCampaigns };
 };

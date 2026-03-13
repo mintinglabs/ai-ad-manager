@@ -33,6 +33,42 @@ export const getInsights = async (token, adAccountId, datePreset = 'last_7d') =>
   return data.data[0] || {};
 };
 
+export const getAdAccounts = async (token) => {
+  const { data } = await metaApi.get('/me/adaccounts', {
+    params: {
+      access_token: token,
+      fields: 'id,name,account_id,account_status,currency,business',
+      limit: 100
+    }
+  });
+  return data.data;
+};
+
+export const getBusinesses = async (token) => {
+  const { data } = await metaApi.get('/me/businesses', {
+    params: { access_token: token, fields: 'id,name,verification_status' }
+  });
+  return data.data;
+};
+
+export const getPages = async (token) => {
+  const { data } = await metaApi.get('/me/accounts', {
+    params: { access_token: token, fields: 'id,name,engagement,fan_count,category' }
+  });
+  return data.data;
+};
+
+export const getCustomAudiences = async (token, adAccountId) => {
+  const { data } = await metaApi.get(`/${adAccountId}/customaudiences`, {
+    params: {
+      access_token: token,
+      fields: 'id,name,subtype,approximate_count,description',
+      limit: 50,
+    }
+  });
+  return data.data;
+};
+
 export const exchangeToken = async (shortLivedToken) => {
   const { data } = await metaApi.get('/oauth/access_token', {
     params: {

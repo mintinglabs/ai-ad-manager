@@ -1,20 +1,30 @@
 import { useState } from 'react';
+import { login as fbLogin } from '../services/facebookSdk.js';
 
-const TOKEN_KEY = 'fb_mock_token';
+const TOKEN_KEY = 'fb_long_lived_token';
 
 export const useAuth = () => {
   const [longLivedToken, setLongLivedToken] = useState(
     () => localStorage.getItem(TOKEN_KEY)
   );
-  const [isLoading] = useState(false);
-  const [error,     setError]     = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const login = () => {
-    // Mock login — no real FB SDK or server needed
-    const token = 'mock-token';
-    localStorage.setItem(TOKEN_KEY, token);
-    setLongLivedToken(token);
+  const login = async () => {
+    setIsLoading(true);
     setError(null);
+    localStorage.removeItem(TOKEN_KEY);
+    setLongLivedToken(null);
+    try {
+      const authResponse = await fbLogin();
+      const token = authResponse.accessToken;
+      localStorage.setItem(TOKEN_KEY, token);
+      setLongLivedToken(token);
+    } catch (err) {
+      setError(err.message || 'Facebook login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const logout = () => {

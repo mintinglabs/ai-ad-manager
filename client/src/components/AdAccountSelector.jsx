@@ -27,7 +27,6 @@ export const AdAccountSelector = ({ token, business, onSelect, onBack }) => {
     return () => clearTimeout(t);
   }, []);
 
-  // Filter to the selected business
   const accounts = adAccounts.filter((a) => a.business_id === business?.id);
 
   return (

@@ -15,7 +15,7 @@ const getBusinesses = (accounts) => {
 };
 
 export const BusinessSelector = ({ onSelect, onBack }) => {
-  const { adAccounts } = useAdAccounts(null);
+  const { adAccounts, isLoading } = useAdAccounts(null);
   const [connecting, setConnecting] = useState(null);
   const businesses = getBusinesses(adAccounts);
 
@@ -53,7 +53,16 @@ export const BusinessSelector = ({ onSelect, onBack }) => {
             </p>
           </div>
 
-          {connecting ? (
+          {isLoading ? (
+            <div className="flex flex-col items-center gap-3 py-16">
+              <svg className="animate-spin h-6 w-6 text-blue-500" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+              <p className="text-sm text-slate-500 font-medium">Loading Business Portfolios…</p>
+              <p className="text-xs text-slate-400 font-mono">GET /me/adaccounts · business_management</p>
+            </div>
+          ) : connecting ? (
             <div className="flex flex-col items-center gap-3 py-16">
               <svg className="animate-spin h-8 w-8 text-blue-500" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -61,6 +70,11 @@ export const BusinessSelector = ({ onSelect, onBack }) => {
               </svg>
               <p className="text-sm text-slate-600 font-medium">Loading Business Portfolio…</p>
               <p className="text-xs text-slate-400">Fetching ad accounts via Meta Graph API</p>
+            </div>
+          ) : businesses.length === 0 ? (
+            <div className="text-center py-12 text-slate-400">
+              <p className="text-sm">No Business Portfolios found for this account.</p>
+              <p className="text-xs mt-1">Make sure you have Business Manager access.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -96,10 +110,16 @@ export const BusinessSelector = ({ onSelect, onBack }) => {
           )}
 
           {/* Permissions footer */}
-          <div className="mt-8 flex items-center justify-center gap-2 flex-wrap">
-            {['ads_read', 'ads_management', 'business_management'].map((p) => (
-              <code key={p} className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono">{p}</code>
-            ))}
+          <div className="mt-8 flex flex-col items-center gap-2">
+            <p className="text-xs text-slate-400">Data fetched via <code className="bg-slate-100 px-1 rounded font-mono">GET /me/adaccounts</code> · <code className="bg-slate-100 px-1 rounded font-mono">business_management</code></p>
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              {['ads_read', 'ads_management', 'business_management'].map((p) => (
+                <span key={p} className="inline-flex items-center gap-1 text-xs bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-0.5 rounded-full font-mono">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  {p}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </main>
