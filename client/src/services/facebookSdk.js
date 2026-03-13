@@ -7,32 +7,30 @@ export const initFacebookSdk = () => {
   if (_initPromise) return _initPromise;
 
   _initPromise = new Promise((resolve) => {
-    window.fbAsyncInit = function () {
-      window.FB.init({
-        appId: FB_APP_ID,
-        cookie: true,
-        xfbml: false,
-        version: 'v25.0'
-      });
+    const doInit = () => {
+      window.FB.init({ appId: FB_APP_ID, cookie: true, xfbml: false, version: 'v25.0' });
       resolve();
     };
 
+    // Case 1: SDK already loaded (SPA re-init, or browser extension pre-loaded it)
+    if (window.FB) return doInit();
+
+    // Case 2: Script already injected but still loading — poll for window.FB
     if (document.getElementById('facebook-jssdk')) {
-      // Script already in DOM — fbAsyncInit already fired from our previous call.
-      // window.FB existing means FB.init() ran (we set fbAsyncInit before adding the script).
-      const waitForFB = (attempt = 0) => {
-        if (window.FB) return resolve();
-        if (attempt > 20) return resolve();
-        setTimeout(() => waitForFB(attempt + 1), 100);
+      const wait = (n = 0) => {
+        if (window.FB) return doInit(); // FB.init() is called here too — not just resolve()
+        if (n > 50) return resolve();   // 5s fallback
+        setTimeout(() => wait(n + 1), 100);
       };
-      return waitForFB();
+      return wait();
     }
 
+    // Case 3: Fresh load — inject script, call FB.init() in onload
     const script = document.createElement('script');
     script.id = 'facebook-jssdk';
     script.src = 'https://connect.facebook.net/en_US/sdk.js';
     script.async = true;
-    script.defer = true;
+    script.onload = doInit;
     document.body.appendChild(script);
   });
 
