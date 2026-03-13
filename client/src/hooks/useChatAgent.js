@@ -481,23 +481,73 @@ export const useChatAgent = ({ token, adAccountId, selectedAccount } = {}) => {
       // ── REPORT ────────────────────────────────────────────────────────────
       if (intent.type === 'REPORT') {
         await think(`Calling Meta Ads API — GET /${adAccountId}/insights…`, 1200);
-        if (campaigns.length === 0) {
-          addMsg('agent', `No campaigns found for this ad account in the last 7 days.\n\n\`GET /${adAccountId}/insights\` — \`ads_read\``);
-        } else {
-          addMsg({ role: 'agent', type: 'report', campaigns, insights, adAccountId });
+        try {
+          const [{ data: rawCampaigns }, { data: freshInsights }] = await Promise.all([
+            api.get('/campaigns', { params: { adAccountId } }),
+            api.get('/insights',  { params: { adAccountId } }),
+          ]);
+          const normalized = Array.isArray(rawCampaigns) ? rawCampaigns.map(c => {
+            const ins = c.insights?.data?.[0] || {};
+            const spend   = parseFloat(ins.spend || 0);
+            const revenue = parseFloat(ins.action_values?.find(a => a.action_type === 'purchase')?.value || 0);
+            return {
+              id:           c.id,
+              name:         c.name,
+              status:       c.status,
+              daily_budget: parseInt(c.daily_budget || 0),
+              spend,
+              impressions:  parseInt(ins.impressions || 0),
+              clicks:       parseInt(ins.clicks || 0),
+              roas:         spend > 0 ? parseFloat((revenue / spend).toFixed(1)) : 0,
+              cpm:          parseFloat(ins.cpm || 0),
+              ctr:          parseFloat(ins.ctr || 0),
+            };
+          }) : [];
+          if (normalized.length > 0) setCampaigns(normalized);
+          if (freshInsights) setInsights(freshInsights);
+          if (normalized.length === 0) {
+            addMsg('agent', `No campaigns found for this ad account in the last 7 days.\n\n\`GET /${adAccountId}/insights\` — \`ads_read\``);
+          } else {
+            addMsg({ role: 'agent', type: 'report', campaigns: normalized, insights: freshInsights, adAccountId });
+          }
+        } catch {
+          addMsg('agent', `Failed to load campaign data.\n\n\`GET /${adAccountId}/insights\` — \`ads_read\``);
         }
 
       // ── MANAGE (on/off + budget) ───────────────────────────────────────────
       } else if (intent.type === 'MANAGE') {
         await think(`Fetching campaigns — GET /${adAccountId}/campaigns…`, 1000);
-        if (campaigns.length === 0) {
-          addMsg('agent', `No campaigns found for this ad account.\n\n\`GET /${adAccountId}/campaigns\` — \`ads_management\``);
-        } else {
-          addMsg({
-            ...buildManageTable(campaigns),
-            summary: `📡 \`GET /${adAccountId}/campaigns\` · \`ads_management\` · Tap an action or type e.g. "1 pause"`,
-          });
-          pendingRef.current = { step: 'AWAITING_SELECTION', options: campaigns };
+        try {
+          const { data: rawCampaigns } = await api.get('/campaigns', { params: { adAccountId } });
+          const normalized = Array.isArray(rawCampaigns) ? rawCampaigns.map(c => {
+            const ins = c.insights?.data?.[0] || {};
+            const spend   = parseFloat(ins.spend || 0);
+            const revenue = parseFloat(ins.action_values?.find(a => a.action_type === 'purchase')?.value || 0);
+            return {
+              id:           c.id,
+              name:         c.name,
+              status:       c.status,
+              daily_budget: parseInt(c.daily_budget || 0),
+              spend,
+              impressions:  parseInt(ins.impressions || 0),
+              clicks:       parseInt(ins.clicks || 0),
+              roas:         spend > 0 ? parseFloat((revenue / spend).toFixed(1)) : 0,
+              cpm:          parseFloat(ins.cpm || 0),
+              ctr:          parseFloat(ins.ctr || 0),
+            };
+          }) : [];
+          if (normalized.length > 0) setCampaigns(normalized);
+          if (normalized.length === 0) {
+            addMsg('agent', `No campaigns found for this ad account.\n\n\`GET /${adAccountId}/campaigns\` — \`ads_management\``);
+          } else {
+            addMsg({
+              ...buildManageTable(normalized),
+              summary: `📡 \`GET /${adAccountId}/campaigns\` · \`ads_management\` · Tap an action or type e.g. "1 pause"`,
+            });
+            pendingRef.current = { step: 'AWAITING_SELECTION', options: normalized };
+          }
+        } catch {
+          addMsg('agent', `Failed to load campaigns.\n\n\`GET /${adAccountId}/campaigns\` — \`ads_management\``);
         }
 
       // ── PAGES (pages_read_engagement) ─────────────────────────────────────
