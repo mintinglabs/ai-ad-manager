@@ -15,9 +15,9 @@ const getBusinesses = (accounts) => {
 };
 
 export const BusinessSelector = ({ onSelect, onBack }) => {
-  const { adAccounts, isLoading } = useAdAccounts(null);
+  const { adAccounts, isLoading, error } = useAdAccounts(null);
   const [connecting, setConnecting] = useState(null);
-  const businesses = getBusinesses(adAccounts);
+  const businesses = getBusinesses(Array.isArray(adAccounts) ? adAccounts : []);
 
   const handleSelect = (biz) => {
     setConnecting(biz);
@@ -70,6 +70,11 @@ export const BusinessSelector = ({ onSelect, onBack }) => {
               </svg>
               <p className="text-sm text-slate-600 font-medium">Loading Business Portfolio…</p>
               <p className="text-xs text-slate-400">Fetching ad accounts via Meta Graph API</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-12">
+              <p className="text-sm font-medium text-red-500">Data Load Error</p>
+              <p className="text-xs text-slate-400 mt-1">{error}</p>
             </div>
           ) : businesses.length === 0 ? (
             <div className="text-center py-12 text-slate-400">

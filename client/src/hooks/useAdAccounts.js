@@ -8,8 +8,8 @@ export const useAdAccounts = (_token) => {
 
   useEffect(() => {
     api.get('/meta/adaccounts')
-      .then(({ data }) => { setAdAccounts(data || []); setError(null); })
-      .catch(err => setError(err.message))
+      .then(({ data }) => { setAdAccounts(Array.isArray(data) ? data : []); setError(null); })
+      .catch(err => { setAdAccounts([]); setError(err.message || 'Data load error'); })
       .finally(() => setIsLoading(false));
   }, []);
 

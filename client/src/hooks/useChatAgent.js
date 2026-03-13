@@ -147,7 +147,7 @@ export const useChatAgent = ({ token, adAccountId } = {}) => {
     setIsLoadingCampaigns(true);
     api.get('/campaigns', { params: { adAccountId } })
       .then(({ data }) => {
-        if (!data || data.length === 0) return;
+        if (!Array.isArray(data) || data.length === 0) return;
         const normalized = data.map(c => {
           const ins = c.insights?.data?.[0] || {};
           const spend = parseFloat(ins.spend || 0);

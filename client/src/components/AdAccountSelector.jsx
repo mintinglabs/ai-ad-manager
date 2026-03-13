@@ -17,7 +17,7 @@ const StatusChip = ({ code }) => {
 };
 
 export const AdAccountSelector = ({ token, business, onSelect, onBack }) => {
-  const { adAccounts } = useAdAccounts(token);
+  const { adAccounts, error } = useAdAccounts(token);
   const [fetching,    setFetching]    = useState(true);
   const [connecting,  setConnecting]  = useState(null);
 
@@ -27,7 +27,7 @@ export const AdAccountSelector = ({ token, business, onSelect, onBack }) => {
     return () => clearTimeout(t);
   }, []);
 
-  const accounts = adAccounts.filter((a) => a.business_id === business?.id);
+  const accounts = (Array.isArray(adAccounts) ? adAccounts : []).filter((a) => a.business_id === business?.id);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -119,7 +119,14 @@ export const AdAccountSelector = ({ token, business, onSelect, onBack }) => {
             </div>
           )}
 
-          {!fetching && !connecting && accounts.length === 0 && (
+          {!fetching && !connecting && error && (
+            <div className="text-center py-12">
+              <p className="text-sm font-medium text-red-500">Data Load Error</p>
+              <p className="text-xs text-slate-400 mt-1">{error}</p>
+            </div>
+          )}
+
+          {!fetching && !connecting && !error && accounts.length === 0 && (
             <div className="text-center py-12 text-slate-400">
               <p className="text-sm">No ad accounts found for this Business Portfolio.</p>
             </div>
