@@ -18,6 +18,7 @@ export const useAuth = () => {
     try {
       const authResponse = await fbLogin();
       const token = authResponse.accessToken;
+      if (!token) throw new Error('No access token returned from Facebook login.');
       localStorage.setItem(TOKEN_KEY, token);
       setLongLivedToken(token);
     } catch (err) {

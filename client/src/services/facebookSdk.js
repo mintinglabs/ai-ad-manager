@@ -46,7 +46,7 @@ export const login = () =>
       },
       {
         config_id:     FB_CONFIG_ID,
-        response_type: 'code',
+        response_type: 'token',
       }
     );
   });
