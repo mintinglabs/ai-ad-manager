@@ -6,32 +6,29 @@ let _initPromise = null;
 export const initFacebookSdk = () => {
   if (_initPromise) return _initPromise;
 
-  _initPromise = new Promise((resolve) => {
-    const doInit = () => {
+  _initPromise = new Promise((resolve, reject) => {
+    // Case 1: SDK already available (extension pre-loaded it, SPA re-mount, etc.)
+    if (window.FB) {
+      window.FB.init({ appId: FB_APP_ID, cookie: true, xfbml: false, version: 'v25.0' });
+      return resolve();
+    }
+
+    // Set fbAsyncInit BEFORE injecting the script — the SDK calls this when truly ready
+    window.fbAsyncInit = () => {
       window.FB.init({ appId: FB_APP_ID, cookie: true, xfbml: false, version: 'v25.0' });
       resolve();
     };
 
-    // Case 1: SDK already loaded (SPA re-init, or browser extension pre-loaded it)
-    if (window.FB) return doInit();
-
-    // Case 2: Script already injected but still loading — poll for window.FB
-    if (document.getElementById('facebook-jssdk')) {
-      const wait = (n = 0) => {
-        if (window.FB) return doInit(); // FB.init() is called here too — not just resolve()
-        if (n > 50) return resolve();   // 5s fallback
-        setTimeout(() => wait(n + 1), 100);
-      };
-      return wait();
+    // Inject script only if not already in DOM
+    if (!document.getElementById('facebook-jssdk')) {
+      const script = document.createElement('script');
+      script.id = 'facebook-jssdk';
+      script.src = 'https://connect.facebook.net/en_US/sdk.js';
+      script.async = true;
+      script.onerror = () => reject(new Error('Failed to load Facebook SDK'));
+      document.body.appendChild(script);
     }
-
-    // Case 3: Fresh load — inject script, call FB.init() in onload
-    const script = document.createElement('script');
-    script.id = 'facebook-jssdk';
-    script.src = 'https://connect.facebook.net/en_US/sdk.js';
-    script.async = true;
-    script.onload = doInit;
-    document.body.appendChild(script);
+    // If script already injected and still loading, fbAsyncInit will fire when SDK is ready
   });
 
   return _initPromise;
