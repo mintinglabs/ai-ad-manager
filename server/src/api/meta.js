@@ -3,7 +3,11 @@ import { getAdAccounts, getBusinesses, getPages, getCustomAudiences } from '../s
 
 const router = Router();
 
-const getToken = () => process.env.META_DEMO_TOKEN;
+const getToken = (req) => {
+  const auth = req.headers?.authorization;
+  if (auth && auth.startsWith('Bearer ')) return auth.slice(7);
+  return process.env.META_DEMO_TOKEN;
+};
 
 // Triggers: ads_read — returns ad accounts with business info
 router.get('/adaccounts', async (req, res, next) => {

@@ -3,14 +3,15 @@ import { aggregateMetrics } from '../services/mockData.js';
 import * as metaClient from '../services/metaClient.js';
 
 const router = Router();
-const USE_MOCK = process.env.USE_MOCK_DATA !== 'false';
+const USE_MOCK = process.env.USE_MOCK_DATA === 'true';
 
 router.get('/', async (req, res, next) => {
   try {
     if (USE_MOCK) {
       return res.json(aggregateMetrics);
     }
-    const token = process.env.META_DEMO_TOKEN;
+    const auth = req.headers?.authorization;
+    const token = (auth && auth.startsWith('Bearer ')) ? auth.slice(7) : process.env.META_DEMO_TOKEN;
     const adAccountId = req.query.adAccountId || process.env.AD_ACCOUNT_ID;
     const datePreset = req.query.date_preset || 'last_7d';
     const raw = await metaClient.getInsights(token, adAccountId, datePreset);
