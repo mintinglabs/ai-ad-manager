@@ -1,14 +1,12 @@
 const FB_APP_ID    = import.meta.env.VITE_FB_APP_ID;
 const FB_CONFIG_ID = import.meta.env.VITE_FB_CONFIG_ID;
 
-// Track whether FB.init() has been called in this session
-let fbInitialized = false;
+let _initPromise = null;
 
-export const initFacebookSdk = () =>
-  new Promise((resolve) => {
-    // Already initialized — safe to proceed
-    if (fbInitialized) return resolve();
+export const initFacebookSdk = () => {
+  if (_initPromise) return _initPromise;
 
+  _initPromise = new Promise((resolve) => {
     window.fbAsyncInit = function () {
       window.FB.init({
         appId: FB_APP_ID,
@@ -16,19 +14,18 @@ export const initFacebookSdk = () =>
         xfbml: false,
         version: 'v25.0'
       });
-      fbInitialized = true;
       resolve();
     };
 
     if (document.getElementById('facebook-jssdk')) {
-      // Script already in DOM — wait for fbAsyncInit to fire (not just window.FB to exist)
-      // window.FB can exist before fbAsyncInit fires, so we wait for fbInitialized
-      const waitForInit = (attempt = 0) => {
-        if (fbInitialized) return;          // fbAsyncInit fired, already resolved
-        if (attempt > 40) return resolve(); // give up after ~4s
-        setTimeout(() => waitForInit(attempt + 1), 100);
+      // Script already in DOM — fbAsyncInit already fired from our previous call.
+      // window.FB existing means FB.init() ran (we set fbAsyncInit before adding the script).
+      const waitForFB = (attempt = 0) => {
+        if (window.FB) return resolve();
+        if (attempt > 20) return resolve();
+        setTimeout(() => waitForFB(attempt + 1), 100);
       };
-      return waitForInit();
+      return waitForFB();
     }
 
     const script = document.createElement('script');
@@ -39,30 +36,33 @@ export const initFacebookSdk = () =>
     document.body.appendChild(script);
   });
 
+  return _initPromise;
+};
+
 export const login = () =>
   new Promise((resolve, reject) => {
-    if (!window.FB) {
-      return reject(new Error('Facebook SDK not loaded. Please refresh and try again.'));
-    }
-
-    const timeout = setTimeout(() => {
-      reject(new Error('Facebook login timed out. Please try again.'));
-    }, 30000);
-
-    window.FB.login(
-      (response) => {
-        clearTimeout(timeout);
-        if (response.authResponse) {
-          resolve(response.authResponse);
-        } else {
-          reject(new Error(`Facebook login failed (status: ${response.status})`));
-        }
-      },
-      {
-        config_id:     FB_CONFIG_ID,
-        response_type: 'token',
+    initFacebookSdk().then(() => {
+      if (!window.FB) {
+        return reject(new Error('Facebook SDK not loaded. Please refresh and try again.'));
       }
-    );
+      const timeout = setTimeout(() => {
+        reject(new Error('Facebook login timed out. Please try again.'));
+      }, 30000);
+      window.FB.login(
+        (response) => {
+          clearTimeout(timeout);
+          if (response.authResponse) {
+            resolve(response.authResponse);
+          } else {
+            reject(new Error(`Facebook login failed (status: ${response.status})`));
+          }
+        },
+        {
+          config_id:     FB_CONFIG_ID,
+          response_type: 'token',
+        }
+      );
+    });
   });
 
 export const getLoginStatus = () =>
