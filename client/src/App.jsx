@@ -1,4 +1,21 @@
-import { useState } from 'react';
+import { useState, Component } from 'react';
+
+class ErrorBoundary extends Component {
+  state = { error: null };
+  static getDerivedStateFromError(e) { return { error: e }; }
+  render() {
+    if (this.state.error) return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-8">
+        <div className="bg-white border border-red-200 rounded-2xl p-6 max-w-md w-full text-center">
+          <p className="text-sm font-semibold text-red-600 mb-2">Something went wrong loading the dashboard</p>
+          <p className="text-xs text-slate-500 font-mono break-all mb-4">{this.state.error.message}</p>
+          <button onClick={() => this.setState({ error: null })} className="text-xs text-blue-600 underline">Try again</button>
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
+}
 import { useAuth } from './hooks/useAuth.js';
 import { LoginPage } from './components/LoginPage.jsx';
 import { BusinessSelector } from './components/BusinessSelector.jsx';
@@ -53,11 +70,13 @@ export default function App() {
 
   // Step 4: Dashboard
   return (
-    <Dashboard
-      token={longLivedToken}
-      adAccountId={selectedAccount.id}
-      selectedAccount={selectedAccount}
-      onLogout={() => { logout(); setSelectedBusiness(null); setSelectedAccount(null); }}
-    />
+    <ErrorBoundary>
+      <Dashboard
+        token={longLivedToken}
+        adAccountId={selectedAccount.id}
+        selectedAccount={selectedAccount}
+        onLogout={() => { logout(); setSelectedBusiness(null); setSelectedAccount(null); }}
+      />
+    </ErrorBoundary>
   );
 }

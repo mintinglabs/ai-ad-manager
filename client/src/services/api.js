@@ -8,15 +8,4 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-api.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem('fb_long_lived_token');
-      window.location.reload();
-    }
-    return Promise.reject(err);
-  }
-);
-
 export default api;
