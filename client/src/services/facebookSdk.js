@@ -40,12 +40,8 @@ export const login = () =>
       if (!window.FB) {
         return reject(new Error('Facebook SDK not loaded. Please refresh and try again.'));
       }
-      const timeout = setTimeout(() => {
-        reject(new Error('Facebook login timed out. Please try again.'));
-      }, 30000);
       window.FB.login(
         (response) => {
-          clearTimeout(timeout);
           if (response.authResponse) {
             resolve(response.authResponse);
           } else {
