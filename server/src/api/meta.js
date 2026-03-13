@@ -3,32 +3,17 @@ import { getAdAccounts, getBusinesses, getOwnedAdAccounts, getPages, getCustomAu
 
 const router = Router();
 
-const getUserToken = (req) => {
+// Use user's Bearer token; fall back to META_DEMO_TOKEN only when not logged in
+const getToken = (req) => {
   const auth = req.headers?.authorization;
   if (auth && auth.startsWith('Bearer ')) return auth.slice(7);
-  return null;
-};
-
-const getDemoToken = () => process.env.META_DEMO_TOKEN;
-
-// Try user token first, fall back to demo token if it fails or returns empty
-const withFallback = async (fn, userToken) => {
-  if (userToken) {
-    try {
-      const result = await fn(userToken);
-      if (result && result.length > 0) return result;
-      console.log('[meta] user token returned empty, trying demo token');
-    } catch (err) {
-      console.warn('[meta] user token failed:', err.response?.data?.error?.message || err.message, '— trying demo token');
-    }
-  }
-  return fn(getDemoToken());
+  return process.env.META_DEMO_TOKEN;
 };
 
 // Triggers: ads_read — returns ad accounts with business info
 router.get('/adaccounts', async (req, res, next) => {
   try {
-    const raw = await withFallback(getAdAccounts, getUserToken(req));
+    const raw = await getAdAccounts(getToken(req));
     const normalized = raw.map(acc => ({
       id:             acc.id,
       account_id:     acc.account_id,
@@ -47,22 +32,25 @@ router.get('/adaccounts', async (req, res, next) => {
 // Triggers: business_management
 router.get('/businesses', async (req, res, next) => {
   try {
-    const data = await withFallback(getBusinesses, getUserToken(req));
+    const token = getToken(req);
+    console.log('[meta] /businesses token prefix:', token?.slice(0, 15) + '...');
+    const data = await getBusinesses(token);
     console.log(`[meta] /businesses → found ${data.length} businesses`);
     res.json(data);
   } catch (err) {
-    console.error('[meta] /businesses failed completely:', err.response?.data || err.message);
-    next(err);
+    const metaErr = err.response?.data?.error;
+    console.error('[meta] /businesses error:', metaErr || err.message);
+    res.status(err.response?.status || 500).json({
+      error: metaErr?.message || err.message,
+      code:  metaErr?.code,
+    });
   }
 });
 
 // Returns ad accounts owned by a specific business
 router.get('/businesses/:id/adaccounts', async (req, res, next) => {
   try {
-    const raw = await withFallback(
-      (token) => getOwnedAdAccounts(token, req.params.id),
-      getUserToken(req)
-    );
+    const raw = await getOwnedAdAccounts(getToken(req), req.params.id);
     console.log(`[meta] /businesses/${req.params.id}/adaccounts → found ${raw.length} accounts`);
     const normalized = raw.map(acc => ({
       id:             acc.id,
@@ -74,15 +62,19 @@ router.get('/businesses/:id/adaccounts', async (req, res, next) => {
     }));
     res.json(normalized);
   } catch (err) {
-    console.error('[meta] /businesses/:id/adaccounts failed:', err.response?.data || err.message);
-    next(err);
+    const metaErr = err.response?.data?.error;
+    console.error('[meta] /businesses/:id/adaccounts error:', metaErr || err.message);
+    res.status(err.response?.status || 500).json({
+      error: metaErr?.message || err.message,
+      code:  metaErr?.code,
+    });
   }
 });
 
 // Triggers: pages_read_engagement
 router.get('/pages', async (req, res, next) => {
   try {
-    const data = await withFallback(getPages, getUserToken(req));
+    const data = await getPages(getToken(req));
     res.json(data);
   } catch (err) {
     next(err);
@@ -94,10 +86,7 @@ router.get('/customaudiences', async (req, res, next) => {
   try {
     const adAccountId = req.query.adAccountId;
     if (!adAccountId) return res.status(400).json({ error: 'adAccountId required' });
-    const data = await withFallback(
-      (token) => getCustomAudiences(token, adAccountId),
-      getUserToken(req)
-    );
+    const data = await getCustomAudiences(getToken(req), adAccountId);
     res.json(data);
   } catch (err) {
     next(err);
