@@ -10,8 +10,7 @@ router.get('/', async (req, res, next) => {
     if (USE_MOCK) {
       return res.json(aggregateMetrics);
     }
-    const auth = req.headers?.authorization;
-    const token = (auth && auth.startsWith('Bearer ')) ? auth.slice(7) : process.env.META_DEMO_TOKEN;
+    const token = process.env.META_DEMO_TOKEN;
     const adAccountId = req.query.adAccountId || process.env.AD_ACCOUNT_ID;
     const datePreset = req.query.date_preset || 'last_7d';
     const raw = await metaClient.getInsights(token, adAccountId, datePreset);

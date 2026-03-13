@@ -3,17 +3,15 @@ import { getAdAccounts, getBusinesses, getOwnedAdAccounts, getPages, getCustomAu
 
 const router = Router();
 
-// Use user's Bearer token; fall back to META_DEMO_TOKEN only when not logged in
-const getToken = (req) => {
-  const auth = req.headers?.authorization;
-  if (auth && auth.startsWith('Bearer ')) return auth.slice(7);
-  return process.env.META_DEMO_TOKEN;
-};
+// Always use META_DEMO_TOKEN — FB Login is authentication only, not data access.
+// Login for Business returns a system user token (not personal), which doesn't
+// work with personal-user endpoints like /me/businesses.
+const token = () => process.env.META_DEMO_TOKEN;
 
 // Triggers: ads_read — returns ad accounts with business info
 router.get('/adaccounts', async (req, res, next) => {
   try {
-    const raw = await getAdAccounts(getToken(req));
+    const raw = await getAdAccounts(token());
     const normalized = raw.map(acc => ({
       id:             acc.id,
       account_id:     acc.account_id,
@@ -32,9 +30,7 @@ router.get('/adaccounts', async (req, res, next) => {
 // Triggers: business_management
 router.get('/businesses', async (req, res, next) => {
   try {
-    const token = getToken(req);
-    console.log('[meta] /businesses token prefix:', token?.slice(0, 15) + '...');
-    const data = await getBusinesses(token);
+    const data = await getBusinesses(token());
     console.log(`[meta] /businesses → found ${data.length} businesses`);
     res.json(data);
   } catch (err) {
@@ -50,7 +46,7 @@ router.get('/businesses', async (req, res, next) => {
 // Returns ad accounts owned by a specific business
 router.get('/businesses/:id/adaccounts', async (req, res, next) => {
   try {
-    const raw = await getOwnedAdAccounts(getToken(req), req.params.id);
+    const raw = await getOwnedAdAccounts(token(), req.params.id);
     console.log(`[meta] /businesses/${req.params.id}/adaccounts → found ${raw.length} accounts`);
     const normalized = raw.map(acc => ({
       id:             acc.id,
@@ -74,7 +70,7 @@ router.get('/businesses/:id/adaccounts', async (req, res, next) => {
 // Triggers: pages_read_engagement
 router.get('/pages', async (req, res, next) => {
   try {
-    const data = await getPages(getToken(req));
+    const data = await getPages(token());
     res.json(data);
   } catch (err) {
     next(err);
@@ -86,7 +82,7 @@ router.get('/customaudiences', async (req, res, next) => {
   try {
     const adAccountId = req.query.adAccountId;
     if (!adAccountId) return res.status(400).json({ error: 'adAccountId required' });
-    const data = await getCustomAudiences(getToken(req), adAccountId);
+    const data = await getCustomAudiences(token(), adAccountId);
     res.json(data);
   } catch (err) {
     next(err);

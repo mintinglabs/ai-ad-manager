@@ -5,18 +5,14 @@ import * as metaClient from '../services/metaClient.js';
 const router = Router();
 const USE_MOCK = process.env.USE_MOCK_DATA === 'true';
 
-const getToken = (req) => {
-  const auth = req.headers?.authorization;
-  if (auth && auth.startsWith('Bearer ')) return auth.slice(7);
-  return process.env.META_DEMO_TOKEN;
-};
+const getToken = () => process.env.META_DEMO_TOKEN;
 
 router.get('/', async (req, res, next) => {
   try {
     if (USE_MOCK) {
       return res.json(getCampaigns());
     }
-    const token = getToken(req);
+    const token = getToken();
     const adAccountId = req.query.adAccountId || process.env.AD_ACCOUNT_ID;
     const campaigns = await metaClient.getCampaigns(token, adAccountId);
     res.json(campaigns);
@@ -38,7 +34,7 @@ router.patch('/:id', async (req, res, next) => {
       if (!updated) return res.status(404).json({ error: 'Campaign not found' });
       return res.json(updated);
     }
-    const token = getToken(req);
+    const token = getToken();
     const result = await metaClient.updateCampaign(token, id, updates);
     res.json(result);
   } catch (err) {
