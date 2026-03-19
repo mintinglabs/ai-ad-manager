@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../services/api.js';
 
-export const useCampaigns = () => {
+export const useCampaigns = (adAccountId) => {
   const [campaigns, setCampaigns] = useState([]);
   const [insights, setInsights] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -10,10 +10,11 @@ export const useCampaigns = () => {
   const intervalRef = useRef(null);
 
   const fetchAll = useCallback(async () => {
+    if (!adAccountId) return;
     try {
       const [campRes, insRes] = await Promise.all([
-        api.get('/campaigns'),
-        api.get('/insights')
+        api.get('/campaigns', { params: { adAccountId } }),
+        api.get('/insights', { params: { adAccountId } })
       ]);
       setCampaigns(campRes.data);
       setInsights(insRes.data);
@@ -23,7 +24,7 @@ export const useCampaigns = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [adAccountId]);
 
   useEffect(() => {
     fetchAll();
