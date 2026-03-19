@@ -2,28 +2,26 @@ const FB_APP_ID    = import.meta.env.VITE_FB_APP_ID;
 const FB_CONFIG_ID = import.meta.env.VITE_FB_CONFIG_ID;
 
 let _sdkReady = false;
-let _initPromise = null;
 
-// Pre-load and initialize the SDK — call this early (e.g. on app mount)
-export const initFacebookSdk = () => {
-  if (_initPromise) return _initPromise;
+const ensureInit = () => {
+  if (!_sdkReady && window.FB) {
+    window.FB.init({ appId: FB_APP_ID, cookie: true, xfbml: false, version: 'v25.0' });
+    _sdkReady = true;
+  }
+};
 
-  _initPromise = new Promise((resolve, reject) => {
-    if (window.FB) {
-      window.FB.init({ appId: FB_APP_ID, cookie: true, xfbml: false, version: 'v25.0' });
-      _sdkReady = true;
-      return resolve();
-    }
+// Load the SDK script (does NOT call FB.init — that happens in ensureInit)
+const loadSdkScript = () =>
+  new Promise((resolve, reject) => {
+    if (window.FB) return resolve();
 
     const timeout = setTimeout(() => {
-      _initPromise = null;
       reject(new Error('Facebook SDK timed out. Please refresh and try again.'));
     }, 15000);
 
     window.fbAsyncInit = () => {
       clearTimeout(timeout);
-      window.FB.init({ appId: FB_APP_ID, cookie: true, xfbml: false, version: 'v25.0' });
-      _sdkReady = true;
+      ensureInit();
       resolve();
     };
 
@@ -34,24 +32,20 @@ export const initFacebookSdk = () => {
       script.async = true;
       script.onerror = () => {
         clearTimeout(timeout);
-        _initPromise = null;
         reject(new Error('Failed to load Facebook SDK'));
       };
       document.body.appendChild(script);
     }
   });
 
-  return _initPromise;
-};
+// Start loading the script immediately on import
+loadSdkScript().catch(() => {});
 
-// Start loading immediately on import
-initFacebookSdk().catch(() => {});
-
-// Login — calls FB.login() as synchronously as possible from the click handler
+// Login — must be called from a click handler for popup to work
 export const login = () => {
-  // If SDK is already ready, call FB.login() synchronously (no promise wrapping)
-  // This keeps us in the user-click call stack so the browser allows the popup
-  if (_sdkReady && window.FB) {
+  // SDK script is loaded — call init + login synchronously from the click stack
+  if (window.FB) {
+    ensureInit();
     return new Promise((resolve, reject) => {
       window.FB.login(
         (response) => {
@@ -66,32 +60,32 @@ export const login = () => {
     });
   }
 
-  // SDK not ready yet — wait for it, then call FB.login()
-  // Note: popup may be blocked if the SDK takes too long to load
-  return new Promise((resolve, reject) => {
-    initFacebookSdk()
-      .then(() => {
-        if (!window.FB) {
-          return reject(new Error('Facebook SDK not loaded. Please refresh and try again.'));
-        }
-        window.FB.login(
-          (response) => {
-            if (response.authResponse) {
-              resolve(response.authResponse);
-            } else {
-              reject(new Error(`Facebook login failed (status: ${response.status})`));
-            }
-          },
-          { config_id: FB_CONFIG_ID, response_type: 'token' }
-        );
-      })
-      .catch(reject);
+  // SDK not loaded yet — wait for it (popup may be blocked by browser)
+  return loadSdkScript().then(() => {
+    ensureInit();
+    return new Promise((resolve, reject) => {
+      window.FB.login(
+        (response) => {
+          if (response.authResponse) {
+            resolve(response.authResponse);
+          } else {
+            reject(new Error(`Facebook login failed (status: ${response.status})`));
+          }
+        },
+        { config_id: FB_CONFIG_ID, response_type: 'token' }
+      );
+    });
   });
+};
+
+export const initFacebookSdk = () => {
+  ensureInit();
+  return loadSdkScript();
 };
 
 export const getLoginStatus = () =>
   new Promise((resolve) => {
-    if (window.FB) window.FB.getLoginStatus((response) => resolve(response));
+    if (window.FB) { ensureInit(); window.FB.getLoginStatus((r) => resolve(r)); }
     else resolve({ status: 'unknown' });
   });
 
