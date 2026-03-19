@@ -23,13 +23,13 @@ import { AdAccountSelector } from './components/AdAccountSelector.jsx';
 import { Dashboard } from './components/Dashboard.jsx';
 
 export default function App() {
-  const { longLivedToken, isLoading, error, login, logout } = useAuth();
+  const { longLivedToken, isLoading, error, login, logout, fbReady } = useAuth();
   const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [selectedAccount,  setSelectedAccount]  = useState(null);
 
   // Step 1: Facebook login
   if (!longLivedToken) {
-    return <LoginPage onLogin={login} isLoading={isLoading} error={error} />;
+    return <LoginPage onLogin={login} isLoading={isLoading} error={error} fbReady={fbReady} />;
   }
 
   // Step 2: Select Business Portfolio

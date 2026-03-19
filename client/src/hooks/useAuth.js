@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { login as fbLogin } from '../services/facebookSdk.js';
+import { useState, useEffect } from 'react';
+import { login as fbLogin, isSdkReady, sdkReady } from '../services/facebookSdk.js';
 
 const TOKEN_KEY = 'fb_long_lived_token';
 
@@ -8,17 +8,28 @@ export const useAuth = () => {
     () => localStorage.getItem(TOKEN_KEY)
   );
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError]         = useState(null);
+  const [fbReady, setFbReady]     = useState(isSdkReady());
+
+  // Listen for SDK to become ready
+  useEffect(() => {
+    if (fbReady) return;
+    sdkReady.then(() => setFbReady(true));
+  }, [fbReady]);
 
   const login = () => {
     setError(null);
 
-    // Call FB.login() SYNCHRONOUSLY from the click handler —
-    // must happen before any await/setState to keep the user-click context
-    // so the browser allows the popup
-    const loginPromise = fbLogin();
+    // Call FB.login() FIRST — synchronously in the click stack
+    let loginPromise;
+    try {
+      loginPromise = fbLogin();
+    } catch (err) {
+      setError(err.message);
+      return;
+    }
 
-    // Now set loading state (after FB.login() has been called)
+    // Set loading state after FB.login() has opened the popup
     setIsLoading(true);
     localStorage.removeItem(TOKEN_KEY);
     setLongLivedToken(null);
@@ -43,5 +54,5 @@ export const useAuth = () => {
     setLongLivedToken(null);
   };
 
-  return { longLivedToken, isLoading, error, login, logout };
+  return { longLivedToken, isLoading, error, login, logout, fbReady };
 };
