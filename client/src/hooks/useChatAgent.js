@@ -5,7 +5,7 @@ const makeId = () => Date.now().toString(36) + Math.random().toString(36).slice(
 const WELCOME_MESSAGE = {
   id: 'welcome',
   role: 'agent',
-  text: "Hi! I'm your **AI Ad Manager** powered by Gemini. I can analyze your Meta campaigns, check performance, manage budgets, and much more.\n\nSelect a **business portfolio** and **ad account** from the sidebar, then ask me anything!",
+  text: "Hi! I'm your **AI Ad Consultant**. I can audit your campaigns, spot optimization opportunities, manage budgets, build audiences, and help you scale what's working.\n\nSelect a **business portfolio** and **ad account** from the sidebar to get started.",
   timestamp: Date.now(),
 };
 
