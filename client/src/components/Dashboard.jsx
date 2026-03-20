@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Bot, LayoutDashboard, MessageSquare, BarChart3, CreditCard, Settings, LogOut, ChevronLeft, ChevronDown, Check, ArrowLeftRight } from 'lucide-react';
+import { Bot, LayoutDashboard, MessageSquare, BarChart3, CreditCard, Settings, LogOut, ChevronLeft, ChevronDown, Check, ArrowLeftRight, Building2 } from 'lucide-react';
 import { useChatAgent } from '../hooks/useChatAgent.js';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
+import { useBusinesses } from '../hooks/useBusinesses.js';
 import { ChatInterface } from './ChatInterface.jsx';
 
 const NAV_ITEMS = [
@@ -20,11 +21,71 @@ const SUGGESTED_ACTIONS = [
   { label: 'Daily KPI Report',            prompt: "Show today's KPI report" },
 ];
 
+// ── Business Selector Dropdown ────────────────────────────────────────────────
+const BusinessPicker = ({ selectedBusiness, onSelectBusiness }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const { businesses, isLoading } = useBusinesses();
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-[#1a2236] border transition-colors text-left
+          ${selectedBusiness ? 'border-[#1e293b] hover:border-slate-600' : 'border-blue-500/50 hover:border-blue-400'}`}
+      >
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0">
+          <Building2 size={14} className="text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-white truncate">{selectedBusiness?.name || 'Select Business'}</p>
+          <p className="text-[11px] text-slate-500 truncate">{selectedBusiness ? 'Business Portfolio' : 'Choose a portfolio'}</p>
+        </div>
+        <ChevronDown size={14} className={`text-slate-500 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute bottom-full left-0 right-0 mb-2 bg-[#1a2236] border border-[#1e293b] rounded-xl shadow-xl z-50 overflow-hidden max-h-72 overflow-y-auto">
+          {isLoading ? (
+            <div className="px-3 py-4 text-center text-xs text-slate-500">Loading businesses...</div>
+          ) : businesses.length === 0 ? (
+            <div className="px-3 py-4 text-center text-xs text-slate-500">No businesses found</div>
+          ) : businesses.map((biz) => {
+            const isActive = biz.id === selectedBusiness?.id;
+            return (
+              <button
+                key={biz.id}
+                onClick={() => { onSelectBusiness(biz); setOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors
+                  ${isActive ? 'bg-blue-900/20' : 'hover:bg-[#232d42]'}`}
+              >
+                <div className="w-7 h-7 rounded-md bg-[#141b2d] flex items-center justify-center shrink-0">
+                  <Building2 size={12} className="text-slate-300" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-xs font-medium truncate ${isActive ? 'text-blue-400' : 'text-slate-300'}`}>{biz.name}</p>
+                </div>
+                {isActive && <Check size={14} className="text-blue-400 shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Account Switcher Dropdown ─────────────────────────────────────────────────
 const AccountSwitcher = ({ selectedAccount, selectedBusiness, onSwitchAccount, onSwitchBusiness }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-  const { adAccounts } = useAdAccounts(selectedBusiness?.id);
+  const { adAccounts, isLoading } = useAdAccounts(selectedBusiness?.id);
   const accounts = Array.isArray(adAccounts) ? adAccounts : [];
 
   // Close on outside click
@@ -38,7 +99,8 @@ const AccountSwitcher = ({ selectedAccount, selectedBusiness, onSwitchAccount, o
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-[#1a2236] border border-[#1e293b] hover:border-slate-600 transition-colors text-left"
+        className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-[#1a2236] border transition-colors text-left
+          ${selectedAccount ? 'border-[#1e293b] hover:border-slate-600' : 'border-blue-500/50 hover:border-blue-400'}`}
       >
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shrink-0">
           <span className="text-white text-xs font-bold">
@@ -46,8 +108,10 @@ const AccountSwitcher = ({ selectedAccount, selectedBusiness, onSwitchAccount, o
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white truncate">{selectedAccount?.name || 'Ad Account'}</p>
-          <p className="text-[11px] text-slate-500 font-mono truncate">{selectedAccount?.account_id ? `act_${selectedAccount.account_id}` : selectedAccount?.id || '—'}</p>
+          <p className="text-sm font-medium text-white truncate">{selectedAccount?.name || 'Select Ad Account'}</p>
+          <p className="text-[11px] text-slate-500 font-mono truncate">
+            {selectedAccount?.account_id ? `act_${selectedAccount.account_id}` : selectedAccount?.id || 'Choose an account'}
+          </p>
         </div>
         <ChevronDown size={14} className={`text-slate-500 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -55,7 +119,13 @@ const AccountSwitcher = ({ selectedAccount, selectedBusiness, onSwitchAccount, o
       {open && (
         <div className="absolute bottom-full left-0 right-0 mb-2 bg-[#1a2236] border border-[#1e293b] rounded-xl shadow-xl z-50 overflow-hidden max-h-72 overflow-y-auto">
           {/* Account list */}
-          {accounts.length > 0 && accounts.map((account) => {
+          {isLoading ? (
+            <div className="px-3 py-4 text-center text-xs text-slate-500">Loading accounts...</div>
+          ) : accounts.length === 0 ? (
+            <div className="px-3 py-4 text-center text-xs text-slate-500">
+              {selectedBusiness ? 'No accounts found' : 'Select a business first'}
+            </div>
+          ) : accounts.map((account) => {
             const isActive = account.id === selectedAccount?.id;
             return (
               <button
@@ -160,15 +230,24 @@ export const Dashboard = ({
           ))}
         </nav>
 
-        {/* Ad Account Selector */}
-        <div className="px-3 mb-4">
-          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2">Ad Account</p>
-          <AccountSwitcher
-            selectedAccount={selectedAccount}
-            selectedBusiness={selectedBusiness}
-            onSwitchAccount={handleSwitchAccount}
-            onSwitchBusiness={onSwitchBusiness}
-          />
+        {/* Business & Account Selectors */}
+        <div className="px-3 mb-4 space-y-3">
+          <div>
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2">Business</p>
+            <BusinessPicker
+              selectedBusiness={selectedBusiness}
+              onSelectBusiness={(biz) => onSwitchBusiness(biz)}
+            />
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2">Ad Account</p>
+            <AccountSwitcher
+              selectedAccount={selectedAccount}
+              selectedBusiness={selectedBusiness}
+              onSwitchAccount={handleSwitchAccount}
+              onSwitchBusiness={onSwitchBusiness}
+            />
+          </div>
         </div>
 
         {/* User Profile */}
@@ -205,13 +284,29 @@ export const Dashboard = ({
           </button>
         )}
 
-        <ChatInterface
-          messages={messages}
-          isTyping={isTyping}
-          thinkingText={thinkingText}
-          onSend={handleSend}
-          suggestedActions={SUGGESTED_ACTIONS}
-        />
+        {selectedAccount ? (
+          <ChatInterface
+            messages={messages}
+            isTyping={isTyping}
+            thinkingText={thinkingText}
+            onSend={handleSend}
+            suggestedActions={SUGGESTED_ACTIONS}
+          />
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center max-w-sm">
+              <div className="w-16 h-16 rounded-2xl bg-[#1a2236] border border-[#1e293b] flex items-center justify-center mx-auto mb-4">
+                <CreditCard size={28} className="text-slate-500" />
+              </div>
+              <h2 className="text-lg font-semibold text-white mb-2">Select an Ad Account</h2>
+              <p className="text-sm text-slate-400">
+                {selectedBusiness
+                  ? 'Choose an ad account from the sidebar to start managing your campaigns.'
+                  : 'First select a business portfolio, then choose an ad account from the sidebar.'}
+              </p>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Notification Toast */}

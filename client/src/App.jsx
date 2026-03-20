@@ -18,8 +18,6 @@ class ErrorBoundary extends Component {
 }
 import { useAuth } from './hooks/useAuth.js';
 import { LoginPage } from './components/LoginPage.jsx';
-import { BusinessSelector } from './components/BusinessSelector.jsx';
-import { AdAccountSelector } from './components/AdAccountSelector.jsx';
 import { Dashboard } from './components/Dashboard.jsx';
 
 export default function App() {
@@ -32,38 +30,16 @@ export default function App() {
     return <LoginPage onLogin={login} isLoading={isLoading} error={error} />;
   }
 
-  // Step 2: Select Business Portfolio
-  if (!selectedBusiness) {
-    return (
-      <BusinessSelector
-        onSelect={setSelectedBusiness}
-        onBack={logout}
-      />
-    );
-  }
-
-  // Step 3: Select Ad Account (filtered to selected business)
-  if (!selectedAccount) {
-    return (
-      <AdAccountSelector
-        token={longLivedToken}
-        business={selectedBusiness}
-        onSelect={setSelectedAccount}
-        onBack={() => setSelectedBusiness(null)}
-      />
-    );
-  }
-
-  // Step 4: Dashboard — pass switching callbacks
+  // Step 2: Dashboard — user selects business/account from sidebar
   return (
     <ErrorBoundary>
       <Dashboard
         token={longLivedToken}
-        adAccountId={selectedAccount.id}
+        adAccountId={selectedAccount?.id || null}
         selectedAccount={selectedAccount}
         selectedBusiness={selectedBusiness}
         onSwitchAccount={(account) => setSelectedAccount(account)}
-        onSwitchBusiness={() => { setSelectedAccount(null); setSelectedBusiness(null); }}
+        onSwitchBusiness={(business) => { setSelectedAccount(null); setSelectedBusiness(business || null); }}
         onLogout={() => { logout(); setSelectedBusiness(null); setSelectedAccount(null); }}
       />
     </ErrorBoundary>
