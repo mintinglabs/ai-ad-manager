@@ -284,29 +284,13 @@ export const Dashboard = ({
           </button>
         )}
 
-        {selectedAccount ? (
-          <ChatInterface
-            messages={messages}
-            isTyping={isTyping}
-            thinkingText={thinkingText}
-            onSend={handleSend}
-            suggestedActions={SUGGESTED_ACTIONS}
-          />
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center max-w-sm">
-              <div className="w-16 h-16 rounded-2xl bg-[#1a2236] border border-[#1e293b] flex items-center justify-center mx-auto mb-4">
-                <CreditCard size={28} className="text-slate-500" />
-              </div>
-              <h2 className="text-lg font-semibold text-white mb-2">Select an Ad Account</h2>
-              <p className="text-sm text-slate-400">
-                {selectedBusiness
-                  ? 'Choose an ad account from the sidebar to start managing your campaigns.'
-                  : 'First select a business portfolio, then choose an ad account from the sidebar.'}
-              </p>
-            </div>
-          </div>
-        )}
+        <ChatInterface
+          messages={messages}
+          isTyping={isTyping}
+          thinkingText={thinkingText}
+          onSend={handleSend}
+          suggestedActions={SUGGESTED_ACTIONS}
+        />
       </main>
 
       {/* Notification Toast */}
