@@ -26,6 +26,12 @@ app.use(cors({ origin: true }));
 app.use(express.json({ limit: '50mb' }));
 
 app.get('/api/ping', (_req, res) => res.json({ ok: true }));
+app.get('/api/debug', (_req, res) => res.json({
+  hasGeminiKey: !!process.env.GEMINI_API_KEY,
+  hasGenaiKey: !!process.env.GOOGLE_GENAI_API_KEY,
+  hasDemoToken: !!process.env.META_DEMO_TOKEN,
+  nodeVersion: process.version,
+}));
 app.use('/api/auth', authRouter);
 app.use('/api/campaigns', campaignsRouter);
 app.use('/api/insights', insightsRouter);

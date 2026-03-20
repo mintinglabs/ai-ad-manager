@@ -6,6 +6,11 @@ const router = Router();
 // In-memory map: chatSessionId → ADK sessionId
 const sessionMap = new Map();
 
+// Helper: send an SSE event
+const sse = (res, obj) => {
+  res.write(`data: ${JSON.stringify(obj)}\n\n`);
+};
+
 // POST /api/chat
 // Body: { message, sessionId?, adAccountId?, token }
 // Response: SSE stream of agent events
@@ -13,12 +18,21 @@ router.post('/', async (req, res) => {
   try {
     const { message, sessionId: clientSessionId, adAccountId, token } = req.body;
     console.log(`[chat] message="${message?.slice(0, 60)}" adAccountId=${adAccountId} session=${clientSessionId?.slice(0, 8)}`);
+    console.log(`[chat] env check: GEMINI_API_KEY=${!!process.env.GEMINI_API_KEY} META_DEMO_TOKEN=${!!process.env.META_DEMO_TOKEN}`);
 
     if (!message) {
       return res.status(400).json({ error: 'message is required' });
     }
     if (!token) {
       return res.status(401).json({ error: 'token is required' });
+    }
+
+    // Check server-side env vars
+    if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_GENAI_API_KEY) {
+      return res.status(500).json({ error: 'GEMINI_API_KEY not configured on server' });
+    }
+    if (!process.env.META_DEMO_TOKEN) {
+      return res.status(500).json({ error: 'META_DEMO_TOKEN not configured on server' });
     }
 
     // Set up SSE
@@ -41,9 +55,9 @@ router.post('/', async (req, res) => {
       });
       adkSessionId = session.id;
       if (clientSessionId) sessionMap.set(clientSessionId, adkSessionId);
+      console.log(`[chat] created session ${adkSessionId}`);
     } else {
-      // Update state with latest token/account
-      // We do this by running with stateDelta
+      console.log(`[chat] reusing session ${adkSessionId}`);
     }
 
     // Build the user message in Gemini Content format
@@ -53,6 +67,7 @@ router.post('/', async (req, res) => {
     };
 
     // Run the agent and stream events
+    console.log(`[chat] running agent...`);
     const events = runner.runAsync({
       userId,
       sessionId: adkSessionId,
@@ -61,32 +76,50 @@ router.post('/', async (req, res) => {
     });
 
     let fullText = '';
+    let eventCount = 0;
 
     for await (const event of events) {
+      eventCount++;
+      // Log event structure for debugging
+      if (eventCount <= 3) {
+        console.log(`[chat] event #${eventCount}: author=${event.author}, hasContent=${!!event.content}, keys=${Object.keys(event).join(',')}`);
+      }
+
+      // Surface ADK errors as text so the user sees them
+      if (event.errorMessage) {
+        console.error(`[chat] ADK error: ${event.errorCode} ${event.errorMessage}`);
+        sse(res, { type: 'text', content: `Error: ${event.errorMessage}` });
+        fullText += event.errorMessage;
+      }
+
       // Extract text content from the event
       if (event.content?.parts) {
         for (const part of event.content.parts) {
           if (part.text) {
             fullText += part.text;
-            // Send incremental text as SSE
-            res.write(`data: ${JSON.stringify({ type: 'text', content: part.text })}\n\n`);
+            sse(res, { type: 'text', content: part.text });
           }
           if (part.functionCall) {
-            // Send tool call notification
-            res.write(`data: ${JSON.stringify({ type: 'tool_call', name: part.functionCall.name })}\n\n`);
+            sse(res, { type: 'tool_call', name: part.functionCall.name });
+            console.log(`[chat] tool call: ${part.functionCall.name}`);
           }
         }
       }
     }
 
-    // Send done event
-    res.write(`data: ${JSON.stringify({ type: 'done', sessionId: adkSessionId })}\n\n`);
+    console.log(`[chat] done: ${eventCount} events, ${fullText.length} chars of text`);
+
+    // If no text was generated, send a diagnostic message
+    if (!fullText) {
+      sse(res, { type: 'text', content: `I received your message but couldn't generate a response. This may be a temporary issue with the AI service. (${eventCount} events processed, adAccountId: ${adAccountId || 'none'})` });
+    }
+
+    sse(res, { type: 'done', sessionId: adkSessionId });
     res.end();
   } catch (err) {
-    console.error('Chat error:', err);
-    // If headers already sent, send error as SSE
+    console.error('[chat] error:', err?.message, err?.stack);
     if (res.headersSent) {
-      res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`);
+      sse(res, { type: 'error', message: err.message });
       res.end();
     } else {
       res.status(500).json({ error: err.message });

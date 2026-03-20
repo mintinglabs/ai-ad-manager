@@ -3,18 +3,24 @@ import * as meta from './metaClient.js';
 
 // ── Helper: extract token + adAccountId ─────────────────────────────────────
 // Always use META_DEMO_TOKEN for data access (FB Login token is auth-only).
+// ADK stores state as { value: {...}, delta: {...} } — read from .value
 const ctx = (context) => ({
   token: process.env.META_DEMO_TOKEN,
-  adAccountId: context.state?.adAccountId,
+  adAccountId: context.state?.value?.adAccountId || context.state?.adAccountId,
 });
 
 // ── Tool functions ──────────────────────────────────────────────────────────
 // Organized by category. All use META_DEMO_TOKEN + adAccountId from session.
 
-// Wrap every tool so thrown errors become { error } objects the LLM can read.
+// Wrap every tool so:
+// 1. Thrown errors become { error } objects the LLM can read
+// 2. Responses are serialized to { result: "JSON string" } so Gemini can parse them
 const safe = (fn) => async (args, c) => {
   try {
-    return await fn(args, c);
+    const result = await fn(args, c);
+    // Gemini function calling needs simple objects — stringify complex API responses
+    if (typeof result === 'string') return { result };
+    return { result: JSON.stringify(result) };
   } catch (err) {
     const msg = err.response?.data?.error?.message || err.message || 'Unknown error';
     console.error(`[tool] ${fn.name} error:`, msg);
@@ -537,7 +543,7 @@ const sessionService = new InMemorySessionService();
 
 const agent = new LlmAgent({
   name: 'ad_manager',
-  model: 'gemini-2.0-flash',
+  model: 'gemini-2.5-flash',
   instruction: SYSTEM_INSTRUCTION,
   tools: adTools,
 });
