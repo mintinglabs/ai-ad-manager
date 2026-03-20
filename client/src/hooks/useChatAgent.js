@@ -1,15 +1,15 @@
 import { useState, useCallback, useRef } from 'react';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '';
 const makeId = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 
 const WELCOME_MESSAGE = {
   id: 'welcome',
   role: 'agent',
-  content: "Hi! I'm your **AI Ad Manager** powered by Gemini. I can analyze your Meta campaigns, check performance, manage budgets, and much more.\n\nSelect a **business portfolio** and **ad account** from the sidebar, then ask me anything!",
+  text: "Hi! I'm your **AI Ad Manager** powered by Gemini. I can analyze your Meta campaigns, check performance, manage budgets, and much more.\n\nSelect a **business portfolio** and **ad account** from the sidebar, then ask me anything!",
+  timestamp: Date.now(),
 };
 
-export const useChatAgent = ({ token, adAccountId, selectedAccount }) => {
+export const useChatAgent = ({ token, adAccountId }) => {
   const [messages, setMessages] = useState([WELCOME_MESSAGE]);
   const [isTyping, setIsTyping] = useState(false);
   const [thinkingText, setThinkingText] = useState('');
@@ -19,7 +19,7 @@ export const useChatAgent = ({ token, adAccountId, selectedAccount }) => {
 
   const resetChat = useCallback(() => {
     if (abortRef.current) abortRef.current.abort();
-    setMessages([WELCOME_MESSAGE]);
+    setMessages([{ ...WELCOME_MESSAGE, timestamp: Date.now() }]);
     setIsTyping(false);
     setThinkingText('');
     sessionIdRef.current = makeId();
@@ -28,19 +28,19 @@ export const useChatAgent = ({ token, adAccountId, selectedAccount }) => {
   const sendMessage = useCallback(async (text) => {
     if (!text.trim() || isTyping) return;
 
-    const userMsg = { id: makeId(), role: 'user', content: text };
+    const now = Date.now();
+    const userMsg = { id: makeId(), role: 'user', text, timestamp: now };
     const agentMsgId = makeId();
 
     setMessages((prev) => [...prev, userMsg]);
     setIsTyping(true);
     setThinkingText('Thinking...');
 
-    // Create abort controller for this request
     const controller = new AbortController();
     abortRef.current = controller;
 
     try {
-      const response = await fetch(`${API_BASE}/api/chat`, {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -61,7 +61,7 @@ export const useChatAgent = ({ token, adAccountId, selectedAccount }) => {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      let fullContent = '';
+      let fullText = '';
       let addedAgent = false;
 
       while (true) {
@@ -81,14 +81,15 @@ export const useChatAgent = ({ token, adAccountId, selectedAccount }) => {
             const event = JSON.parse(jsonStr);
 
             if (event.type === 'text') {
-              fullContent += event.content;
+              fullText += event.content;
+              const msg = { id: agentMsgId, role: 'agent', text: fullText, timestamp: Date.now() };
               if (!addedAgent) {
-                setMessages((prev) => [...prev, { id: agentMsgId, role: 'agent', content: fullContent }]);
+                setMessages((prev) => [...prev, msg]);
                 addedAgent = true;
                 setThinkingText('');
               } else {
                 setMessages((prev) =>
-                  prev.map((m) => m.id === agentMsgId ? { ...m, content: fullContent } : m)
+                  prev.map((m) => m.id === agentMsgId ? msg : m)
                 );
               }
             } else if (event.type === 'tool_call') {
@@ -97,7 +98,6 @@ export const useChatAgent = ({ token, adAccountId, selectedAccount }) => {
               throw new Error(event.message);
             }
           } catch (parseErr) {
-            // Skip malformed SSE data
             if (parseErr.message !== 'Unexpected end of JSON input') {
               console.warn('SSE parse error:', parseErr);
             }
@@ -105,11 +105,10 @@ export const useChatAgent = ({ token, adAccountId, selectedAccount }) => {
         }
       }
 
-      // If no content was received, show a fallback
-      if (!fullContent) {
+      if (!fullText) {
         setMessages((prev) => [
           ...prev,
-          { id: agentMsgId, role: 'agent', content: "I couldn't generate a response. Please try again." },
+          { id: agentMsgId, role: 'agent', text: "I couldn't generate a response. Please try again.", timestamp: Date.now() },
         ]);
       }
     } catch (err) {
@@ -117,7 +116,7 @@ export const useChatAgent = ({ token, adAccountId, selectedAccount }) => {
       console.error('Chat error:', err);
       setMessages((prev) => [
         ...prev,
-        { id: agentMsgId, role: 'agent', content: `Sorry, something went wrong: ${err.message}` },
+        { id: agentMsgId, role: 'agent', text: `Sorry, something went wrong: ${err.message}`, timestamp: Date.now() },
       ]);
     } finally {
       setIsTyping(false);

@@ -177,7 +177,7 @@ export const Dashboard = ({
 }) => {
   const [activeNav, setActiveNav] = useState('chat');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { messages, isTyping, thinkingText, sendMessage, resetChat, notification } = useChatAgent({ token, adAccountId, selectedAccount });
+  const { messages, isTyping, thinkingText, sendMessage, resetChat, notification } = useChatAgent({ token, adAccountId });
 
   const handleSend = useCallback((text) => {
     setActiveNav('chat');
