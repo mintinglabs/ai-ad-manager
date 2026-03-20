@@ -17,13 +17,18 @@ const ctx = (context) => ({
 // 2. Responses are serialized to { result: "JSON string" } so Gemini can parse them
 const safe = (fn) => async (args, c) => {
   try {
+    console.log(`[tool] ${fn.name} called with:`, JSON.stringify(args).slice(0, 500));
     const result = await fn(args, c);
     // Gemini function calling needs simple objects — stringify complex API responses
     if (typeof result === 'string') return { result };
     return { result: JSON.stringify(result) };
   } catch (err) {
-    const msg = err.response?.data?.error?.message || err.message || 'Unknown error';
+    const metaErr = err.response?.data?.error;
+    const msg = metaErr
+      ? `Meta API error ${metaErr.code || ''}: ${metaErr.message || 'unknown'}${metaErr.error_subcode ? ` (subcode: ${metaErr.error_subcode})` : ''}${metaErr.error_user_title ? ` — ${metaErr.error_user_title}: ${metaErr.error_user_msg || ''}` : ''}`
+      : err.message || 'Unknown error';
     console.error(`[tool] ${fn.name} error:`, msg);
+    if (metaErr) console.error(`[tool] full meta error:`, JSON.stringify(metaErr));
     return { error: msg };
   }
 };

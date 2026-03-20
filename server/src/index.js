@@ -32,6 +32,30 @@ app.get('/api/debug', (_req, res) => res.json({
   hasDemoToken: !!process.env.META_DEMO_TOKEN,
   nodeVersion: process.version,
 }));
+// Test audience creation directly to see exact Meta error
+app.post('/api/debug/test-audience', async (req, res) => {
+  try {
+    const { default: metaClient } = await import('./services/metaClient.js');
+    const { adAccountId, pixel_id, name = 'Debug Test' } = req.body;
+    const token = process.env.META_DEMO_TOKEN;
+    if (!token) return res.status(500).json({ error: 'No META_DEMO_TOKEN' });
+    if (!adAccountId) return res.status(400).json({ error: 'adAccountId required' });
+    const result = await metaClient.createCustomAudience(token, adAccountId, {
+      name,
+      subtype: 'WEBSITE',
+      pixel_id: pixel_id || 'none',
+      retention_days: 30,
+    });
+    res.json({ success: true, result });
+  } catch (err) {
+    const metaErr = err.response?.data?.error;
+    res.status(err.response?.status || 500).json({
+      error: metaErr || err.message,
+      fullResponse: err.response?.data,
+      status: err.response?.status,
+    });
+  }
+});
 app.use('/api/auth', authRouter);
 app.use('/api/campaigns', campaignsRouter);
 app.use('/api/insights', insightsRouter);

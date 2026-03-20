@@ -502,6 +502,11 @@ export const createCustomAudience = async (token, adAccountId, params) => {
   if (params.origin_audience_id) apiParams.origin_audience_id = params.origin_audience_id;
   if (params.lookalike_spec) apiParams.lookalike_spec = typeof params.lookalike_spec === 'string' ? params.lookalike_spec : JSON.stringify(params.lookalike_spec);
 
+  // Log what we're sending to Meta for debugging
+  const debugParams = { ...apiParams };
+  delete debugParams.access_token;
+  console.log(`[metaClient] createCustomAudience → POST /${adAccountId}/customaudiences`, JSON.stringify(debugParams));
+
   const { data } = await metaApi.post(`/${adAccountId}/customaudiences`, null, {
     params: apiParams
   });
