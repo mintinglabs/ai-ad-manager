@@ -429,8 +429,12 @@ const adTools = [
   T('get_ad_creatives', 'List all ad creatives in the account.', getAdCreatives),
   T('get_ad_creative', 'Get details of a single creative.', getAdCreative,
     obj({ creative_id: str('Creative ID') }, ['creative_id'])),
-  T('create_ad_creative', 'Create an ad creative with image, video, or carousel.', createAdCreative,
-    obj({ name: str('Creative name'), object_story_spec: { type: 'object', description: 'Story spec with page_id, link_data, etc.' } }, ['name'])),
+  T('create_ad_creative', 'Create an ad creative. For IMAGE: use object_story_spec.link_data with image_hash, link, message, name, description, call_to_action. For VIDEO: use object_story_spec.video_data with video_id, message, title, description, call_to_action. For CAROUSEL: use object_story_spec.link_data with child_attachments array. Always include page_id in object_story_spec.', createAdCreative,
+    obj({
+      name: str('Creative name'),
+      object_story_spec: { type: 'object', description: '{ page_id: "PAGE_ID", link_data: { image_hash, link, message, name, description, call_to_action: { type: "SHOP_NOW", value: { link } }, child_attachments: [{ image_hash, name, link }] } } OR { page_id, video_data: { video_id, message, title, description, call_to_action: { type, value: { link } } } }' },
+      url_tags: str('Optional UTM parameters, e.g. "utm_source=facebook&utm_medium=paid"'),
+    }, ['name'])),
   T('update_ad_creative', 'Update an ad creative.', updateAdCreative,
     obj({ creative_id: str('Creative ID') }, ['creative_id'])),
   T('delete_ad_creative', 'Delete an ad creative.', deleteAdCreative,
@@ -714,6 +718,103 @@ Then ask: **"Should I proceed with creating this ad?"**
 - Images: user provides base64 data via \`upload_ad_image\`
 - Videos: user provides URL via \`upload_ad_video\`, then check status with \`get_ad_video_status\`
 - After upload, show the hash/ID so user can reference it in creatives
+
+## Ad Creative Specifications
+
+### Image specs by placement
+- **Feed (FB/IG)**: 1080×1080 (1:1) — best for engagement
+- **Stories/Reels**: 1080×1920 (9:16) — full-screen vertical
+- **Right Column**: 1200×628 (1.91:1) — landscape
+- **Carousel**: 1080×1080 (1:1) per card, 2-10 cards
+- **Marketplace**: 1200×628 (1.91:1)
+- Max image file size: 30MB. Formats: JPG, PNG. Min 600×600.
+
+### Video specs by placement
+- **Feed**: 1080×1080 (1:1) or 1080×1350 (4:5), up to 240 min
+- **Stories/Reels**: 1080×1920 (9:16), Stories up to 60s, Reels up to 90s
+- **In-Stream**: 1280×720+ (16:9), 5-15s recommended
+- **Carousel (video)**: 1080×1080 (1:1), up to 240 min per card
+- Max video file size: 4GB. Formats: MP4, MOV. Min 1 second.
+
+### Ad copy character limits
+- **Primary text**: 125 chars recommended (max 2200 — truncated after ~3 lines)
+- **Headline**: 40 chars recommended (max 255)
+- **Description**: 30 chars recommended (max 255)
+- **Standard CTAs**: SHOP_NOW, LEARN_MORE, SIGN_UP, BOOK_TRAVEL, CONTACT_US, DOWNLOAD, GET_OFFER, GET_QUOTE, SUBSCRIBE, WATCH_MORE, APPLY_NOW, ORDER_NOW, SEE_MENU
+
+## Creating Ads from Uploaded Assets
+When user messages contain \`[Uploaded image: filename, image_hash: HASH]\`:
+1. Acknowledge the uploads — e.g. "Got **6 images** uploaded to your ad account"
+2. Ask about: campaign objective, target audience, landing page URL, budget (if not already stated)
+3. Call \`get_pages\` to get the Page ID (required for object_story_spec)
+4. For each image, generate **2-3 ad copy variations** (primary text + headline + CTA)
+5. Show the **Ad Creation Review Card** with all settings before executing
+6. If multiple images: ask if they want **separate ads** (one per image) or a **carousel**
+
+### Image ad — object_story_spec format:
+\`\`\`json
+{
+  "page_id": "PAGE_ID",
+  "link_data": {
+    "image_hash": "IMAGE_HASH",
+    "link": "https://example.com",
+    "message": "Primary text here",
+    "name": "Headline here",
+    "description": "Description here",
+    "call_to_action": { "type": "SHOP_NOW", "value": { "link": "https://example.com" } }
+  }
+}
+\`\`\`
+
+### Carousel ad — object_story_spec format:
+\`\`\`json
+{
+  "page_id": "PAGE_ID",
+  "link_data": {
+    "link": "https://example.com",
+    "child_attachments": [
+      { "image_hash": "HASH1", "name": "Headline 1", "link": "https://example.com/1" },
+      { "image_hash": "HASH2", "name": "Headline 2", "link": "https://example.com/2" }
+    ],
+    "message": "Primary text for carousel"
+  }
+}
+\`\`\`
+
+### Video ad — object_story_spec format:
+\`\`\`json
+{
+  "page_id": "PAGE_ID",
+  "video_data": {
+    "video_id": "VIDEO_ID",
+    "message": "Primary text",
+    "title": "Headline",
+    "description": "Description",
+    "call_to_action": { "type": "SHOP_NOW", "value": { "link": "https://example.com" } },
+    "image_hash": "THUMBNAIL_HASH_OPTIONAL"
+  }
+}
+\`\`\`
+
+## YouTube & Video URL Handling
+When user provides a YouTube link or any video URL:
+1. Call \`upload_ad_video\` with \`file_url\` parameter — Meta can ingest YouTube URLs directly
+2. Call \`get_ad_video_status\` to check processing status (videos take time)
+3. Once status is "ready", use the \`video_id\` in the ad creative's \`video_data\`
+4. For YouTube: tell user the video must be **public** and not age-restricted or Meta will reject it
+5. Generate ad copy based on the video context the user describes
+
+## Ad Copy Generation Guidelines
+When generating ad copy for uploaded creatives:
+- **Match tone to the visual**: fashion → aspirational/lifestyle, tech → feature-driven, food → sensory, B2B → professional
+- Always generate **2-3 copy variations** for A/B testing
+- Keep primary text under **125 chars** for best performance (avoid truncation)
+- Headlines under **40 chars** — punchy, benefit-driven
+- Include a CTA that matches the campaign objective (conversions → SHOP_NOW, leads → SIGN_UP, traffic → LEARN_MORE)
+- For **multiple images**: write **unique copy per image**, not duplicates — each should highlight a different angle or product
+- Suggest A/B testing: same creative + different copy, or same copy + different creatives
+- If user specifies brand voice or tone, follow it strictly
+- Never use clickbait, misleading claims, or personal attributes ("Are you struggling with...") — these violate Meta policy
 
 ## Ad Library / Competitor Research
 When showing Ad Library results, output them in a special code block so the UI renders them as visual cards:
