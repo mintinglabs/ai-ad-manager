@@ -563,8 +563,8 @@ const adTools = [
     obj({ catalog_id: str('Catalog ID') }, ['catalog_id'])),
 
   // ── Ad Library ────────────────────────────────────────────────────────
-  T('search_ad_library', 'Search the Meta Ad Library for competitor ads. Requires ad_reached_countries.', searchAdLibrary,
-    obj({ search_terms: str('Keywords to search'), ad_reached_countries: { type: 'array', items: { type: 'string' }, description: 'Country codes e.g. ["US","GB"]' }, ad_type: str('ALL, POLITICAL_AND_ISSUE_ADS') }, ['ad_reached_countries'])),
+  T('search_ad_library', 'Search the Meta Ad Library for competitor ads. Returns page_name, headlines, body text, ad_snapshot_url. Format results as ```adlib JSON for rich card rendering.', searchAdLibrary,
+    obj({ search_terms: str('Keywords to search'), ad_reached_countries: { type: 'array', items: { type: 'string' }, description: 'Country codes e.g. ["US","GB","HK"]' }, ad_type: str('ALL, POLITICAL_AND_ISSUE_ADS'), limit: { type: 'number', description: 'Max results (default 12)' } }, ['ad_reached_countries'])),
 ];
 
 // ── System instruction ──────────────────────────────────────────────────────
@@ -713,7 +713,33 @@ Then ask: **"Should I proceed with creating this ad?"**
 ## Asset Upload
 - Images: user provides base64 data via \`upload_ad_image\`
 - Videos: user provides URL via \`upload_ad_video\`, then check status with \`get_ad_video_status\`
-- After upload, show the hash/ID so user can reference it in creatives`;
+- After upload, show the hash/ID so user can reference it in creatives
+
+## Ad Library / Competitor Research
+When showing Ad Library results, output them in a special code block so the UI renders them as visual cards:
+
+\`\`\`adlib
+[
+  {
+    "page_name": "Competitor Name",
+    "status": "Active",
+    "headline": "Ad headline text",
+    "body": "Ad body/description text (first 150 chars)",
+    "platforms": ["facebook", "instagram"],
+    "started": "2025-01-15",
+    "snapshot_url": "https://www.facebook.com/ads/library/?id=123456"
+  }
+]
+\`\`\`
+
+Rules for ad library results:
+- Always output as \`\`\`adlib JSON block — the UI renders these as visual ad cards
+- Include up to 12 results
+- Truncate body text to ~150 chars
+- Set status to "Active" if no ad_delivery_stop_time, otherwise "Ended"
+- Extract headline from ad_creative_link_titles, body from ad_creative_bodies
+- After the cards, add a brief **## Insights** section analyzing the competitor creative patterns
+- If the API returns an authorization error, explain that the user needs to authorize Ad Library API access at facebook.com/ads/library/api`;
 
 // ── Create agent + runner ───────────────────────────────────────────────────
 

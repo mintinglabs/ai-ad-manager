@@ -5,11 +5,11 @@ class ErrorBoundary extends Component {
   static getDerivedStateFromError(e) { return { error: e }; }
   render() {
     if (this.state.error) return (
-      <div className="min-h-screen bg-[#0f1623] flex items-center justify-center p-8">
-        <div className="bg-[#141b2d] border border-[#1e293b] rounded-2xl p-6 max-w-md w-full text-center">
-          <p className="text-sm font-semibold text-red-400 mb-2">Something went wrong loading the dashboard</p>
-          <p className="text-xs text-slate-400 font-mono break-all mb-4">{this.state.error.message}</p>
-          <button onClick={() => this.setState({ error: null })} className="text-xs text-blue-400 underline">Try again</button>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-8">
+        <div className="bg-white/80 backdrop-blur-xl border border-slate-200 rounded-2xl p-6 max-w-md w-full text-center shadow-lg">
+          <p className="text-sm font-semibold text-red-500 mb-2">Something went wrong loading the dashboard</p>
+          <p className="text-xs text-slate-500 font-mono break-all mb-4">{this.state.error.message}</p>
+          <button onClick={() => this.setState({ error: null })} className="text-xs text-blue-600 underline">Try again</button>
         </div>
       </div>
     );

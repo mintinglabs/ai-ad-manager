@@ -1184,7 +1184,12 @@ export const createReachFrequencyPrediction = async (token, adAccountId, params)
 
 export const searchAdLibrary = async (token, params = {}) => {
   const { data } = await metaApi.get('/ads_archive', {
-    params: { access_token: token, ...params }
+    params: {
+      access_token: token,
+      fields: 'id,ad_creation_time,ad_creative_bodies,ad_creative_link_captions,ad_creative_link_descriptions,ad_creative_link_titles,ad_delivery_start_time,ad_delivery_stop_time,ad_snapshot_url,page_id,page_name,publisher_platforms,bylines,estimated_audience_size,impressions,spend',
+      limit: params.limit || 12,
+      ...params,
+    }
   });
   return data.data;
 };
