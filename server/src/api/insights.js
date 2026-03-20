@@ -4,7 +4,7 @@ import * as metaClient from '../services/metaClient.js';
 
 const router = Router();
 const USE_MOCK = process.env.USE_MOCK_DATA === 'true';
-const getToken = () => process.env.META_DEMO_TOKEN;
+
 
 // Account-level aggregated insights (existing)
 router.get('/', async (req, res, next) => {
@@ -12,7 +12,7 @@ router.get('/', async (req, res, next) => {
     if (USE_MOCK) {
       return res.json(aggregateMetrics);
     }
-    const token = getToken();
+    const token = req.token;
     const adAccountId = req.query.adAccountId || process.env.AD_ACCOUNT_ID;
     const datePreset = req.query.date_preset || 'last_7d';
     const raw = await metaClient.getInsights(token, adAccountId, datePreset);
@@ -56,7 +56,7 @@ router.post('/async', async (req, res, next) => {
     if (action_attribution_windows) params.action_attribution_windows = action_attribution_windows;
     if (limit) params.limit = limit;
 
-    const data = await metaClient.createAsyncReport(getToken(), adAccountId, params);
+    const data = await metaClient.createAsyncReport(req.token, adAccountId, params);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -68,7 +68,7 @@ router.post('/async', async (req, res, next) => {
 // Check async report status
 router.get('/async/:reportRunId/status', async (req, res, next) => {
   try {
-    const data = await metaClient.getAsyncReportStatus(getToken(), req.params.reportRunId);
+    const data = await metaClient.getAsyncReportStatus(req.token, req.params.reportRunId);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -79,7 +79,7 @@ router.get('/async/:reportRunId/status', async (req, res, next) => {
 // Download async report results
 router.get('/async/:reportRunId/results', async (req, res, next) => {
   try {
-    const data = await metaClient.getAsyncReportResults(getToken(), req.params.reportRunId);
+    const data = await metaClient.getAsyncReportResults(req.token, req.params.reportRunId);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -108,7 +108,7 @@ router.get('/:objectId', async (req, res, next) => {
     if (req.query.limit) params.limit = req.query.limit;
     if (req.query.action_report_time) params.action_report_time = req.query.action_report_time;
 
-    const data = await metaClient.getObjectInsights(getToken(), objectId, params);
+    const data = await metaClient.getObjectInsights(req.token, objectId, params);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;

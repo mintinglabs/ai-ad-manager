@@ -2,15 +2,15 @@ import { LlmAgent, FunctionTool, Runner, InMemorySessionService } from '@google/
 import * as meta from './metaClient.js';
 
 // ── Helper: extract token + adAccountId ─────────────────────────────────────
-// Always use META_DEMO_TOKEN for data access (FB Login token is auth-only).
+// Uses the user's real token (long-lived, from FB login → token exchange).
 // ADK stores state as { value: {...}, delta: {...} } — read from .value
 const ctx = (context) => ({
-  token: process.env.META_DEMO_TOKEN,
+  token: context.state?.value?.token || context.state?.token,
   adAccountId: context.state?.value?.adAccountId || context.state?.adAccountId,
 });
 
 // ── Tool functions ──────────────────────────────────────────────────────────
-// Organized by category. All use META_DEMO_TOKEN + adAccountId from session.
+// Organized by category. All use user's token + adAccountId from session.
 
 // Wrap every tool so:
 // 1. Thrown errors become { error } objects the LLM can read

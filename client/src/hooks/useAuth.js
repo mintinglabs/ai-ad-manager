@@ -20,11 +20,27 @@ export const useAuth = () => {
     setLongLivedToken(null);
 
     fbLogin()
-      .then((authResponse) => {
-        const token = authResponse.accessToken;
-        if (!token) throw new Error('No access token returned from Facebook login.');
-        localStorage.setItem(TOKEN_KEY, token);
-        setLongLivedToken(token);
+      .then(async (authResponse) => {
+        const shortToken = authResponse.accessToken;
+        if (!shortToken) throw new Error('No access token returned from Facebook login.');
+
+        // Exchange short-lived token for long-lived token via server
+        const res = await fetch('/api/auth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shortLivedToken: shortToken }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `Token exchange failed (HTTP ${res.status})`);
+        }
+
+        const { longLivedToken: llToken } = await res.json();
+        if (!llToken) throw new Error('Token exchange returned no long-lived token.');
+
+        localStorage.setItem(TOKEN_KEY, llToken);
+        setLongLivedToken(llToken);
       })
       .catch((err) => {
         setError(err.message || 'Facebook login failed. Please try again.');

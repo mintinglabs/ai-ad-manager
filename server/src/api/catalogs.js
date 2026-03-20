@@ -2,14 +2,14 @@ import { Router } from 'express';
 import * as metaClient from '../services/metaClient.js';
 
 const router = Router();
-const getToken = () => process.env.META_DEMO_TOKEN;
+
 
 // GET / - List catalogs
 router.get('/', async (req, res) => {
   try {
     const { businessId } = req.query;
     if (!businessId) return res.status(400).json({ error: 'businessId is required' });
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.getCatalogs(token, businessId);
     res.json(data);
   } catch (err) {
@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.getCatalog(token, id);
     res.json(data);
   } catch (err) {
@@ -40,7 +40,7 @@ router.post('/', async (req, res) => {
     if (!businessId || !name || !vertical) {
       return res.status(400).json({ error: 'businessId, name, and vertical are required' });
     }
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.createCatalog(token, businessId, { name, vertical });
     res.json(data);
   } catch (err) {
@@ -55,7 +55,7 @@ router.patch('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.updateCatalog(token, id, updates);
     res.json(data);
   } catch (err) {
@@ -69,7 +69,7 @@ router.patch('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.deleteCatalog(token, id);
     res.json(data);
   } catch (err) {
@@ -84,7 +84,7 @@ router.get('/:id/products', async (req, res) => {
   try {
     const { id } = req.params;
     const limit = req.query.limit || 50;
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.getCatalogProducts(token, id, { limit });
     res.json(data);
   } catch (err) {
@@ -100,7 +100,7 @@ router.post('/:id/products/batch', async (req, res) => {
     const { id } = req.params;
     const { requests } = req.body;
     if (!requests) return res.status(400).json({ error: 'requests array is required' });
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.batchCatalogProducts(token, id, requests);
     res.json(data);
   } catch (err) {
@@ -114,7 +114,7 @@ router.post('/:id/products/batch', async (req, res) => {
 router.get('/:id/product-sets', async (req, res) => {
   try {
     const { id } = req.params;
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.getCatalogProductSets(token, id);
     res.json(data);
   } catch (err) {
@@ -130,7 +130,7 @@ router.post('/:id/product-sets', async (req, res) => {
     const { id } = req.params;
     const { name, filter } = req.body;
     if (!name || !filter) return res.status(400).json({ error: 'name and filter are required' });
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.createProductSet(token, id, { name, filter });
     res.json(data);
   } catch (err) {
@@ -145,7 +145,7 @@ router.patch('/product-sets/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.updateProductSet(token, id, updates);
     res.json(data);
   } catch (err) {
@@ -159,7 +159,7 @@ router.patch('/product-sets/:id', async (req, res) => {
 router.delete('/product-sets/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.deleteProductSet(token, id);
     res.json(data);
   } catch (err) {
@@ -173,7 +173,7 @@ router.delete('/product-sets/:id', async (req, res) => {
 router.get('/:id/feeds', async (req, res) => {
   try {
     const { id } = req.params;
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.getCatalogProductFeeds(token, id);
     res.json(data);
   } catch (err) {
@@ -189,7 +189,7 @@ router.post('/:id/feeds', async (req, res) => {
     const { id } = req.params;
     const { name, schedule } = req.body;
     if (!name || !schedule) return res.status(400).json({ error: 'name and schedule are required' });
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.createProductFeed(token, id, { name, schedule });
     res.json(data);
   } catch (err) {
@@ -204,7 +204,7 @@ router.patch('/feeds/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.updateProductFeed(token, id, updates);
     res.json(data);
   } catch (err) {
@@ -218,7 +218,7 @@ router.patch('/feeds/:id', async (req, res) => {
 router.delete('/feeds/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.deleteProductFeed(token, id);
     res.json(data);
   } catch (err) {
@@ -232,7 +232,7 @@ router.delete('/feeds/:id', async (req, res) => {
 router.get('/:id/diagnostics', async (req, res) => {
   try {
     const { id } = req.params;
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.getCatalogDiagnostics(token, id);
     res.json(data);
   } catch (err) {

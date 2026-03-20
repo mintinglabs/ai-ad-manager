@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as metaClient from '../services/metaClient.js';
 
 const router = Router();
-const getToken = () => process.env.META_DEMO_TOKEN;
+
 
 // GET / - List ads for an ad account
 router.get('/', async (req, res) => {
@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
     if (!adAccountId) {
       return res.status(400).json({ error: 'adAccountId is required' });
     }
-    const ads = await metaClient.getAds(getToken(), adAccountId);
+    const ads = await metaClient.getAds(req.token, adAccountId);
     res.json(ads);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
 // GET /:id - Get single ad
 router.get('/:id', async (req, res) => {
   try {
-    const ad = await metaClient.getAd(getToken(), req.params.id);
+    const ad = await metaClient.getAd(req.token, req.params.id);
     res.json(ad);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -48,7 +48,7 @@ router.post('/', async (req, res) => {
     if (tracking_specs) params.tracking_specs = JSON.stringify(tracking_specs);
     if (conversion_domain) params.conversion_domain = conversion_domain;
 
-    const result = await metaClient.createAd(getToken(), adAccountId, params);
+    const result = await metaClient.createAd(req.token, adAccountId, params);
     res.json(result);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -68,7 +68,7 @@ router.patch('/:id', async (req, res) => {
     if (tracking_specs !== undefined) updates.tracking_specs = JSON.stringify(tracking_specs);
     if (conversion_domain !== undefined) updates.conversion_domain = conversion_domain;
 
-    const result = await metaClient.updateAd(getToken(), req.params.id, updates);
+    const result = await metaClient.updateAd(req.token, req.params.id, updates);
     res.json(result);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -80,7 +80,7 @@ router.patch('/:id', async (req, res) => {
 // DELETE /:id - Delete ad
 router.delete('/:id', async (req, res) => {
   try {
-    const result = await metaClient.deleteAd(getToken(), req.params.id);
+    const result = await metaClient.deleteAd(req.token, req.params.id);
     res.json(result);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -93,7 +93,7 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/copies', async (req, res) => {
   try {
     const { deep_copy, rename_strategy, status_option } = req.body;
-    const result = await metaClient.copyAd(getToken(), req.params.id, { deep_copy, rename_strategy, status_option });
+    const result = await metaClient.copyAd(req.token, req.params.id, { deep_copy, rename_strategy, status_option });
     res.json(result);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -105,7 +105,7 @@ router.post('/:id/copies', async (req, res) => {
 // GET /:id/leads - Get leads for ad
 router.get('/:id/leads', async (req, res) => {
   try {
-    const leads = await metaClient.getAdLeads(getToken(), req.params.id);
+    const leads = await metaClient.getAdLeads(req.token, req.params.id);
     res.json(leads);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -121,7 +121,7 @@ router.get('/:id/previews', async (req, res) => {
     if (!ad_format) {
       return res.status(400).json({ error: 'ad_format query parameter is required' });
     }
-    const preview = await metaClient.getAdPreview(getToken(), req.params.id, ad_format);
+    const preview = await metaClient.getAdPreview(req.token, req.params.id, ad_format);
     res.json(preview);
   } catch (err) {
     const metaErr = err.response?.data?.error;

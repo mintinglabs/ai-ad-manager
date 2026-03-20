@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as metaClient from '../services/metaClient.js';
 
 const router = Router();
-const getToken = () => process.env.META_DEMO_TOKEN;
+
 
 // GET / - List ad creatives
 router.get('/', async (req, res) => {
@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
     if (!adAccountId) {
       return res.status(400).json({ error: 'adAccountId query parameter is required' });
     }
-    const creatives = await metaClient.getAdCreatives(getToken(), adAccountId);
+    const creatives = await metaClient.getAdCreatives(req.token, adAccountId);
     res.json(creatives);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -27,7 +27,7 @@ router.get('/:id/previews', async (req, res) => {
     if (!ad_format) {
       return res.status(400).json({ error: 'ad_format query parameter is required' });
     }
-    const preview = await metaClient.getCreativePreview(getToken(), req.params.id, ad_format);
+    const preview = await metaClient.getCreativePreview(req.token, req.params.id, ad_format);
     res.json(preview);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -39,7 +39,7 @@ router.get('/:id/previews', async (req, res) => {
 // GET /:id - Get single creative
 router.get('/:id', async (req, res) => {
   try {
-    const creative = await metaClient.getAdCreative(getToken(), req.params.id);
+    const creative = await metaClient.getAdCreative(req.token, req.params.id);
     res.json(creative);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -66,7 +66,7 @@ router.post('/', async (req, res) => {
     if (url_tags !== undefined) params.url_tags = url_tags;
     if (asset_feed_spec !== undefined) params.asset_feed_spec = asset_feed_spec;
 
-    const result = await metaClient.createAdCreative(getToken(), adAccountId, params);
+    const result = await metaClient.createAdCreative(req.token, adAccountId, params);
     res.json(result);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -79,7 +79,7 @@ router.post('/', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   try {
     const updates = req.body;
-    const result = await metaClient.updateAdCreative(getToken(), req.params.id, updates);
+    const result = await metaClient.updateAdCreative(req.token, req.params.id, updates);
     res.json(result);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -91,7 +91,7 @@ router.patch('/:id', async (req, res) => {
 // DELETE /:id - Delete creative
 router.delete('/:id', async (req, res) => {
   try {
-    const result = await metaClient.deleteAdCreative(getToken(), req.params.id);
+    const result = await metaClient.deleteAdCreative(req.token, req.params.id);
     res.json(result);
   } catch (err) {
     const metaErr = err.response?.data?.error;

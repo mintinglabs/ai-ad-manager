@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as metaClient from '../services/metaClient.js';
 
 const router = Router();
-const getToken = () => process.env.META_DEMO_TOKEN;
+
 
 // GET /ad/:id - Preview an existing ad
 router.get('/ad/:id', async (req, res) => {
@@ -10,7 +10,7 @@ router.get('/ad/:id', async (req, res) => {
     const { id } = req.params;
     const { ad_format } = req.query;
     if (!ad_format) return res.status(400).json({ error: 'ad_format is required' });
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.getAdPreview(token, id, ad_format);
     res.json(data);
   } catch (err) {
@@ -26,7 +26,7 @@ router.get('/creative/:id', async (req, res) => {
     const { id } = req.params;
     const { ad_format } = req.query;
     if (!ad_format) return res.status(400).json({ error: 'ad_format is required' });
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.getCreativePreview(token, id, ad_format);
     res.json(data);
   } catch (err) {
@@ -43,7 +43,7 @@ router.post('/generate', async (req, res) => {
     if (!adAccountId || !creative || !ad_format) {
       return res.status(400).json({ error: 'adAccountId, creative, and ad_format are required' });
     }
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.generatePreview(token, adAccountId, JSON.stringify(creative), ad_format);
     res.json(data);
   } catch (err) {

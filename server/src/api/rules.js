@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as metaClient from '../services/metaClient.js';
 
 const router = Router();
-const getToken = () => process.env.META_DEMO_TOKEN;
+
 
 // GET / - List ad rules
 router.get('/', async (req, res) => {
@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
     if (!adAccountId) {
       return res.status(400).json({ error: 'adAccountId is required' });
     }
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.getAdRules(token, adAccountId);
     res.json(data);
   } catch (err) {
@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
 // GET /:id - Get single rule
 router.get('/:id', async (req, res) => {
   try {
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.getAdRule(token, req.params.id);
     res.json(data);
   } catch (err) {
@@ -41,7 +41,7 @@ router.post('/', async (req, res) => {
     if (!adAccountId || !name || !schedule_spec || !evaluation_spec || !execution_spec) {
       return res.status(400).json({ error: 'adAccountId, name, schedule_spec, evaluation_spec, and execution_spec are required' });
     }
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.createAdRule(token, adAccountId, { name, schedule_spec, evaluation_spec, execution_spec });
     res.status(201).json(data);
   } catch (err) {
@@ -61,7 +61,7 @@ router.patch('/:id', async (req, res) => {
     if (schedule_spec !== undefined) updates.schedule_spec = schedule_spec;
     if (evaluation_spec !== undefined) updates.evaluation_spec = evaluation_spec;
     if (execution_spec !== undefined) updates.execution_spec = execution_spec;
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.updateAdRule(token, req.params.id, updates);
     res.json(data);
   } catch (err) {
@@ -74,7 +74,7 @@ router.patch('/:id', async (req, res) => {
 // DELETE /:id - Delete rule
 router.delete('/:id', async (req, res) => {
   try {
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.deleteAdRule(token, req.params.id);
     res.json(data);
   } catch (err) {
@@ -87,7 +87,7 @@ router.delete('/:id', async (req, res) => {
 // GET /:id/history - Get rule execution history
 router.get('/:id/history', async (req, res) => {
   try {
-    const token = getToken();
+    const token = req.token;
     const data = await metaClient.getAdRuleHistory(token, req.params.id);
     res.json(data);
   } catch (err) {

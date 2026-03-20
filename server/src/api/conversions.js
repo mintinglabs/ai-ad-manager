@@ -2,14 +2,14 @@ import { Router } from 'express';
 import * as metaClient from '../services/metaClient.js';
 
 const router = Router();
-const getToken = () => process.env.META_DEMO_TOKEN;
+
 
 // GET / - List custom conversions
 router.get('/', async (req, res) => {
   try {
     const { adAccountId } = req.query;
     if (!adAccountId) return res.status(400).json({ error: 'adAccountId is required' });
-    const token = getToken();
+    const token = req.token;
     const result = await metaClient.getCustomConversions(token, adAccountId);
     res.json(result);
   } catch (err) {
@@ -26,7 +26,7 @@ router.post('/', async (req, res) => {
     if (!adAccountId || !name || !rule || !event_source_type) {
       return res.status(400).json({ error: 'adAccountId, name, rule, and event_source_type are required' });
     }
-    const token = getToken();
+    const token = req.token;
     const params = { name, rule, event_source_type };
     if (default_conversion_value !== undefined) params.default_conversion_value = default_conversion_value;
     if (custom_event_type !== undefined) params.custom_event_type = custom_event_type;
@@ -45,7 +45,7 @@ router.patch('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
-    const token = getToken();
+    const token = req.token;
     const result = await metaClient.updateCustomConversion(token, id, updates);
     res.json(result);
   } catch (err) {
@@ -59,7 +59,7 @@ router.patch('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const token = getToken();
+    const token = req.token;
     const result = await metaClient.deleteCustomConversion(token, id);
     res.json(result);
   } catch (err) {

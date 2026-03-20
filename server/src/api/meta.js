@@ -3,13 +3,12 @@ import * as metaClient from '../services/metaClient.js';
 
 const router = Router();
 
-// Always use META_DEMO_TOKEN — FB Login is authentication only, not data access.
-const token = () => process.env.META_DEMO_TOKEN;
+// Token is provided by requireToken middleware as req.token
 
 // Triggers: ads_read — returns ad accounts with business info
 router.get('/adaccounts', async (req, res, next) => {
   try {
-    const raw = await metaClient.getAdAccounts(token());
+    const raw = await metaClient.getAdAccounts(req.token);
     const normalized = raw.map(acc => ({
       id:             acc.id,
       account_id:     acc.account_id,
@@ -28,7 +27,7 @@ router.get('/adaccounts', async (req, res, next) => {
 // Triggers: business_management
 router.get('/businesses', async (req, res, next) => {
   try {
-    const data = await metaClient.getBusinesses(token());
+    const data = await metaClient.getBusinesses(req.token);
     console.log(`[meta] /businesses → found ${data.length} businesses`);
     res.json(data);
   } catch (err) {
@@ -44,7 +43,7 @@ router.get('/businesses', async (req, res, next) => {
 // Returns ad accounts owned by a specific business
 router.get('/businesses/:id/adaccounts', async (req, res, next) => {
   try {
-    const raw = await metaClient.getOwnedAdAccounts(token(), req.params.id);
+    const raw = await metaClient.getOwnedAdAccounts(req.token, req.params.id);
     console.log(`[meta] /businesses/${req.params.id}/adaccounts → found ${raw.length} accounts`);
     const normalized = raw.map(acc => ({
       id:             acc.id,
@@ -68,7 +67,7 @@ router.get('/businesses/:id/adaccounts', async (req, res, next) => {
 // Triggers: pages_read_engagement
 router.get('/pages', async (req, res, next) => {
   try {
-    const data = await metaClient.getPages(token());
+    const data = await metaClient.getPages(req.token);
     res.json(data);
   } catch (err) {
     next(err);
@@ -80,7 +79,7 @@ router.get('/customaudiences', async (req, res, next) => {
   try {
     const adAccountId = req.query.adAccountId;
     if (!adAccountId) return res.status(400).json({ error: 'adAccountId required' });
-    const data = await metaClient.getCustomAudiences(token(), adAccountId);
+    const data = await metaClient.getCustomAudiences(req.token, adAccountId);
     res.json(data);
   } catch (err) {
     next(err);
@@ -92,7 +91,7 @@ router.post('/customaudiences', async (req, res, next) => {
   try {
     const { adAccountId, name, subtype } = req.body;
     if (!adAccountId || !name) return res.status(400).json({ error: 'adAccountId and name are required' });
-    const data = await metaClient.createCustomAudience(token(), adAccountId, {
+    const data = await metaClient.createCustomAudience(req.token, adAccountId, {
       name,
       subtype: subtype || 'WEBSITE',
       description: `Created via AI Ad Manager`,
@@ -111,7 +110,7 @@ router.post('/customaudiences', async (req, res, next) => {
 // Triggers: pages_manage_ads — lists ads associated with a specific Page
 router.get('/pages/:id/ads', async (req, res, next) => {
   try {
-    const data = await metaClient.getPageAds(token(), req.params.id);
+    const data = await metaClient.getPageAds(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -125,7 +124,7 @@ router.get('/pages/:id/ads', async (req, res, next) => {
 // --- Ad Account Details ---
 router.get('/adaccounts/:id/details', async (req, res, next) => {
   try {
-    const data = await metaClient.getAdAccountDetails(token(), req.params.id);
+    const data = await metaClient.getAdAccountDetails(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -136,7 +135,7 @@ router.get('/adaccounts/:id/details', async (req, res, next) => {
 // Ad account activity log
 router.get('/adaccounts/:id/activities', async (req, res, next) => {
   try {
-    const data = await metaClient.getAdAccountActivities(token(), req.params.id, req.query);
+    const data = await metaClient.getAdAccountActivities(req.token, req.params.id, req.query);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -147,7 +146,7 @@ router.get('/adaccounts/:id/activities', async (req, res, next) => {
 // Ad account users
 router.get('/adaccounts/:id/users', async (req, res, next) => {
   try {
-    const data = await metaClient.getAdAccountUsers(token(), req.params.id);
+    const data = await metaClient.getAdAccountUsers(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -158,7 +157,7 @@ router.get('/adaccounts/:id/users', async (req, res, next) => {
 // Minimum budgets
 router.get('/adaccounts/:id/minimum-budgets', async (req, res, next) => {
   try {
-    const data = await metaClient.getMinimumBudgets(token(), req.params.id);
+    const data = await metaClient.getMinimumBudgets(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -169,7 +168,7 @@ router.get('/adaccounts/:id/minimum-budgets', async (req, res, next) => {
 // Connected Instagram accounts
 router.get('/adaccounts/:id/instagram-accounts', async (req, res, next) => {
   try {
-    const data = await metaClient.getConnectedInstagramAccounts(token(), req.params.id);
+    const data = await metaClient.getConnectedInstagramAccounts(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -180,7 +179,7 @@ router.get('/adaccounts/:id/instagram-accounts', async (req, res, next) => {
 // --- Extended Business Manager ---
 router.get('/businesses/:id/details', async (req, res, next) => {
   try {
-    const data = await metaClient.getBusinessDetails(token(), req.params.id);
+    const data = await metaClient.getBusinessDetails(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -190,7 +189,7 @@ router.get('/businesses/:id/details', async (req, res, next) => {
 
 router.get('/businesses/:id/users', async (req, res, next) => {
   try {
-    const data = await metaClient.getBusinessUsers(token(), req.params.id);
+    const data = await metaClient.getBusinessUsers(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -200,7 +199,7 @@ router.get('/businesses/:id/users', async (req, res, next) => {
 
 router.get('/businesses/:id/system-users', async (req, res, next) => {
   try {
-    const data = await metaClient.getSystemUsers(token(), req.params.id);
+    const data = await metaClient.getSystemUsers(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -210,7 +209,7 @@ router.get('/businesses/:id/system-users', async (req, res, next) => {
 
 router.get('/businesses/:id/owned-pages', async (req, res, next) => {
   try {
-    const data = await metaClient.getBusinessOwnedPages(token(), req.params.id);
+    const data = await metaClient.getBusinessOwnedPages(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -220,7 +219,7 @@ router.get('/businesses/:id/owned-pages', async (req, res, next) => {
 
 router.get('/businesses/:id/owned-pixels', async (req, res, next) => {
   try {
-    const data = await metaClient.getBusinessOwnedPixels(token(), req.params.id);
+    const data = await metaClient.getBusinessOwnedPixels(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -230,7 +229,7 @@ router.get('/businesses/:id/owned-pixels', async (req, res, next) => {
 
 router.get('/businesses/:id/owned-catalogs', async (req, res, next) => {
   try {
-    const data = await metaClient.getBusinessOwnedCatalogs(token(), req.params.id);
+    const data = await metaClient.getBusinessOwnedCatalogs(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -240,7 +239,7 @@ router.get('/businesses/:id/owned-catalogs', async (req, res, next) => {
 
 router.get('/businesses/:id/owned-instagram', async (req, res, next) => {
   try {
-    const data = await metaClient.getBusinessOwnedIGAccounts(token(), req.params.id);
+    const data = await metaClient.getBusinessOwnedIGAccounts(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -250,7 +249,7 @@ router.get('/businesses/:id/owned-instagram', async (req, res, next) => {
 
 router.get('/businesses/:id/client-adaccounts', async (req, res, next) => {
   try {
-    const data = await metaClient.getBusinessClientAdAccounts(token(), req.params.id);
+    const data = await metaClient.getBusinessClientAdAccounts(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -262,7 +261,7 @@ router.post('/businesses/:id/claim-adaccount', async (req, res, next) => {
   try {
     const { adaccount_id } = req.body;
     if (!adaccount_id) return res.status(400).json({ error: 'adaccount_id required' });
-    const data = await metaClient.claimAdAccount(token(), req.params.id, adaccount_id);
+    const data = await metaClient.claimAdAccount(req.token, req.params.id, adaccount_id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -273,7 +272,7 @@ router.post('/businesses/:id/claim-adaccount', async (req, res, next) => {
 // --- Extended Audiences ---
 router.get('/customaudiences/:id', async (req, res, next) => {
   try {
-    const data = await metaClient.getCustomAudience(token(), req.params.id);
+    const data = await metaClient.getCustomAudience(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -283,7 +282,7 @@ router.get('/customaudiences/:id', async (req, res, next) => {
 
 router.patch('/customaudiences/:id', async (req, res, next) => {
   try {
-    const data = await metaClient.updateCustomAudience(token(), req.params.id, req.body);
+    const data = await metaClient.updateCustomAudience(req.token, req.params.id, req.body);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -293,7 +292,7 @@ router.patch('/customaudiences/:id', async (req, res, next) => {
 
 router.delete('/customaudiences/:id', async (req, res, next) => {
   try {
-    const data = await metaClient.deleteCustomAudience(token(), req.params.id);
+    const data = await metaClient.deleteCustomAudience(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -303,7 +302,7 @@ router.delete('/customaudiences/:id', async (req, res, next) => {
 
 router.post('/customaudiences/:id/users', async (req, res, next) => {
   try {
-    const data = await metaClient.addUsersToAudience(token(), req.params.id, req.body);
+    const data = await metaClient.addUsersToAudience(req.token, req.params.id, req.body);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -313,7 +312,7 @@ router.post('/customaudiences/:id/users', async (req, res, next) => {
 
 router.delete('/customaudiences/:id/users', async (req, res, next) => {
   try {
-    const data = await metaClient.removeUsersFromAudience(token(), req.params.id, req.body);
+    const data = await metaClient.removeUsersFromAudience(req.token, req.params.id, req.body);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -327,7 +326,7 @@ router.post('/lookalike-audiences', async (req, res, next) => {
     if (!adAccountId || !name || !origin_audience_id || !lookalike_spec) {
       return res.status(400).json({ error: 'adAccountId, name, origin_audience_id, and lookalike_spec required' });
     }
-    const data = await metaClient.createLookalikeAudience(token(), adAccountId, { name, origin_audience_id, lookalike_spec });
+    const data = await metaClient.createLookalikeAudience(req.token, adAccountId, { name, origin_audience_id, lookalike_spec });
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -340,7 +339,7 @@ router.post('/batch', async (req, res, next) => {
   try {
     const { batch } = req.body;
     if (!batch || !Array.isArray(batch)) return res.status(400).json({ error: 'batch array required' });
-    const data = await metaClient.batchRequest(token(), batch);
+    const data = await metaClient.batchRequest(req.token, batch);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -351,7 +350,7 @@ router.post('/batch', async (req, res, next) => {
 // --- Ad Library ---
 router.get('/ad-library', async (req, res, next) => {
   try {
-    const data = await metaClient.searchAdLibrary(token(), req.query);
+    const data = await metaClient.searchAdLibrary(req.token, req.query);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -364,7 +363,7 @@ router.post('/reach-frequency', async (req, res, next) => {
   try {
     const { adAccountId, ...params } = req.body;
     if (!adAccountId) return res.status(400).json({ error: 'adAccountId required' });
-    const data = await metaClient.createReachFrequencyPrediction(token(), adAccountId, params);
+    const data = await metaClient.createReachFrequencyPrediction(req.token, adAccountId, params);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -377,7 +376,7 @@ router.get('/block-lists', async (req, res, next) => {
   try {
     const adAccountId = req.query.adAccountId;
     if (!adAccountId) return res.status(400).json({ error: 'adAccountId required' });
-    const data = await metaClient.getPublisherBlockLists(token(), adAccountId);
+    const data = await metaClient.getPublisherBlockLists(req.token, adAccountId);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -389,7 +388,7 @@ router.post('/block-lists', async (req, res, next) => {
   try {
     const { adAccountId, name } = req.body;
     if (!adAccountId || !name) return res.status(400).json({ error: 'adAccountId and name required' });
-    const data = await metaClient.createPublisherBlockList(token(), adAccountId, name);
+    const data = await metaClient.createPublisherBlockList(req.token, adAccountId, name);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -399,7 +398,7 @@ router.post('/block-lists', async (req, res, next) => {
 
 router.delete('/block-lists/:id', async (req, res, next) => {
   try {
-    const data = await metaClient.deletePublisherBlockList(token(), req.params.id);
+    const data = await metaClient.deletePublisherBlockList(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;

@@ -5,14 +5,14 @@ import * as metaClient from '../services/metaClient.js';
 const router = Router();
 const USE_MOCK = process.env.USE_MOCK_DATA === 'true';
 
-const getToken = () => process.env.META_DEMO_TOKEN;
+
 
 router.get('/', async (req, res, next) => {
   try {
     if (USE_MOCK) {
       return res.json(getCampaigns());
     }
-    const token = getToken();
+    const token = req.token;
     const adAccountId = req.query.adAccountId || process.env.AD_ACCOUNT_ID;
     const campaigns = await metaClient.getCampaigns(token, adAccountId);
     res.json(campaigns);
@@ -34,7 +34,7 @@ router.patch('/:id', async (req, res, next) => {
       if (!updated) return res.status(404).json({ error: 'Campaign not found' });
       return res.json(updated);
     }
-    const token = getToken();
+    const token = req.token;
     const result = await metaClient.updateCampaign(token, id, updates);
     res.json(result);
   } catch (err) {
@@ -55,7 +55,7 @@ router.post('/', async (req, res, next) => {
     if (spend_cap) params.spend_cap = String(spend_cap);
     if (start_time) params.start_time = start_time;
     if (stop_time) params.stop_time = stop_time;
-    const result = await metaClient.createCampaign(getToken(), adAccountId, params);
+    const result = await metaClient.createCampaign(req.token, adAccountId, params);
     res.json(result);
   } catch (err) {
     next(err);
@@ -65,7 +65,7 @@ router.post('/', async (req, res, next) => {
 // Delete campaign
 router.delete('/:id', async (req, res, next) => {
   try {
-    const result = await metaClient.deleteCampaign(getToken(), req.params.id);
+    const result = await metaClient.deleteCampaign(req.token, req.params.id);
     res.json(result);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -78,7 +78,7 @@ router.delete('/:id', async (req, res, next) => {
 router.post('/:id/copies', async (req, res, next) => {
   try {
     const { deep_copy, rename_strategy, status_option } = req.body;
-    const result = await metaClient.copyCampaign(getToken(), req.params.id, { deep_copy, rename_strategy, status_option });
+    const result = await metaClient.copyCampaign(req.token, req.params.id, { deep_copy, rename_strategy, status_option });
     res.json(result);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -90,7 +90,7 @@ router.post('/:id/copies', async (req, res, next) => {
 // Get ad sets in campaign
 router.get('/:id/adsets', async (req, res, next) => {
   try {
-    const data = await metaClient.getCampaignAdSets(getToken(), req.params.id);
+    const data = await metaClient.getCampaignAdSets(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -101,7 +101,7 @@ router.get('/:id/adsets', async (req, res, next) => {
 // Get ads in campaign
 router.get('/:id/ads', async (req, res, next) => {
   try {
-    const data = await metaClient.getCampaignAds(getToken(), req.params.id);
+    const data = await metaClient.getCampaignAds(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;

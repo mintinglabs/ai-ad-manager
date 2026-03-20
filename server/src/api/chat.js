@@ -18,21 +18,21 @@ router.post('/', async (req, res) => {
   try {
     const { message, sessionId: clientSessionId, adAccountId, token, mode = 'Fast' } = req.body;
     console.log(`[chat] message="${message?.slice(0, 60)}" adAccountId=${adAccountId} mode=${mode} session=${clientSessionId?.slice(0, 8)}`);
-    console.log(`[chat] env check: GEMINI_API_KEY=${!!process.env.GEMINI_API_KEY} META_DEMO_TOKEN=${!!process.env.META_DEMO_TOKEN}`);
+    console.log(`[chat] env check: GEMINI_API_KEY=${!!process.env.GEMINI_API_KEY}`);
 
     if (!message) {
       return res.status(400).json({ error: 'message is required' });
     }
-    if (!token) {
+
+    // Use token from requireToken middleware (Bearer header), falling back to body
+    const userToken = req.token || token;
+    if (!userToken) {
       return res.status(401).json({ error: 'token is required' });
     }
 
     // Check server-side env vars
     if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_GENAI_API_KEY) {
       return res.status(500).json({ error: 'GEMINI_API_KEY not configured on server' });
-    }
-    if (!process.env.META_DEMO_TOKEN) {
-      return res.status(500).json({ error: 'META_DEMO_TOKEN not configured on server' });
     }
 
     // Set up SSE
@@ -51,7 +51,7 @@ router.post('/', async (req, res) => {
       const session = await sessionService.createSession({
         appName: 'ai_ad_manager',
         userId,
-        state: { token, adAccountId: adAccountId || null },
+        state: { token: userToken, adAccountId: adAccountId || null },
       });
       adkSessionId = session.id;
       if (clientSessionId) sessionMap.set(clientSessionId, adkSessionId);
@@ -76,7 +76,7 @@ router.post('/', async (req, res) => {
       userId,
       sessionId: adkSessionId,
       newMessage,
-      stateDelta: { token, adAccountId: adAccountId || null },
+      stateDelta: { token: userToken, adAccountId: adAccountId || null },
     });
 
     let fullText = '';

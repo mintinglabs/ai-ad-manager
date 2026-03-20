@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import { requireToken } from './middleware/requireToken.js';
 import authRouter from './api/auth.js';
 import campaignsRouter from './api/campaigns.js';
 import insightsRouter from './api/insights.js';
@@ -29,50 +30,29 @@ app.get('/api/ping', (_req, res) => res.json({ ok: true }));
 app.get('/api/debug', (_req, res) => res.json({
   hasGeminiKey: !!process.env.GEMINI_API_KEY,
   hasGenaiKey: !!process.env.GOOGLE_GENAI_API_KEY,
-  hasDemoToken: !!process.env.META_DEMO_TOKEN,
   nodeVersion: process.version,
 }));
-// Test audience creation directly to see exact Meta error
-app.post('/api/debug/test-audience', async (req, res) => {
-  try {
-    const { default: metaClient } = await import('./services/metaClient.js');
-    const { adAccountId, pixel_id, name = 'Debug Test' } = req.body;
-    const token = process.env.META_DEMO_TOKEN;
-    if (!token) return res.status(500).json({ error: 'No META_DEMO_TOKEN' });
-    if (!adAccountId) return res.status(400).json({ error: 'adAccountId required' });
-    const result = await metaClient.createCustomAudience(token, adAccountId, {
-      name,
-      subtype: 'WEBSITE',
-      pixel_id: pixel_id || 'none',
-      retention_days: 30,
-    });
-    res.json({ success: true, result });
-  } catch (err) {
-    const metaErr = err.response?.data?.error;
-    res.status(err.response?.status || 500).json({
-      error: metaErr || err.message,
-      fullResponse: err.response?.data,
-      status: err.response?.status,
-    });
-  }
-});
+
+// Auth route is public (no token required — it issues tokens)
 app.use('/api/auth', authRouter);
-app.use('/api/campaigns', campaignsRouter);
-app.use('/api/insights', insightsRouter);
-app.use('/api/meta', metaRouter);
-app.use('/api/adsets', adsetsRouter);
-app.use('/api/ads', adsRouter);
-app.use('/api/creatives', creativesRouter);
-app.use('/api/assets', assetsRouter);
-app.use('/api/targeting', targetingRouter);
-app.use('/api/rules', rulesRouter);
-app.use('/api/labels', labelsRouter);
-app.use('/api/pixels', pixelsRouter);
-app.use('/api/conversions', conversionsRouter);
-app.use('/api/leads', leadsRouter);
-app.use('/api/catalogs', catalogsRouter);
-app.use('/api/previews', previewsRouter);
-app.use('/api/chat', chatRouter);
+
+// All other routes require a valid Bearer token
+app.use('/api/campaigns', requireToken, campaignsRouter);
+app.use('/api/insights', requireToken, insightsRouter);
+app.use('/api/meta', requireToken, metaRouter);
+app.use('/api/adsets', requireToken, adsetsRouter);
+app.use('/api/ads', requireToken, adsRouter);
+app.use('/api/creatives', requireToken, creativesRouter);
+app.use('/api/assets', requireToken, assetsRouter);
+app.use('/api/targeting', requireToken, targetingRouter);
+app.use('/api/rules', requireToken, rulesRouter);
+app.use('/api/labels', requireToken, labelsRouter);
+app.use('/api/pixels', requireToken, pixelsRouter);
+app.use('/api/conversions', requireToken, conversionsRouter);
+app.use('/api/leads', requireToken, leadsRouter);
+app.use('/api/catalogs', requireToken, catalogsRouter);
+app.use('/api/previews', requireToken, previewsRouter);
+app.use('/api/chat', requireToken, chatRouter);
 
 app.use((err, _req, res, _next) => {
   console.error('EXPRESS ERROR:', err?.message, err?.stack);

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as metaClient from '../services/metaClient.js';
 
 const router = Router();
-const getToken = () => process.env.META_DEMO_TOKEN;
+// Token is provided by requireToken middleware as req.token
 
 // ── Images ──────────────────────────────────────────────────────────
 
@@ -12,7 +12,7 @@ router.get('/images', async (req, res) => {
     const { adAccountId } = req.query;
     if (!adAccountId) return res.status(400).json({ error: 'adAccountId is required' });
 
-    const data = await metaClient.getAdImages(getToken(), adAccountId);
+    const data = await metaClient.getAdImages(req.token, adAccountId);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -28,7 +28,7 @@ router.post('/images', async (req, res) => {
     if (!adAccountId) return res.status(400).json({ error: 'adAccountId is required' });
     if (!bytes) return res.status(400).json({ error: 'bytes is required' });
 
-    const data = await metaClient.uploadAdImage(getToken(), adAccountId, { bytes, name });
+    const data = await metaClient.uploadAdImage(req.token, adAccountId, { bytes, name });
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -44,7 +44,7 @@ router.delete('/images', async (req, res) => {
     if (!adAccountId) return res.status(400).json({ error: 'adAccountId is required' });
     if (!hash) return res.status(400).json({ error: 'hash is required' });
 
-    const data = await metaClient.deleteAdImage(getToken(), adAccountId, hash);
+    const data = await metaClient.deleteAdImage(req.token, adAccountId, hash);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -61,7 +61,7 @@ router.get('/videos', async (req, res) => {
     const { adAccountId } = req.query;
     if (!adAccountId) return res.status(400).json({ error: 'adAccountId is required' });
 
-    const data = await metaClient.getAdVideos(getToken(), adAccountId);
+    const data = await metaClient.getAdVideos(req.token, adAccountId);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -83,7 +83,7 @@ router.post('/videos', async (req, res) => {
     if (title) params.title = title;
     if (description) params.description = description;
 
-    const data = await metaClient.uploadAdVideo(getToken(), adAccountId, params);
+    const data = await metaClient.uploadAdVideo(req.token, adAccountId, params);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -95,7 +95,7 @@ router.post('/videos', async (req, res) => {
 // GET /videos/:id/status - Check video upload status
 router.get('/videos/:id/status', async (req, res) => {
   try {
-    const data = await metaClient.getAdVideoStatus(getToken(), req.params.id);
+    const data = await metaClient.getAdVideoStatus(req.token, req.params.id);
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -113,7 +113,7 @@ router.post('/bulk-upload', async (req, res) => {
     if (!adAccountId) return res.status(400).json({ error: 'adAccountId is required' });
     if (!files?.length) return res.status(400).json({ error: 'files array is required' });
 
-    const token = getToken();
+    const token = req.token;
     const results = [];
 
     for (const file of files) {
