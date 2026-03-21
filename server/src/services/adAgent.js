@@ -1103,7 +1103,83 @@ Rules for ad library results:
 - Set status to "Active" if no ad_delivery_stop_time, otherwise "Ended"
 - Extract headline from ad_creative_link_titles, body from ad_creative_bodies
 - After the cards, add a brief **## Insights** section analyzing the competitor creative patterns
-- If the API returns an authorization error, explain that the user needs to authorize Ad Library API access at facebook.com/ads/library/api`;
+- If the API returns an authorization error, explain that the user needs to authorize Ad Library API access at facebook.com/ads/library/api
+
+# REPORT GENERATION WORKFLOW
+
+When the user asks for a report, audit, analysis, or performance review, follow this systematic approach. Reports require multiple API calls — plan your tool calls carefully.
+
+## Step-by-step approach for comprehensive reports:
+
+### 1. Gather ALL data first (call tools in sequence):
+- **get_campaigns** — get all campaigns with status, budget, objective, and last 7d performance
+- **get_account_insights** with date_preset="last_7d" (or appropriate range) — get account-level metrics
+- **get_object_insights** for each active campaign ID — get per-campaign detailed performance
+- If needed: **get_ad_sets** and **get_object_insights** for each ad set breakdown
+- If needed: **get_ads** and **get_object_insights** for each ad — ad-level creative analysis
+
+### 2. Cross-analyze the data:
+- Calculate ROAS = purchase_roas or (action_values / spend)
+- Calculate CPA = spend / conversions (or cost_per_action_type)
+- Compare periods: last 7d vs previous 7d for trend detection
+- Identify winners (high ROAS, low CPA) and losers (low ROAS, high CPA, high frequency)
+- Flag creative fatigue: frequency > 3 or declining CTR over time
+
+### 3. Structure the output using rich cards:
+Follow this exact visual flow for reports:
+1. **Bold headline** — one sentence summary with key numbers
+2. \`\`\`metrics — 4 hero KPI numbers (spend, ROAS, CTR, CPA or similar)
+3. Markdown table — campaign/ad set breakdown with all relevant columns
+4. \`\`\`insights — what the data means + what needs attention (use severity levels)
+5. \`\`\`steps — prioritized action plan with high/medium/low priorities
+6. \`\`\`quickreplies — 3-4 follow-up actions
+
+### 4. Special report types:
+- **Budget analysis**: use \`\`\`budget card (shows stacked bar + allocation)
+- **Period comparison** (WoW, MoM): use \`\`\`comparison card
+- **Funnel analysis**: use \`\`\`funnel card (shows drop-off between stages)
+- **Account audit**: use \`\`\`score card + \`\`\`insights + \`\`\`steps
+
+### 5. Common report requests and required tool calls:
+
+**"Weekly Performance Report"**:
+1. get_campaigns → get_account_insights (last_7d) → get_object_insights for top campaigns → get_account_insights (last_14d for comparison)
+2. Output: metrics → table → comparison card → insights → steps → quickreplies
+
+**"Problems & Quick Wins"**:
+1. get_campaigns → get_object_insights for each active campaign (last_7d) → get_ad_sets → get_object_insights for low performers
+2. Look for: declining ROAS, rising CPA, high frequency, audience overlap, inactive campaigns still spending
+3. Output: headline → insights (critical/warning/success) → steps → quickreplies
+
+**"Creative Performance Analysis"**:
+1. get_ads → get_object_insights for each ad (last_7d) → get_ad_creative for top/bottom ads
+2. Flag: frequency > 3, declining CTR, best vs worst performers
+3. Output: metrics → table → insights → copyvariations (suggest new copy based on winners) → quickreplies
+
+**"Budget Optimization Plan"**:
+1. get_campaigns → get_object_insights for each campaign (last_7d) → calculate ROAS per campaign
+2. Identify over/under-spending relative to ROAS
+3. Output: budget card → table with reallocation amounts → steps → quickreplies
+
+**"Full Account Health Audit"**:
+1. get_campaigns → get_ad_sets → get_ads → get_pixels → get_account_insights → get_object_insights for active campaigns
+2. Score: structure (naming, organization), budget efficiency, creative diversity, pixel setup, audience overlap
+3. Output: score card → insights → steps → quickreplies
+
+### 6. Important rules for report generation:
+- NEVER say "I'll analyze" or "Let me look" — just call the tools and present results
+- If a tool returns an error, explain it briefly and continue with available data
+- Always convert API amounts from cents to dollars (divide by 100)
+- Always calculate derived metrics (ROAS, CTR, CPA) — don't just show raw numbers
+- For comparison reports, calculate % change and use trend indicators (up/down)
+- Include SPECIFIC dollar amounts in recommendations ("shift $50/day from Campaign X to Campaign Y")
+- After generating a report, suggest: "Tip: Click 'Open Report Canvas' to view this in a full report format you can save and share."
+
+### 7. Handling slow/complex requests:
+- For large accounts with many campaigns, prioritize ACTIVE campaigns
+- Limit to top 10-15 campaigns by spend to keep reports focused
+- If the account has no data for the requested period, say so clearly and suggest a different date range
+- If no ad account is selected, say: "Select an ad account from the sidebar to get started."`;
 
 // ── Create agent + runner ───────────────────────────────────────────────────
 

@@ -35,8 +35,16 @@ const DEFAULT_FOLDERS = [
   { id: 'strategies', name: 'Strategies', order: 1 },
 ];
 const getFolders = (adAccountId) => {
-  try { return JSON.parse(localStorage.getItem(`aam_folders_${adAccountId}`)) || [...DEFAULT_FOLDERS]; }
-  catch { return [...DEFAULT_FOLDERS]; }
+  try {
+    const saved = JSON.parse(localStorage.getItem(`aam_folders_${adAccountId}`));
+    if (!saved) return [...DEFAULT_FOLDERS];
+    // Always ensure default folders (Reports, Strategies) are present
+    const result = [...saved];
+    for (const def of DEFAULT_FOLDERS) {
+      if (!result.find(f => f.id === def.id)) result.unshift(def);
+    }
+    return result;
+  } catch { return [...DEFAULT_FOLDERS]; }
 };
 const setFoldersStorage = (adAccountId, folders) => {
   localStorage.setItem(`aam_folders_${adAccountId}`, JSON.stringify(folders));

@@ -1237,8 +1237,8 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, onSend, onStop
       {/* Empty State */}
       {isEmptyState && (
         <div className="flex-1 flex flex-col px-8 overflow-y-auto">
-          {/* Spacer to push content to ~38% from top */}
-          <div className="flex-[0_0_32%]" />
+          {/* Spacer to push content to ~20% from top */}
+          <div className="flex-[0_0_18%]" />
 
           <div className="w-full max-w-2xl mx-auto">
             <h1 className="text-3xl font-extrabold text-slate-900 mb-6 text-center tracking-tight">
