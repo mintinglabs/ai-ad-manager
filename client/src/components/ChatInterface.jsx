@@ -1236,9 +1236,9 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, onSend, onStop
 
       {/* Sticky banner when no account selected */}
       {!adAccountId && (
-        <div className="shrink-0 bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-center gap-2 text-xs font-medium text-amber-700">
+        <div className="shrink-0 bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center justify-center gap-2 text-sm font-medium text-amber-700">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-          Select an ad account from <strong>Meta Ads</strong> in the sidebar to unlock all features
+          Please select an ad account to get started
         </div>
       )}
 
@@ -1251,18 +1251,20 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, onSend, onStop
             <h1 className="text-3xl font-extrabold text-slate-900 mb-6 text-center tracking-tight">
               What would you like to know?
             </h1>
-            <ChatInput
-              input={input} setInput={setInput} onKeyDown={handleKeyDown}
-              onSend={() => handleSend()} onStop={onStop} onFilesAdded={addFiles}
-              attachments={attachments} onRemoveAttachment={removeAttachment}
-              fileRef={fileRef} isTyping={isTyping}
-              handleFileUpload={handleFileInput} isOver={isDragOver}
-            />
+            <div className={!adAccountId ? 'opacity-50 pointer-events-none' : ''}>
+              <ChatInput
+                input={input} setInput={setInput} onKeyDown={handleKeyDown}
+                onSend={() => handleSend()} onStop={onStop} onFilesAdded={addFiles}
+                attachments={attachments} onRemoveAttachment={removeAttachment}
+                fileRef={fileRef} isTyping={isTyping}
+                handleFileUpload={handleFileInput} isOver={isDragOver}
+              />
+            </div>
           </div>
 
-          <div className="w-full max-w-3xl mx-auto grid grid-cols-2 lg:grid-cols-3 gap-3 mt-8 pb-8">
+          <div className={`w-full max-w-3xl mx-auto grid grid-cols-2 lg:grid-cols-3 gap-3 mt-8 pb-8 ${!adAccountId ? 'opacity-50 pointer-events-none' : ''}`}>
             {suggestedActions.map((action) => (
-              <ActionCard key={action.label} {...action} onSend={handleSend} disabled={isTyping && !adAccountId} />
+              <ActionCard key={action.label} {...action} onSend={handleSend} disabled={isTyping || !adAccountId} />
             ))}
           </div>
         </div>
