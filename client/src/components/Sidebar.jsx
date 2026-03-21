@@ -8,7 +8,7 @@ const DATE_GROUP_ORDER = ['Today', 'Yesterday', 'Previous 7 Days', 'Previous 30 
 
 // ── Platform logos ───────────────────────────────────────────────────────────
 const MetaIcon = () => (
-  <img src="/meta-logo.svg" alt="Meta" style={{ height: 14 }} className="shrink-0" />
+  <img src="/meta-icon.svg" alt="Meta" className="w-4 h-4 shrink-0" />
 );
 
 // ── Multi-platform Account Picker ───────────────────────────────────────────

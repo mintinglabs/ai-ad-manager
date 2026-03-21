@@ -894,9 +894,14 @@ const ICON_BG = {
   FileText: 'bg-[#F59E0B]', DollarSign: 'bg-[#0891B2]', AlertTriangle: 'bg-[#F97316]', Zap: 'bg-[#EAB308]',
 };
 
-// Meta logo — uses official lockup from /public
+// Meta logo — full logo for report card headers
 const MetaLogo = ({ height = 16 }) => (
   <img src="/meta-logo.svg" alt="Meta" style={{ height }} className="shrink-0" />
+);
+
+// Meta icon — infinity symbol only, for action cards
+const MetaIconOnly = ({ size = 18 }) => (
+  <img src="/meta-icon.svg" alt="Meta" style={{ width: size, height: size }} className="shrink-0" />
 );
 
 const ActionCard = ({ icon, label, desc, prompt, onSend, disabled }) => {
@@ -905,13 +910,13 @@ const ActionCard = ({ icon, label, desc, prompt, onSend, disabled }) => {
   return (
     <button onClick={() => onSend(prompt)} disabled={disabled}
       className="flex items-start gap-3 bg-white border border-slate-200/80 rounded-xl px-4 py-3.5 text-left hover:border-blue-200 hover:bg-blue-50/30 hover:shadow-sm transition-all duration-150 disabled:opacity-40 group">
-      <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center shrink-0 mt-0.5`}>
+      <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center shrink-0 mt-0.5 relative`}>
         <Icon size={15} className="text-white" />
+        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100">
+          <MetaIconOnly size={10} />
+        </div>
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 mb-0.5">
-          <MetaLogo height={12} />
-        </div>
         <p className="text-[13px] font-semibold text-slate-800 leading-snug">{label}</p>
         <p className="text-[11px] text-slate-400 leading-relaxed mt-0.5">{desc}</p>
       </div>
