@@ -51,7 +51,7 @@ const isTableRow = (line) => line.trim().startsWith('|') && line.trim().endsWith
 const isSeparator = (line) => /^\|[\s\-:|]+\|$/.test(line.trim());
 const isNumeric = (s) => /^[\s$\-]?[\d,]+\.?\d*[%x]?\s*$/.test(s.trim());
 
-const parseMarkdownTable = (text) => {
+export const parseMarkdownTable = (text) => {
   const lines = text.split('\n');
   const segments = [];
   let textBuf = [];

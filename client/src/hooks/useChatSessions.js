@@ -3,13 +3,13 @@ import { useChatAgent, getWelcomeMessage, makeId } from './useChatAgent.js';
 
 const MAX_SESSIONS = 50;
 
-// ── localStorage helpers ─────────────────────────────────────────────────────
-const getSessionList = (adAccountId) => {
-  try { return JSON.parse(localStorage.getItem(`aam_chats_${adAccountId}`)) || []; }
+// ── localStorage helpers (global — not per account) ─────────────────────────
+const getSessionList = () => {
+  try { return JSON.parse(localStorage.getItem('aam_chats')) || []; }
   catch { return []; }
 };
-const setSessionList = (adAccountId, list) => {
-  localStorage.setItem(`aam_chats_${adAccountId}`, JSON.stringify(list.slice(0, MAX_SESSIONS)));
+const setSessionList = (list) => {
+  localStorage.setItem('aam_chats', JSON.stringify(list.slice(0, MAX_SESSIONS)));
 };
 const getSessionMessages = (sessionId) => {
   try { return JSON.parse(localStorage.getItem(`aam_chat_${sessionId}`)) || null; }
@@ -21,12 +21,12 @@ const setSessionMessages = (sessionId, messages) => {
 const removeSessionMessages = (sessionId) => {
   localStorage.removeItem(`aam_chat_${sessionId}`);
 };
-const getSavedItems = (adAccountId) => {
-  try { return JSON.parse(localStorage.getItem(`aam_saved_${adAccountId}`)) || []; }
+const getSavedItems = () => {
+  try { return JSON.parse(localStorage.getItem('aam_saved')) || []; }
   catch { return []; }
 };
-const setSavedItems = (adAccountId, items) => {
-  localStorage.setItem(`aam_saved_${adAccountId}`, JSON.stringify(items));
+const setSavedItems = (items) => {
+  localStorage.setItem('aam_saved', JSON.stringify(items));
 };
 
 // ── Folder helpers ──────────────────────────────────────────────────────────
@@ -34,11 +34,10 @@ const DEFAULT_FOLDERS = [
   { id: 'reports', name: 'Reports', order: 0 },
   { id: 'strategies', name: 'Strategies', order: 1 },
 ];
-const getFolders = (adAccountId) => {
+const getFolders = () => {
   try {
-    const saved = JSON.parse(localStorage.getItem(`aam_folders_${adAccountId}`));
+    const saved = JSON.parse(localStorage.getItem('aam_folders'));
     if (!saved) return [...DEFAULT_FOLDERS];
-    // Always ensure default folders (Reports, Strategies) are present
     const result = [...saved];
     for (const def of DEFAULT_FOLDERS) {
       if (!result.find(f => f.id === def.id)) result.unshift(def);
@@ -46,8 +45,8 @@ const getFolders = (adAccountId) => {
     return result;
   } catch { return [...DEFAULT_FOLDERS]; }
 };
-const setFoldersStorage = (adAccountId, folders) => {
-  localStorage.setItem(`aam_folders_${adAccountId}`, JSON.stringify(folders));
+const setFoldersStorage = (folders) => {
+  localStorage.setItem('aam_folders', JSON.stringify(folders));
 };
 
 // ── Date grouping ────────────────────────────────────────────────────────────
@@ -84,16 +83,14 @@ export const useChatSessions = ({ token, adAccountId, accountName, language = 'e
   const [initialMessages, setInitialMessages] = useState(null);
   const [initialSessionId, setInitialSessionId] = useState(null);
 
-  // Initialize sessions on account change
+  // Initialize sessions on mount (global, not per-account)
   useEffect(() => {
-    if (!adAccountId) return;
-    const list = getSessionList(adAccountId);
+    const list = getSessionList();
     setSessions(list);
-    setSavedItemsState(getSavedItems(adAccountId));
-    setFoldersState(getFolders(adAccountId));
+    setSavedItemsState(getSavedItems());
+    setFoldersState(getFolders());
 
     if (list.length > 0) {
-      // Load the most recent session
       const latest = list[0];
       const msgs = getSessionMessages(latest.id);
       if (msgs?.length) {
@@ -101,20 +98,18 @@ export const useChatSessions = ({ token, adAccountId, accountName, language = 'e
         setInitialSessionId(latest.id);
         setActiveSessionId(latest.id);
       } else {
-        // Session data is missing, create new
         const newId = makeId();
         setInitialMessages(null);
         setInitialSessionId(newId);
         setActiveSessionId(newId);
       }
     } else {
-      // No sessions, start fresh
       const newId = makeId();
       setInitialMessages(null);
       setInitialSessionId(newId);
       setActiveSessionId(newId);
     }
-  }, [adAccountId]);
+  }, []); // run once on mount
 
   const agent = useChatAgent({
     token,
@@ -127,13 +122,11 @@ export const useChatSessions = ({ token, adAccountId, accountName, language = 'e
 
   // Auto-save messages when agent finishes typing
   useEffect(() => {
-    if (prevTypingRef.current && !agent.isTyping && activeSessionId && adAccountId) {
-      // Agent just finished a response — save
+    if (prevTypingRef.current && !agent.isTyping && activeSessionId) {
       const msgs = agent.messages;
-      if (msgs.length > 1) { // More than just welcome
+      if (msgs.length > 1) {
         setSessionMessages(activeSessionId, msgs);
 
-        // Update session list
         const firstUserMsg = msgs.find(m => m.role === 'user');
         const title = firstUserMsg?.text?.slice(0, 50) || 'New Chat';
 
@@ -148,22 +141,22 @@ export const useChatSessions = ({ token, adAccountId, accountName, language = 'e
           };
           const filtered = prev.filter(s => s.id !== activeSessionId);
           const newList = [updated, ...filtered].slice(0, MAX_SESSIONS);
-          setSessionList(adAccountId, newList);
+          setSessionList(newList);
           return newList;
         });
       }
     }
     prevTypingRef.current = agent.isTyping;
-  }, [agent.isTyping, agent.messages, activeSessionId, adAccountId]);
+  }, [agent.isTyping, agent.messages, activeSessionId]);
 
   // Persist current session before switching
   const persistCurrent = useCallback(() => {
-    if (!activeSessionId || !adAccountId) return;
+    if (!activeSessionId) return;
     const msgs = agent.messages;
     if (msgs.length > 1) {
       setSessionMessages(activeSessionId, msgs);
     }
-  }, [activeSessionId, adAccountId, agent.messages]);
+  }, [activeSessionId, agent.messages]);
 
   // Create new chat
   const createNewChat = useCallback(() => {
@@ -190,56 +183,55 @@ export const useChatSessions = ({ token, adAccountId, accountName, language = 'e
     removeSessionMessages(sessionId);
     setSessions(prev => {
       const newList = prev.filter(s => s.id !== sessionId);
-      setSessionList(adAccountId, newList);
+      setSessionList(newList);
       return newList;
     });
-    // If deleting active session, create new
     if (sessionId === activeSessionId) {
       const newId = agent.resetChat();
       setActiveSessionId(newId);
     }
-  }, [activeSessionId, adAccountId, agent]);
+  }, [activeSessionId, agent]);
 
   // Rename session
   const renameSession = useCallback((sessionId, title) => {
     setSessions(prev => {
       const newList = prev.map(s => s.id === sessionId ? { ...s, title } : s);
-      setSessionList(adAccountId, newList);
+      setSessionList(newList);
       return newList;
     });
-  }, [adAccountId]);
+  }, []);
 
   // ── Folder management ────────────────────────────────────────────────────
   const createFolder = useCallback((name) => {
     const folder = { id: `folder_${Date.now()}`, name, order: folders.length };
     setFoldersState(prev => {
       const newFolders = [...prev, folder];
-      setFoldersStorage(adAccountId, newFolders);
+      setFoldersStorage(newFolders);
       return newFolders;
     });
     return folder;
-  }, [adAccountId, folders.length]);
+  }, [folders.length]);
 
   const deleteFolder = useCallback((folderId) => {
     setFoldersState(prev => {
       const newFolders = prev.filter(f => f.id !== folderId);
-      setFoldersStorage(adAccountId, newFolders);
+      setFoldersStorage(newFolders);
       return newFolders;
     });
     setSavedItemsState(prev => {
       const newItems = prev.filter(i => i.folderId !== folderId);
-      setSavedItems(adAccountId, newItems);
+      setSavedItems(newItems);
       return newItems;
     });
-  }, [adAccountId]);
+  }, []);
 
   const renameFolder = useCallback((folderId, name) => {
     setFoldersState(prev => {
       const newFolders = prev.map(f => f.id === folderId ? { ...f, name } : f);
-      setFoldersStorage(adAccountId, newFolders);
+      setFoldersStorage(newFolders);
       return newFolders;
     });
-  }, [adAccountId]);
+  }, []);
 
   const reorderFolders = useCallback((newOrder) => {
     setFoldersState(prev => {
@@ -247,10 +239,10 @@ export const useChatSessions = ({ token, adAccountId, accountName, language = 'e
         const folder = prev.find(f => f.id === id);
         return folder ? { ...folder, order: i } : null;
       }).filter(Boolean);
-      setFoldersStorage(adAccountId, newFolders);
+      setFoldersStorage(newFolders);
       return newFolders;
     });
-  }, [adAccountId]);
+  }, []);
 
   // Save item to a folder
   const saveItem = useCallback((messageId, folderId, title) => {
@@ -268,20 +260,20 @@ export const useChatSessions = ({ token, adAccountId, accountName, language = 'e
     };
     setSavedItemsState(prev => {
       const newItems = [item, ...prev];
-      setSavedItems(adAccountId, newItems);
+      setSavedItems(newItems);
       return newItems;
     });
     return item;
-  }, [agent.messages, activeSessionId, adAccountId]);
+  }, [agent.messages, activeSessionId]);
 
   // Delete saved item
   const deleteSavedItem = useCallback((itemId) => {
     setSavedItemsState(prev => {
       const newItems = prev.filter(i => i.id !== itemId);
-      setSavedItems(adAccountId, newItems);
+      setSavedItems(newItems);
       return newItems;
     });
-  }, [adAccountId]);
+  }, []);
 
   // Send message (wraps agent.sendMessage and ensures session is tracked)
   const sendMessage = useCallback((text, attachments) => {
@@ -298,7 +290,7 @@ export const useChatSessions = ({ token, adAccountId, accountName, language = 'e
       };
       setSessions(prev => {
         const newList = [newSession, ...prev].slice(0, MAX_SESSIONS);
-        setSessionList(adAccountId, newList);
+        setSessionList(newList);
         return newList;
       });
     }
