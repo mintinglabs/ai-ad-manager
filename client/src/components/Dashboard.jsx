@@ -39,13 +39,19 @@ export const Dashboard = ({
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [chatMode, setChatMode] = useState('Fast');
+  const [chatLanguage, setChatLanguage] = useState(() => localStorage.getItem('aam_language') || 'en');
   const [activeView, setActiveView] = useState({ type: 'chat' });
 
   const {
     sessions, activeSessionId, createNewChat, switchSession, deleteSession,
     messages, isTyping, thinkingText, sendMessage, notification,
     savedItems, saveItem, deleteSavedItem,
-  } = useChatSessions({ token, adAccountId, accountName: selectedAccount?.name, mode: chatMode });
+  } = useChatSessions({ token, adAccountId, accountName: selectedAccount?.name, mode: chatMode, language: chatLanguage });
+
+  const handleLanguageChange = useCallback((lang) => {
+    setChatLanguage(lang);
+    localStorage.setItem('aam_language', lang);
+  }, []);
 
   // Handle account switching — reset chat
   const handleAccountSelect = useCallback((business, account) => {
@@ -115,6 +121,8 @@ export const Dashboard = ({
         selectedAccount={selectedAccount}
         selectedBusiness={selectedBusiness}
         onSelectAccount={handleAccountSelect}
+        language={chatLanguage}
+        onLanguageChange={handleLanguageChange}
       />
 
       {/* Main Content */}

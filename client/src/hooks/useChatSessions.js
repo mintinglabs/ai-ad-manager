@@ -52,7 +52,7 @@ export const groupSessionsByDate = (sessions) => {
 };
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
-export const useChatSessions = ({ token, adAccountId, accountName, mode = 'Fast' }) => {
+export const useChatSessions = ({ token, adAccountId, accountName, mode = 'Fast', language = 'en' }) => {
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [savedItems, setSavedItemsState] = useState([]);
@@ -98,6 +98,7 @@ export const useChatSessions = ({ token, adAccountId, accountName, mode = 'Fast'
     adAccountId,
     accountName,
     mode,
+    language,
     initialMessages,
     externalSessionId: initialSessionId,
   });

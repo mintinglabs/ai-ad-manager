@@ -13,7 +13,7 @@ export const getWelcomeMessage = (accountName) => ({
 
 export { makeId };
 
-export const useChatAgent = ({ token, adAccountId, accountName, mode = 'Fast', initialMessages, externalSessionId }) => {
+export const useChatAgent = ({ token, adAccountId, accountName, mode = 'Fast', language = 'en', initialMessages, externalSessionId }) => {
   const [messages, setMessages] = useState(initialMessages || [getWelcomeMessage(accountName)]);
   const [isTyping, setIsTyping] = useState(false);
   const [thinkingText, setThinkingText] = useState('');
@@ -89,6 +89,7 @@ export const useChatAgent = ({ token, adAccountId, accountName, mode = 'Fast', i
           adAccountId,
           token,
           mode,
+          language,
         }),
         signal: controller.signal,
       });
@@ -183,7 +184,7 @@ export const useChatAgent = ({ token, adAccountId, accountName, mode = 'Fast', i
       setThinkingText('');
       abortRef.current = null;
     }
-  }, [token, adAccountId, isTyping, mode]);
+  }, [token, adAccountId, isTyping, mode, language]);
 
   return {
     messages,

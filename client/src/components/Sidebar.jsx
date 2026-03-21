@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bot, Plus, MessageSquare, Trash2, Sparkles, ChevronDown, ChevronLeft, ChevronRight, LogOut, FileText, Lightbulb, FolderOpen, Building2, Check } from 'lucide-react';
+import { Bot, Plus, MessageSquare, Trash2, Sparkles, ChevronDown, ChevronLeft, ChevronRight, LogOut, FileText, Lightbulb, FolderOpen, Building2, Check, Globe } from 'lucide-react';
 import { groupSessionsByDate } from '../hooks/useChatSessions.js';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
 import { useBusinesses } from '../hooks/useBusinesses.js';
@@ -133,6 +133,8 @@ export const Sidebar = ({
   selectedAccount,
   selectedBusiness,
   onSelectAccount,
+  language,
+  onLanguageChange,
 }) => {
   const [reportsOpen, setReportsOpen] = useState(true);
   const [strategiesOpen, setStrategiesOpen] = useState(true);
@@ -289,8 +291,31 @@ export const Sidebar = ({
         </div>
       </div>
 
+      {/* Language Selector */}
+      <div className="px-3 pb-2 border-t border-slate-100 pt-3">
+        <div className="flex items-center gap-2 px-1 mb-1">
+          <Globe size={13} className="text-slate-400" />
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Reply Language</span>
+        </div>
+        <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
+          {[{ value: 'en', label: 'English' }, { value: 'yue', label: '廣東話' }].map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => onLanguageChange?.(value)}
+              className={`flex-1 px-2 py-1.5 rounded-md text-[11px] font-medium transition-all
+                ${language === value
+                  ? 'bg-white text-slate-800 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-600'
+                }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* User Profile */}
-      <div className="px-3 pb-4 border-t border-slate-100 pt-3">
+      <div className="px-3 pb-4 pt-2">
         <div className="flex items-center gap-3 px-2">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shrink-0 shadow-sm">
             <span className="text-white text-xs font-bold">A</span>

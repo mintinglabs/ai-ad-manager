@@ -50,8 +50,8 @@ const sse = (res, obj) => {
 // Response: SSE stream of agent events
 router.post('/', async (req, res) => {
   try {
-    const { message, sessionId: clientSessionId, adAccountId, token, mode = 'Fast' } = req.body;
-    console.log(`[chat] message="${message?.slice(0, 60)}" adAccountId=${adAccountId} mode=${mode} session=${clientSessionId?.slice(0, 8)}`);
+    const { message, sessionId: clientSessionId, adAccountId, token, mode = 'Fast', language = 'en' } = req.body;
+    console.log(`[chat] message="${message?.slice(0, 60)}" adAccountId=${adAccountId} mode=${mode} lang=${language} session=${clientSessionId?.slice(0, 8)}`);
     console.log(`[chat] env check: GEMINI_API_KEY=${!!process.env.GEMINI_API_KEY}`);
 
     if (!message) {
@@ -95,13 +95,20 @@ router.post('/', async (req, res) => {
     }
 
     // Build the user message in Gemini Content format
+    // Language instruction
+    const LANG_MAP = {
+      en: '',
+      yue: '[LANGUAGE: Reply in Cantonese (廣東話). Use natural spoken Cantonese, not written Chinese. Keep technical terms like campaign names, metric names (ROAS, CTR, CPA), and numbers in English. All explanations, analysis, recommendations, and conversational text should be in Cantonese.]\n\n',
+    };
+    const langPrefix = LANG_MAP[language] || '';
+
     // Deep Research mode: prepend instruction to do thorough multi-step analysis
     const deepPrefix = mode === 'Deep Research'
       ? '[DEEP RESEARCH MODE] Analyze thoroughly: pull data from multiple tools, cross-reference metrics, compare time periods, check all related objects. Provide comprehensive breakdown with detailed tables and specific numbers. Do NOT summarize briefly — go deep.\n\n'
       : '';
     const newMessage = {
       role: 'user',
-      parts: [{ text: deepPrefix + message }],
+      parts: [{ text: langPrefix + deepPrefix + message }],
     };
 
     // Run the agent and stream events
