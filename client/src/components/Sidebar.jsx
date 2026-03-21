@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Bot, Plus, MessageSquare, Trash2, Sparkles, ChevronDown, ChevronLeft, ChevronRight, LogOut, FileText, Lightbulb, FolderOpen, Building2, Check, Globe } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Bot, Plus, MessageSquare, Trash2, Sparkles, ChevronDown, ChevronLeft, ChevronRight, LogOut, FileText, Lightbulb, FolderOpen, Building2, Check, Globe, GripVertical, FolderPlus, X } from 'lucide-react';
 import { groupSessionsByDate } from '../hooks/useChatSessions.js';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
 import { useBusinesses } from '../hooks/useBusinesses.js';
@@ -11,7 +11,7 @@ const MetaIcon = () => (
   <img src="/meta-icon.svg" alt="Meta" className="w-4 h-4 shrink-0" />
 );
 
-// ── Multi-platform Account Picker ───────────────────────────────────────────
+// ── Meta Ads Account Picker (direct flow: click → business → account) ────────
 const SidebarAccountPicker = ({ selectedAccount, selectedBusiness, onSelect }) => {
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState('business');
@@ -29,24 +29,21 @@ const SidebarAccountPicker = ({ selectedAccount, selectedBusiness, onSelect }) =
 
   const toggle = () => {
     if (!open) {
-      setLevel(selectedBusiness ? 'accounts' : 'platform');
+      setLevel(selectedBusiness ? 'accounts' : 'business');
       setActiveBiz(selectedBusiness || null);
     }
     setOpen(!open);
   };
 
-  const handleMetaClick = () => { setLevel('business'); };
   const handleBizClick = (biz) => { setActiveBiz(biz); setLevel('accounts'); };
   const handleAccClick = (account) => { onSelect(activeBiz, account); setOpen(false); };
-
   const hasSelection = selectedBusiness && selectedAccount;
 
   return (
     <div className="px-3 mb-2 space-y-1" ref={ref}>
-      {/* Platform section label */}
       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-1 py-0.5">Ad Platforms</p>
 
-      {/* Meta — active, clickable */}
+      {/* Meta Ads — click directly opens business/account picker */}
       <div className="relative">
         <button onClick={toggle}
           className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
@@ -56,32 +53,16 @@ const SidebarAccountPicker = ({ selectedAccount, selectedBusiness, onSelect }) =
             }`}>
           <MetaIcon />
           <span className="flex-1 text-left truncate">
-            {hasSelection
-              ? `${selectedBusiness.name} · act_${selectedAccount.account_id}`
-              : 'Connect Meta Account'
-            }
+            {hasSelection ? `${selectedAccount.name}` : 'Meta Ads'}
           </span>
           <ChevronDown size={11} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
 
         {open && (
           <div className="absolute left-0 right-0 top-full mt-1 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-xl shadow-xl shadow-slate-200/50 z-50 overflow-hidden">
-            {level === 'platform' && (
-              <>
-                <div className="px-3 py-2.5 border-b border-slate-100">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Select Platform</p>
-                </div>
-                <button onClick={handleMetaClick}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50 transition-colors">
-                  <MetaIcon />
-                  <span className="text-xs font-medium text-slate-700 flex-1">Meta Ads</span>
-                  <ChevronRight size={14} className="text-slate-300" />
-                </button>
-              </>
-            )}
             {level === 'business' && (
               <>
-                <div className="px-3 py-2.5 border-b border-slate-100">
+                <div className="px-3 py-2 border-b border-slate-100">
                   <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Select Business</p>
                 </div>
                 <div className="max-h-64 overflow-y-auto">
@@ -104,14 +85,11 @@ const SidebarAccountPicker = ({ selectedAccount, selectedBusiness, onSelect }) =
             {level === 'accounts' && (
               <>
                 <button onClick={() => setLevel('business')}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                  className="w-full flex items-center gap-2 px-3 py-2 border-b border-slate-100 hover:bg-slate-50 transition-colors">
                   <ChevronLeft size={14} className="text-slate-400" />
                   <Building2 size={12} className="text-emerald-600" />
                   <span className="text-xs font-medium text-slate-500 truncate">{activeBiz?.name}</span>
                 </button>
-                <div className="px-3 py-2 border-b border-slate-100">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Ad Accounts</p>
-                </div>
                 <div className="max-h-56 overflow-y-auto">
                   {accLoading ? (
                     <div className="px-3 py-6 text-center text-xs text-slate-400">Loading...</div>
@@ -174,14 +152,64 @@ export const Sidebar = ({
   onSelectAccount,
   language,
   onLanguageChange,
+  folders = [],
+  onCreateFolder,
+  onDeleteFolder,
+  onRenameFolder,
+  onReorderFolders,
 }) => {
-  const [reportsOpen, setReportsOpen] = useState(true);
-  const [strategiesOpen, setStrategiesOpen] = useState(true);
+  const [openFolders, setOpenFolders] = useState({});
   const [hoveredSession, setHoveredSession] = useState(null);
+  const [addingFolder, setAddingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [dragFolderId, setDragFolderId] = useState(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState(null);
+  const [editingFolderId, setEditingFolderId] = useState(null);
+  const [editFolderName, setEditFolderName] = useState('');
+  const newFolderRef = useRef(null);
 
   const grouped = groupSessionsByDate(sessions);
-  const reports = savedItems.filter(i => i.type === 'report');
-  const strategies = savedItems.filter(i => i.type === 'strategy');
+  const sortedFolders = [...folders].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  const handleAddFolder = () => {
+    setAddingFolder(true);
+    setTimeout(() => newFolderRef.current?.focus(), 50);
+  };
+  const handleCreateFolder = () => {
+    if (newFolderName.trim() && onCreateFolder) onCreateFolder(newFolderName.trim());
+    setAddingFolder(false);
+    setNewFolderName('');
+  };
+  const handleFolderDragStart = (e, folderId) => {
+    setDragFolderId(folderId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  const handleFolderDragOver = (e, folderId) => {
+    e.preventDefault();
+    if (folderId !== dragFolderId) setDragOverFolderId(folderId);
+  };
+  const handleFolderDrop = (e, targetFolderId) => {
+    e.preventDefault();
+    if (dragFolderId && dragFolderId !== targetFolderId && onReorderFolders) {
+      const ids = sortedFolders.map(f => f.id);
+      const fromIdx = ids.indexOf(dragFolderId);
+      const toIdx = ids.indexOf(targetFolderId);
+      if (fromIdx !== -1 && toIdx !== -1) {
+        ids.splice(fromIdx, 1);
+        ids.splice(toIdx, 0, dragFolderId);
+        onReorderFolders(ids);
+      }
+    }
+    setDragFolderId(null);
+    setDragOverFolderId(null);
+  };
+  const handleFolderDragEnd = () => { setDragFolderId(null); setDragOverFolderId(null); };
+  const startRenaming = (folder) => { setEditingFolderId(folder.id); setEditFolderName(folder.name); };
+  const finishRenaming = () => {
+    if (editFolderName.trim() && onRenameFolder) onRenameFolder(editingFolderId, editFolderName.trim());
+    setEditingFolderId(null);
+    setEditFolderName('');
+  };
 
   if (!open) return null;
 
@@ -232,57 +260,92 @@ export const Sidebar = ({
 
         {/* Folders Section */}
         <div className="mb-3">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-3 py-1.5">Folders</p>
-
-          {/* Reports folder */}
-          <div className="mb-1">
-            <button
-              onClick={() => setReportsOpen(!reportsOpen)}
-              className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] font-medium text-slate-500 hover:text-slate-700 transition-colors"
-            >
-              {reportsOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-              <FileText size={13} className="text-blue-400" />
-              <span>Reports ({reports.length})</span>
+          <div className="flex items-center justify-between px-3 py-1.5">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Folders</p>
+            <button onClick={handleAddFolder} className="text-slate-300 hover:text-blue-500 transition-colors" title="Add folder">
+              <FolderPlus size={13} />
             </button>
-            {reportsOpen && reports.length > 0 && reports.map(item => (
-              <button
-                key={item.id}
-                onClick={() => onViewSavedItem(item)}
-                className={`w-full flex items-center gap-2 pl-9 pr-3 py-1.5 text-[12px] text-slate-500 hover:bg-slate-50 hover:text-slate-700 rounded-lg transition-colors text-left
-                  ${activeView?.type === 'saved' && activeView?.itemId === item.id ? 'bg-blue-50 text-blue-700' : ''}`}
-              >
-                <span className="truncate">{item.title}</span>
-              </button>
-            ))}
-            {reportsOpen && reports.length === 0 && (
-              <p className="pl-9 pr-3 py-1 text-[11px] text-slate-300 italic">No reports yet</p>
-            )}
           </div>
 
-          {/* Strategies folder */}
-          <div className="mb-1">
-            <button
-              onClick={() => setStrategiesOpen(!strategiesOpen)}
-              className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] font-medium text-slate-500 hover:text-slate-700 transition-colors"
-            >
-              {strategiesOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-              <Lightbulb size={13} className="text-amber-400" />
-              <span>Strategies ({strategies.length})</span>
-            </button>
-            {strategiesOpen && strategies.length > 0 && strategies.map(item => (
-              <button
-                key={item.id}
-                onClick={() => onViewSavedItem(item)}
-                className={`w-full flex items-center gap-2 pl-9 pr-3 py-1.5 text-[12px] text-slate-500 hover:bg-slate-50 hover:text-slate-700 rounded-lg transition-colors text-left
-                  ${activeView?.type === 'saved' && activeView?.itemId === item.id ? 'bg-blue-50 text-blue-700' : ''}`}
+          {sortedFolders.map(folder => {
+            const folderItems = savedItems.filter(i => (i.folderId || (i.type === 'report' ? 'reports' : i.type === 'strategy' ? 'strategies' : '')) === folder.id);
+            const isOpen = openFolders[folder.id] ?? true;
+            const isDefault = folder.id === 'reports' || folder.id === 'strategies';
+            const folderIcon = folder.id === 'reports' ? <FileText size={13} className="text-blue-400" />
+              : folder.id === 'strategies' ? <Lightbulb size={13} className="text-amber-400" />
+              : <FolderOpen size={13} className="text-slate-400" />;
+
+            return (
+              <div
+                key={folder.id}
+                draggable
+                onDragStart={(e) => handleFolderDragStart(e, folder.id)}
+                onDragOver={(e) => handleFolderDragOver(e, folder.id)}
+                onDrop={(e) => handleFolderDrop(e, folder.id)}
+                onDragEnd={handleFolderDragEnd}
+                className={`mb-0.5 transition-all ${dragOverFolderId === folder.id && dragFolderId !== folder.id ? 'border-t-2 border-blue-400' : 'border-t-2 border-transparent'} ${dragFolderId === folder.id ? 'opacity-40' : ''}`}
               >
-                <span className="truncate">{item.title}</span>
-              </button>
-            ))}
-            {strategiesOpen && strategies.length === 0 && (
-              <p className="pl-9 pr-3 py-1 text-[11px] text-slate-300 italic">No strategies yet</p>
-            )}
-          </div>
+                <div className="flex items-center gap-0.5 group">
+                  <GripVertical size={10} className="text-slate-200 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1" />
+                  <button
+                    onClick={() => setOpenFolders(prev => ({ ...prev, [folder.id]: !isOpen }))}
+                    className="flex-1 flex items-center gap-2 px-2 py-1.5 text-[12px] font-medium text-slate-500 hover:text-slate-700 transition-colors min-w-0"
+                  >
+                    {isOpen ? <ChevronDown size={12} className="shrink-0" /> : <ChevronRight size={12} className="shrink-0" />}
+                    {folderIcon}
+                    {editingFolderId === folder.id ? (
+                      <input
+                        value={editFolderName}
+                        onChange={(e) => setEditFolderName(e.target.value)}
+                        onBlur={finishRenaming}
+                        onKeyDown={(e) => { if (e.key === 'Enter') finishRenaming(); if (e.key === 'Escape') setEditingFolderId(null); }}
+                        className="text-[12px] font-medium bg-blue-50 border border-blue-200 rounded px-1 py-0.5 w-full min-w-0 focus:outline-none"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span className="truncate" onDoubleClick={(e) => { e.stopPropagation(); startRenaming(folder); }}>
+                        {folder.name} ({folderItems.length})
+                      </span>
+                    )}
+                  </button>
+                  {!isDefault && editingFolderId !== folder.id && (
+                    <button onClick={() => onDeleteFolder?.(folder.id)}
+                      className="text-slate-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all p-1 mr-1 shrink-0"
+                      title="Delete folder">
+                      <X size={10} />
+                    </button>
+                  )}
+                </div>
+                {isOpen && folderItems.length > 0 && folderItems.map(item => (
+                  <button key={item.id} onClick={() => onViewSavedItem(item)}
+                    className={`w-full flex items-center gap-2 pl-10 pr-3 py-1.5 text-[12px] text-slate-500 hover:bg-slate-50 hover:text-slate-700 rounded-lg transition-colors text-left
+                      ${activeView?.type === 'saved' && activeView?.itemId === item.id ? 'bg-blue-50 text-blue-700' : ''}`}>
+                    <span className="truncate">{item.title}</span>
+                  </button>
+                ))}
+                {isOpen && folderItems.length === 0 && (
+                  <p className="pl-10 pr-3 py-1 text-[11px] text-slate-300 italic">Empty</p>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Add folder inline input */}
+          {addingFolder && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5">
+              <FolderPlus size={13} className="text-blue-400 shrink-0" />
+              <input
+                ref={newFolderRef}
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onBlur={handleCreateFolder}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleCreateFolder(); if (e.key === 'Escape') { setAddingFolder(false); setNewFolderName(''); } }}
+                placeholder="Folder name..."
+                className="text-[12px] font-medium bg-blue-50 border border-blue-200 rounded-lg px-2 py-1 w-full focus:outline-none focus:ring-1 focus:ring-blue-300"
+              />
+            </div>
+          )}
         </div>
 
         {/* Chat History */}

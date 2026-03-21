@@ -29,6 +29,19 @@ const setSavedItems = (adAccountId, items) => {
   localStorage.setItem(`aam_saved_${adAccountId}`, JSON.stringify(items));
 };
 
+// ── Folder helpers ──────────────────────────────────────────────────────────
+const DEFAULT_FOLDERS = [
+  { id: 'reports', name: 'Reports', order: 0 },
+  { id: 'strategies', name: 'Strategies', order: 1 },
+];
+const getFolders = (adAccountId) => {
+  try { return JSON.parse(localStorage.getItem(`aam_folders_${adAccountId}`)) || [...DEFAULT_FOLDERS]; }
+  catch { return [...DEFAULT_FOLDERS]; }
+};
+const setFoldersStorage = (adAccountId, folders) => {
+  localStorage.setItem(`aam_folders_${adAccountId}`, JSON.stringify(folders));
+};
+
 // ── Date grouping ────────────────────────────────────────────────────────────
 const getDateGroup = (timestamp) => {
   const now = new Date();
@@ -56,6 +69,7 @@ export const useChatSessions = ({ token, adAccountId, accountName, language = 'e
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [savedItems, setSavedItemsState] = useState([]);
+  const [folders, setFoldersState] = useState([]);
   const prevTypingRef = useRef(false);
 
   // Load initial session from last session or create new
@@ -68,6 +82,7 @@ export const useChatSessions = ({ token, adAccountId, accountName, language = 'e
     const list = getSessionList(adAccountId);
     setSessions(list);
     setSavedItemsState(getSavedItems(adAccountId));
+    setFoldersState(getFolders(adAccountId));
 
     if (list.length > 0) {
       // Load the most recent session
@@ -186,14 +201,58 @@ export const useChatSessions = ({ token, adAccountId, accountName, language = 'e
     });
   }, [adAccountId]);
 
-  // Save item (report/strategy)
-  const saveItem = useCallback((messageId, type, title) => {
+  // ── Folder management ────────────────────────────────────────────────────
+  const createFolder = useCallback((name) => {
+    const folder = { id: `folder_${Date.now()}`, name, order: folders.length };
+    setFoldersState(prev => {
+      const newFolders = [...prev, folder];
+      setFoldersStorage(adAccountId, newFolders);
+      return newFolders;
+    });
+    return folder;
+  }, [adAccountId, folders.length]);
+
+  const deleteFolder = useCallback((folderId) => {
+    setFoldersState(prev => {
+      const newFolders = prev.filter(f => f.id !== folderId);
+      setFoldersStorage(adAccountId, newFolders);
+      return newFolders;
+    });
+    setSavedItemsState(prev => {
+      const newItems = prev.filter(i => i.folderId !== folderId);
+      setSavedItems(adAccountId, newItems);
+      return newItems;
+    });
+  }, [adAccountId]);
+
+  const renameFolder = useCallback((folderId, name) => {
+    setFoldersState(prev => {
+      const newFolders = prev.map(f => f.id === folderId ? { ...f, name } : f);
+      setFoldersStorage(adAccountId, newFolders);
+      return newFolders;
+    });
+  }, [adAccountId]);
+
+  const reorderFolders = useCallback((newOrder) => {
+    setFoldersState(prev => {
+      const newFolders = newOrder.map((id, i) => {
+        const folder = prev.find(f => f.id === id);
+        return folder ? { ...folder, order: i } : null;
+      }).filter(Boolean);
+      setFoldersStorage(adAccountId, newFolders);
+      return newFolders;
+    });
+  }, [adAccountId]);
+
+  // Save item to a folder
+  const saveItem = useCallback((messageId, folderId, title) => {
     const msg = agent.messages.find(m => m.id === messageId);
     if (!msg) return;
     const item = {
       id: `saved_${Date.now()}`,
-      type,
-      title: title || msg.text?.slice(0, 50) || 'Untitled',
+      type: folderId === 'reports' ? 'report' : folderId === 'strategies' ? 'strategy' : 'item',
+      folderId: folderId || 'reports',
+      title: title || msg.text?.split('\n')[0]?.replace(/^[#*\s]+/, '')?.slice(0, 60) || 'Untitled',
       sourceSessionId: activeSessionId,
       sourceMessageId: messageId,
       content: msg.text,
@@ -256,5 +315,11 @@ export const useChatSessions = ({ token, adAccountId, accountName, language = 'e
     savedItems,
     saveItem,
     deleteSavedItem,
+    // Folders
+    folders,
+    createFolder,
+    deleteFolder,
+    renameFolder,
+    reorderFolders,
   };
 };

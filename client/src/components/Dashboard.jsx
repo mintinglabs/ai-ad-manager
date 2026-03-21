@@ -5,6 +5,7 @@ import { ChatInterface } from './ChatInterface.jsx';
 import { Sidebar } from './Sidebar.jsx';
 import { SavedItemView } from './SavedItemView.jsx';
 import { DashboardPage } from './DashboardPage.jsx';
+import { ReportPanel } from './ReportPanel.jsx';
 
 const SUGGESTED_ACTIONS = [
   { icon: 'BarChart3',     label: 'Weekly Performance Report',      desc: 'Spend, ROAS, CTR, CPA across all campaigns — with trends vs last week.',
@@ -34,11 +35,13 @@ export const Dashboard = ({
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [chatLanguage, setChatLanguage] = useState(() => localStorage.getItem('aam_language') || 'en');
   const [activeView, setActiveView] = useState({ type: 'chat' });
+  const [reportPanel, setReportPanel] = useState(null); // { messageId, content, title }
 
   const {
     sessions, activeSessionId, createNewChat, switchSession, deleteSession,
     messages, isTyping, thinkingText, sendMessage, stopGeneration, notification,
     savedItems, saveItem, deleteSavedItem,
+    folders, createFolder, deleteFolder, renameFolder, reorderFolders,
   } = useChatSessions({ token, adAccountId, accountName: selectedAccount?.name, language: chatLanguage });
 
   const handleLanguageChange = useCallback((lang) => {
@@ -88,6 +91,20 @@ export const Dashboard = ({
     sendMessage(prompt);
   }, [sendMessage]);
 
+  // Report canvas panel
+  const handleOpenReport = useCallback((messageId, content) => {
+    const title = content?.split('\n').find(l => l.trim())?.replace(/^[#*\s]+/, '')?.slice(0, 60) || 'Report';
+    setReportPanel({ messageId, content, title });
+  }, []);
+
+  const handleCloseReport = useCallback(() => setReportPanel(null), []);
+
+  const handleSaveFromPanel = useCallback((folderId) => {
+    if (reportPanel) {
+      saveItem(reportPanel.messageId, folderId, reportPanel.title);
+    }
+  }, [reportPanel, saveItem]);
+
   // Find current saved item for viewer
   const currentSavedItem = activeView.type === 'saved'
     ? savedItems.find(i => i.id === activeView.itemId)
@@ -116,40 +133,60 @@ export const Dashboard = ({
         onSelectAccount={handleAccountSelect}
         language={chatLanguage}
         onLanguageChange={handleLanguageChange}
+        folders={folders}
+        onCreateFolder={createFolder}
+        onDeleteFolder={deleteFolder}
+        onRenameFolder={renameFolder}
+        onReorderFolders={reorderFolders}
       />
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0">
-        {!sidebarOpen && (
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="absolute top-4 left-4 z-10 w-8 h-8 rounded-lg bg-white/80 backdrop-blur-sm border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-colors shadow-sm"
-          >
-            <MessageSquare size={16} />
-          </button>
-        )}
+      <main className="flex-1 flex min-w-0">
+        <div className={`flex flex-col min-w-0 ${reportPanel ? 'w-[45%]' : 'flex-1'} transition-all duration-300`}>
+          {!sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="absolute top-4 left-4 z-10 w-8 h-8 rounded-lg bg-white/80 backdrop-blur-sm border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-colors shadow-sm"
+            >
+              <MessageSquare size={16} />
+            </button>
+          )}
 
-        {activeView.type === 'funnel' ? (
-          <DashboardPage
-            adAccountId={adAccountId}
-            onNavigateToChat={handleFunnelToChat}
-          />
-        ) : activeView.type === 'saved' && currentSavedItem ? (
-          <SavedItemView
-            item={currentSavedItem}
-            onBack={() => setActiveView({ type: 'chat' })}
-            onDelete={handleDeleteSavedItem}
-          />
-        ) : (
-          <ChatInterface
-            messages={messages}
-            isTyping={isTyping}
-            thinkingText={thinkingText}
-            onSend={handleSend}
-            onStop={stopGeneration}
-            suggestedActions={SUGGESTED_ACTIONS}
-            adAccountId={adAccountId}
-            onSaveItem={saveItem}
+          {activeView.type === 'funnel' ? (
+            <DashboardPage
+              adAccountId={adAccountId}
+              onNavigateToChat={handleFunnelToChat}
+            />
+          ) : activeView.type === 'saved' && currentSavedItem ? (
+            <SavedItemView
+              item={currentSavedItem}
+              onBack={() => setActiveView({ type: 'chat' })}
+              onDelete={handleDeleteSavedItem}
+            />
+          ) : (
+            <ChatInterface
+              messages={messages}
+              isTyping={isTyping}
+              thinkingText={thinkingText}
+              onSend={handleSend}
+              onStop={stopGeneration}
+              suggestedActions={SUGGESTED_ACTIONS}
+              adAccountId={adAccountId}
+              onSaveItem={saveItem}
+              onOpenReport={handleOpenReport}
+              folders={folders}
+            />
+          )}
+        </div>
+
+        {/* Report Canvas Panel */}
+        {reportPanel && (
+          <ReportPanel
+            content={reportPanel.content}
+            title={reportPanel.title}
+            onClose={handleCloseReport}
+            onSave={handleSaveFromPanel}
+            folders={folders}
           />
         )}
       </main>

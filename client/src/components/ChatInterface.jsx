@@ -781,8 +781,41 @@ const MessageAttachments = ({ attachments }) => {
   );
 };
 
+// ── Rich content renderer (exported for ReportPanel) ────────────────────────
+export const RichContent = ({ text, onSend }) => {
+  const segments = parseMarkdownTable(text);
+  return (
+    <>
+      {segments.map((seg, i) => {
+        switch (seg.type) {
+          case 'table': return <StyledTable key={i} columns={seg.columns} rows={seg.rows} />;
+          case 'adlib': return <AdLibraryCards key={i} ads={seg.ads} />;
+          case 'metrics': return <MetricCards key={i} data={seg.data} />;
+          case 'options': return <OptionCards key={i} data={seg.data} onSend={onSend} />;
+          case 'insights': return <InsightCards key={i} data={seg.data} onSend={onSend} />;
+          case 'score': return <ScoreCard key={i} data={seg.data} />;
+          case 'copyvariations': return <CopyVariations key={i} data={seg.data} onSend={onSend} />;
+          case 'steps': return <StepsList key={i} data={seg.data} />;
+          case 'quickreplies': return <QuickRepliesCard key={i} data={seg.data} onSend={onSend} />;
+          case 'funnel': return <FunnelCard key={i} data={seg.data} />;
+          case 'comparison': return <ComparisonCard key={i} data={seg.data} />;
+          case 'budget': return <BudgetCard key={i} data={seg.data} />;
+          default: return <div key={i} className="whitespace-pre-wrap">{renderRichText(seg.content)}</div>;
+        }
+      })}
+    </>
+  );
+};
+
+// ── Detect if message has rich cards ────────────────────────────────────────
+export const hasRichCards = (text) => {
+  if (!text) return false;
+  const segments = parseMarkdownTable(text);
+  return segments.some(s => !['text', 'quickreplies'].includes(s.type));
+};
+
 // ── Save menu for agent messages ─────────────────────────────────────────────
-const SaveMenu = ({ messageId, onSave }) => {
+const SaveMenu = ({ messageId, onSave, folders = [] }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -792,6 +825,11 @@ const SaveMenu = ({ messageId, onSave }) => {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
+
+  const folderList = folders.length > 0 ? folders : [
+    { id: 'reports', name: 'Reports' },
+    { id: 'strategies', name: 'Strategies' },
+  ];
 
   return (
     <div className="relative" ref={ref}>
@@ -803,21 +841,17 @@ const SaveMenu = ({ messageId, onSave }) => {
         <Bookmark size={14} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 w-44">
-          <button
-            onClick={() => { onSave(messageId, 'report'); setOpen(false); }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-          >
-            <FileText size={13} className="text-blue-400" />
-            Save as Report
-          </button>
-          <button
-            onClick={() => { onSave(messageId, 'strategy'); setOpen(false); }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-amber-50 hover:text-amber-600 transition-colors"
-          >
-            <Sparkles size={13} className="text-amber-400" />
-            Save as Strategy
-          </button>
+        <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 w-48">
+          <p className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Save to folder</p>
+          {folderList.map(folder => (
+            <button key={folder.id}
+              onClick={() => { onSave(messageId, folder.id); setOpen(false); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+            >
+              <FileText size={13} className="text-blue-400" />
+              {folder.name}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -825,7 +859,7 @@ const SaveMenu = ({ messageId, onSave }) => {
 };
 
 // ── Message bubble ────────────────────────────────────────────────────────────
-const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem }) => {
+const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem, onOpenReport, folders }) => {
   if (message.type === 'report') return (<><ReportMessage message={message} timestamp={message.timestamp} /><div className="mb-2" /></>);
   if (message.type === 'table') return (<><TableMessage message={message} />{isLatest && message.actions?.length > 0 && <QuickReplies actions={message.actions} onSend={onSend} disabled={isTyping} />}<div className="mb-6" /></>);
 
@@ -833,6 +867,7 @@ const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem }) => {
   if (isAgent) {
     const segments = parseMarkdownTable(message.text);
     const hasWide = segments.some(s => s.type !== 'text');
+    const isRichReport = segments.some(s => !['text', 'quickreplies'].includes(s.type));
     return (
       <>
         <div className="flex items-end gap-3 mb-2 group">
@@ -843,7 +878,7 @@ const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem }) => {
             <div className="bg-white/80 backdrop-blur-sm border border-slate-200 text-slate-700 rounded-2xl rounded-bl-sm px-4 py-3 text-sm leading-relaxed shadow-sm relative">
               {onSaveItem && message.id !== 'welcome' && (
                 <div className="absolute top-2 right-2 z-10">
-                  <SaveMenu messageId={message.id} onSave={onSaveItem} />
+                  <SaveMenu messageId={message.id} onSave={onSaveItem} folders={folders} />
                 </div>
               )}
               {segments.map((seg, i) => {
@@ -863,6 +898,16 @@ const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem }) => {
                   default: return <div key={i} className="whitespace-pre-wrap">{renderRichText(seg.content)}</div>;
                 }
               })}
+              {/* Open Report Canvas button for rich content */}
+              {isRichReport && onOpenReport && message.id !== 'welcome' && (
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <button onClick={() => onOpenReport(message.id, message.text)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/60 text-blue-700 text-[13px] font-semibold hover:shadow-md hover:border-blue-300 transition-all w-full justify-center">
+                    <FileText size={15} />
+                    Open Report Canvas
+                  </button>
+                </div>
+              )}
             </div>
             <p className="text-xs text-slate-400 mt-1 ml-1">{fmtTime(message.timestamp)}</p>
           </div>
@@ -904,26 +949,17 @@ const MetaIconOnly = ({ size = 18 }) => (
   <img src="/meta-icon.svg" alt="Meta" style={{ width: size, height: size }} className="shrink-0" />
 );
 
-const ActionCard = ({ icon, label, desc, prompt, onSend, disabled }) => {
-  const Icon = ICON_MAP[icon] || Zap;
-  const bg = ICON_BG[icon] || 'bg-slate-500';
-  return (
-    <button onClick={() => onSend(prompt)} disabled={disabled}
-      className="flex items-start gap-3 bg-white border border-slate-200/80 rounded-xl px-4 py-3.5 text-left hover:border-blue-200 hover:bg-blue-50/30 hover:shadow-sm transition-all duration-150 disabled:opacity-40 group">
-      <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center shrink-0 mt-0.5 relative`}>
-        <Icon size={15} className="text-white" />
-        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100">
-          <MetaIconOnly size={10} />
-        </div>
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-semibold text-slate-800 leading-snug">{label}</p>
-        <p className="text-[11px] text-slate-400 leading-relaxed mt-0.5">{desc}</p>
-      </div>
-      <ArrowUpRight size={13} className="text-slate-200 group-hover:text-blue-400 transition-colors shrink-0 mt-1" />
-    </button>
-  );
-};
+const ActionCard = ({ label, desc, prompt, onSend, disabled }) => (
+  <button onClick={() => onSend(prompt)} disabled={disabled}
+    className="flex flex-col bg-white border border-slate-200/80 rounded-2xl px-5 py-4 text-left hover:border-blue-200 hover:bg-blue-50/20 hover:shadow-md transition-all duration-200 disabled:opacity-40 group">
+    <MetaIconOnly size={28} />
+    <p className="text-[14px] font-bold text-slate-900 leading-snug mt-3">{label}</p>
+    <p className="text-[12px] text-slate-400 leading-relaxed mt-1.5 flex-1">{desc}</p>
+    <div className="flex items-center gap-1 mt-3 text-[11px] font-semibold text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
+      Generate Report <ArrowUpRight size={11} />
+    </div>
+  </button>
+);
 
 // ── Input box with drag & drop ───────────────────────────────────────────────
 const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, attachments, onRemoveAttachment, fileRef, isTyping, handleFileUpload, isOver }) => (
@@ -966,7 +1002,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
 );
 
 // ── Main component ────────────────────────────────────────────────────────────
-export const ChatInterface = ({ messages, isTyping, thinkingText, onSend, onStop, suggestedActions = [], adAccountId, onSaveItem }) => {
+export const ChatInterface = ({ messages, isTyping, thinkingText, onSend, onStop, suggestedActions = [], adAccountId, onSaveItem, onOpenReport, folders = [] }) => {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState([]); // { id, file, preview, status, progress, result }
   const [isDragOver, setIsDragOver] = useState(false);
@@ -1217,7 +1253,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, onSend, onStop
             />
           </div>
 
-          <div className="w-full max-w-3xl mx-auto grid grid-cols-2 md:grid-cols-3 gap-3 mt-8 pb-8">
+          <div className="w-full max-w-3xl mx-auto grid grid-cols-2 lg:grid-cols-3 gap-3 mt-8 pb-8">
             {suggestedActions.map((action) => (
               <ActionCard key={action.label} {...action} onSend={handleSend} disabled={isTyping} />
             ))}
@@ -1231,7 +1267,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, onSend, onStop
           <div className="flex-1 overflow-y-auto">
             <div className="max-w-3xl mx-auto px-4 pt-6 pb-2">
               {messages.map((msg) => (
-                <MessageBubble key={msg.id} message={msg} isLatest={msg.id === lastId} onSend={handleSend} isTyping={isTyping} onSaveItem={onSaveItem} />
+                <MessageBubble key={msg.id} message={msg} isLatest={msg.id === lastId} onSend={handleSend} isTyping={isTyping} onSaveItem={onSaveItem} onOpenReport={onOpenReport} folders={folders} />
               ))}
               {isTyping && <TypingIndicator thinkingText={thinkingText} />}
               <div ref={endRef} />
