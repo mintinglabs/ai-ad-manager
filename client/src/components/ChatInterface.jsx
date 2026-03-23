@@ -990,7 +990,7 @@ const ActionCard = ({ label, desc, prompt, onSend, disabled }) => (
 );
 
 // ── Input box with drag & drop ───────────────────────────────────────────────
-const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, attachments, onRemoveAttachment, fileRef, isTyping, handleFileUpload, isOver }) => (
+const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, attachments, onRemoveAttachment, fileRef, isTyping, handleFileUpload, isOver, activeStrategist, onDeactivateStrategist }) => (
   <div className={`bg-white/80 backdrop-blur-xl border rounded-2xl overflow-hidden shadow-lg shadow-slate-200/50 transition-all
     ${isOver ? 'border-blue-400 ring-2 ring-blue-100' : 'border-slate-200'}`}>
     <AttachmentBar attachments={attachments} onRemove={onRemoveAttachment} />
@@ -999,13 +999,25 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={onKeyDown}
-        placeholder={attachments.length ? 'Describe what to do with these files...' : 'Ask anything about your ads...'}
+        placeholder={activeStrategist ? `Ask with ${activeStrategist.name} active...` : attachments.length ? 'Describe what to do with these files...' : 'Ask anything about your ads...'}
         rows={1}
         disabled={isTyping}
         className="w-full resize-none text-sm bg-transparent text-slate-800 placeholder:text-slate-400 focus:outline-none disabled:text-slate-400 max-h-32 overflow-y-auto"
         style={{ lineHeight: '1.5' }}
       />
     </div>
+    {/* Active strategist chip */}
+    {activeStrategist && (
+      <div className="px-4 pb-2">
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-[11px] font-semibold text-indigo-700">
+          <Sparkles size={11} />
+          {activeStrategist.name}
+          <button onClick={onDeactivateStrategist} className="ml-0.5 text-indigo-400 hover:text-indigo-600 transition-colors">
+            <X size={11} />
+          </button>
+        </div>
+      </div>
+    )}
     <div className="px-4 pb-3 flex items-center justify-end">
       <div className="flex items-center gap-2">
         <button onClick={() => fileRef.current?.click()} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
@@ -1030,7 +1042,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
 );
 
 // ── Main component ────────────────────────────────────────────────────────────
-export const ChatInterface = ({ messages, isTyping, thinkingText, onSend, onStop, suggestedActions = [], adAccountId, onSaveItem, onOpenReport, folders = [] }) => {
+export const ChatInterface = ({ messages, isTyping, thinkingText, onSend, onStop, suggestedActions = [], adAccountId, onSaveItem, onOpenReport, folders = [], activeStrategist = null, onDeactivateStrategist }) => {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState([]); // { id, file, preview, status, progress, result }
   const [isDragOver, setIsDragOver] = useState(false);
@@ -1286,6 +1298,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, onSend, onStop
                 attachments={attachments} onRemoveAttachment={removeAttachment}
                 fileRef={fileRef} isTyping={isTyping}
                 handleFileUpload={handleFileInput} isOver={isDragOver}
+                activeStrategist={activeStrategist} onDeactivateStrategist={onDeactivateStrategist}
               />
             </div>
           </div>
@@ -1319,6 +1332,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, onSend, onStop
                 attachments={attachments} onRemoveAttachment={removeAttachment}
                 fileRef={fileRef} isTyping={isTyping}
                 handleFileUpload={handleFileInput} isOver={isDragOver}
+                activeStrategist={activeStrategist} onDeactivateStrategist={onDeactivateStrategist}
               />
             </div>
           </div>

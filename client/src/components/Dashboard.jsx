@@ -1,11 +1,13 @@
 import { useState, useCallback } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { useChatSessions } from '../hooks/useChatSessions.js';
+import { useStrategists } from '../hooks/useStrategists.js';
 import { ChatInterface } from './ChatInterface.jsx';
 import { Sidebar } from './Sidebar.jsx';
 import { SavedItemView } from './SavedItemView.jsx';
 import { DashboardPage } from './DashboardPage.jsx';
 import { ReportPanel } from './ReportPanel.jsx';
+import { StrategistConfig } from './StrategistConfig.jsx';
 
 const SUGGESTED_ACTIONS = [
   { icon: 'BarChart3',     label: 'Weekly Performance Report',      desc: 'Spend, ROAS, CTR, CPA across all campaigns — with trends vs last week.',
@@ -35,7 +37,13 @@ export const Dashboard = ({
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [chatLanguage, setChatLanguage] = useState(() => localStorage.getItem('aam_language') || 'en');
   const [activeView, setActiveView] = useState({ type: 'chat' });
-  const [reportPanel, setReportPanel] = useState(null); // { messageId, content, title }
+  const [reportPanel, setReportPanel] = useState(null);
+  const [configuringStrategistId, setConfiguringStrategistId] = useState(null);
+
+  const {
+    strategists, activeStrategist, toggleStrategist, updateStrategist,
+    addDocument, removeDocument, getStrategistContext,
+  } = useStrategists();
 
   const {
     sessions, activeSessionId, createNewChat, switchSession, deleteSession,
@@ -58,8 +66,11 @@ export const Dashboard = ({
 
   const handleSend = useCallback((text, attachments) => {
     setActiveView({ type: 'chat' });
-    sendMessage(text, attachments);
-  }, [sendMessage]);
+    // Prepend strategist context if active
+    const stratContext = getStrategistContext();
+    const fullText = stratContext ? `${stratContext}\n\n---\n\nUser message: ${text}` : text;
+    sendMessage(fullText, attachments);
+  }, [sendMessage, getStrategistContext]);
 
   const handleSwitchSession = useCallback((sessionId) => {
     setActiveView({ type: 'chat' });
@@ -138,6 +149,10 @@ export const Dashboard = ({
         onDeleteFolder={deleteFolder}
         onRenameFolder={renameFolder}
         onReorderFolders={reorderFolders}
+        strategists={strategists}
+        activeStrategist={activeStrategist}
+        onToggleStrategist={toggleStrategist}
+        onConfigureStrategist={(id) => { setConfiguringStrategistId(id); setActiveView({ type: 'strategist' }); }}
       />
 
       {/* Main Content */}
@@ -152,7 +167,15 @@ export const Dashboard = ({
             </button>
           )}
 
-          {activeView.type === 'funnel' ? (
+          {activeView.type === 'strategist' && configuringStrategistId ? (
+            <StrategistConfig
+              strategist={strategists.find(s => s.id === configuringStrategistId) || strategists[0]}
+              onUpdate={updateStrategist}
+              onAddDoc={addDocument}
+              onRemoveDoc={removeDocument}
+              onBack={() => setActiveView({ type: 'chat' })}
+            />
+          ) : activeView.type === 'funnel' ? (
             <DashboardPage
               adAccountId={adAccountId}
               onNavigateToChat={handleFunnelToChat}
@@ -175,6 +198,8 @@ export const Dashboard = ({
               onSaveItem={saveItem}
               onOpenReport={handleOpenReport}
               folders={folders}
+              activeStrategist={activeStrategist}
+              onDeactivateStrategist={() => activeStrategist && toggleStrategist(activeStrategist.id)}
             />
           )}
         </div>
