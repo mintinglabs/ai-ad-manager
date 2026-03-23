@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Users, Plus, RefreshCw, Trash2, Copy, Target, Globe, Clock, Hash, ChevronDown, X, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Users, Plus, RefreshCw, Trash2, Copy, Target, Globe, Clock, Hash, ChevronDown, X, AlertTriangle, ExternalLink, Film } from 'lucide-react';
 import api from '../services/api.js';
 
 const SUBTYPE_LABELS = { WEBSITE: 'Website', ENGAGEMENT: 'Engagement', CUSTOM: 'Customer List', LOOKALIKE: 'Lookalike', OFFLINE_CONVERSION: 'Offline' };
@@ -72,8 +72,9 @@ const AudienceCard = ({ audience, onUse, onCreateLookalike, onDelete }) => {
 // ── Create Audience Modal ───────────────────────────────────────────────────
 const TABS = [
   { id: 'website', label: 'Website', icon: Globe },
-  { id: 'lookalike', label: 'Lookalike', icon: Users },
+  { id: 'video', label: 'Video', icon: Film },
   { id: 'engagement', label: 'Engagement', icon: Hash },
+  { id: 'lookalike', label: 'Lookalike', icon: Users },
 ];
 
 const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId }) => {
@@ -87,11 +88,26 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId }) => {
   const [ratio, setRatio] = useState(1);
   // Engagement
   const [engagementType, setEngagementType] = useState('page_engagement');
+  // Video
+  const [videoSource, setVideoSource] = useState('facebook_page');
+  const [videoId, setVideoId] = useState('');
+  const [videoWatchPct, setVideoWatchPct] = useState(50);
+
+  const VIDEO_SOURCES = [
+    { id: 'facebook_page', label: 'Facebook Page', desc: 'People who watched videos on your Page' },
+    { id: 'instagram', label: 'Instagram professional account', desc: 'People who watched videos on your IG' },
+    { id: 'campaign', label: 'Campaign', desc: 'People who watched videos from your ads' },
+    { id: 'video_id', label: 'Video ID', desc: 'People who watched a specific video' },
+  ];
 
   const handleCreate = () => {
     let prompt = '';
     if (tab === 'website') {
       prompt = `Create a website custom audience called "${name || 'Website Visitors - Last ' + retentionDays + 'd'}" with ${retentionDays} day retention${urlFilter ? `, only visitors to pages containing "${urlFilter}"` : ''}`;
+    } else if (tab === 'video') {
+      const srcLabel = VIDEO_SOURCES.find(s => s.id === videoSource)?.label || videoSource;
+      const defaultName = `Video Viewers ${videoWatchPct}% - ${srcLabel} - Last ${retentionDays}d`;
+      prompt = `Create a video engagement custom audience called "${name || defaultName}" for people who watched at least ${videoWatchPct}% of videos from ${srcLabel}${videoSource === 'video_id' && videoId ? ` (video ID: ${videoId})` : ''}, ${retentionDays} day retention`;
     } else if (tab === 'lookalike') {
       prompt = `Create a lookalike audience from audience ID ${sourceAudienceId}, targeting ${country}, ${ratio}% ratio, name it "${name || 'Lookalike ' + ratio + '% - ' + country}"`;
     } else if (tab === 'engagement') {
@@ -126,7 +142,7 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId }) => {
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Audience Name</label>
             <input value={name} onChange={e => setName(e.target.value)}
-              placeholder={tab === 'website' ? 'Website Visitors - Last 30d' : tab === 'lookalike' ? 'Lookalike 1% - SG' : 'Page Engagers - Last 30d'}
+              placeholder={tab === 'website' ? 'Website Visitors - Last 30d' : tab === 'video' ? 'Video Viewers 50% - Last 30d' : tab === 'lookalike' ? 'Lookalike 1% - SG' : 'Page Engagers - Last 30d'}
               className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" />
           </div>
 
@@ -142,6 +158,48 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId }) => {
                 <input value={urlFilter} onChange={e => setUrlFilter(e.target.value)} placeholder="e.g., /products or /checkout"
                   className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" />
                 <p className="text-[10px] text-slate-400 mt-1">Only include visitors to URLs containing this text</p>
+              </div>
+            </>
+          )}
+
+          {tab === 'video' && (
+            <>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Video Source</label>
+                <div className="space-y-1.5">
+                  {VIDEO_SOURCES.map(src => (
+                    <button key={src.id} onClick={() => setVideoSource(src.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors
+                        ${videoSource === src.id ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0
+                        ${videoSource === src.id ? 'border-blue-600' : 'border-slate-300'}`}>
+                        {videoSource === src.id && <div className="w-2 h-2 rounded-full bg-blue-600" />}
+                      </div>
+                      <div>
+                        <p className={`text-xs font-medium ${videoSource === src.id ? 'text-blue-700' : 'text-slate-700'}`}>{src.label}</p>
+                        <p className="text-[10px] text-slate-400">{src.desc}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {videoSource === 'video_id' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Video ID</label>
+                  <input value={videoId} onChange={e => setVideoId(e.target.value)} placeholder="e.g., 123456789"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Watched at least: {videoWatchPct}%</label>
+                <input type="range" min={25} max={95} step={25} value={videoWatchPct} onChange={e => setVideoWatchPct(Number(e.target.value))}
+                  className="w-full accent-blue-500" />
+                <div className="flex justify-between text-[10px] text-slate-400"><span>25%</span><span>50%</span><span>75%</span><span>95%</span></div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Retention (days)</label>
+                <input type="number" value={retentionDays} onChange={e => setRetentionDays(Number(e.target.value))} min={1} max={365}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" />
               </div>
             </>
           )}
