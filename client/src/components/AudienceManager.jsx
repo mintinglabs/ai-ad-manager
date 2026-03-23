@@ -29,12 +29,15 @@ const fmtSize = (lower, upper) => {
   if (!lower && !upper) return null;
   const fmt = (n) => {
     if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
-    if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+    if (n >= 1_000) return Math.round(n / 1_000) + 'K';
     return n.toLocaleString();
   };
-  if (lower === upper || !upper) return fmt(lower || 0);
-  if (!lower) return fmt(upper);
-  return `${fmt(lower)} – ${fmt(upper)}`;
+  // Show midpoint with ~ for ranges to keep it compact
+  if (lower && upper && lower !== upper) {
+    const mid = Math.round((lower + upper) / 2);
+    return `~${fmt(mid)}`;
+  }
+  return fmt(lower || upper || 0);
 };
 
 // ── Audience Row (compact single-line) ──────────────────────────────────────
@@ -52,7 +55,7 @@ const AudienceRow = ({ audience, onUse, onCreateLookalike, onDelete }) => {
   };
 
   return (
-    <div className="grid grid-cols-[1fr_90px_100px_90px_auto] items-center gap-x-3 px-4 py-2 bg-white border border-slate-200 rounded-lg hover:border-slate-300 transition-all group">
+    <div className="grid grid-cols-[1fr_90px_130px_90px_auto] items-center gap-x-3 px-4 py-2 bg-white border border-slate-200 rounded-lg hover:border-slate-300 transition-all group">
       {/* Name + ID */}
       <div className="min-w-0">
         <p className="text-[12px] font-semibold text-slate-800 truncate">{audience.name}</p>
@@ -69,7 +72,7 @@ const AudienceRow = ({ audience, onUse, onCreateLookalike, onDelete }) => {
       </span>
 
       {/* Size */}
-      <p className="text-[12px] font-bold text-slate-900 text-right tabular-nums">{size || '—'}</p>
+      <p className="text-[12px] font-bold text-slate-900 text-right tabular-nums whitespace-nowrap">{size || '—'}</p>
 
       {/* Date */}
       <span className="text-[10px] text-slate-400 text-right whitespace-nowrap">
@@ -450,7 +453,7 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
         {filtered.length > 0 && (
           <div className="space-y-1">
             {/* Header */}
-            <div className="grid grid-cols-[1fr_90px_100px_90px_auto] items-center gap-x-3 px-4 py-1.5">
+            <div className="grid grid-cols-[1fr_90px_130px_90px_auto] items-center gap-x-3 px-4 py-1.5">
               <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Name</span>
               <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center">Type</span>
               <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-right">Size</span>
