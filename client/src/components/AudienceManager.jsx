@@ -126,6 +126,11 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
   const [selectedVideoIds, setSelectedVideoIds] = useState([]);
   const [engagementType, setEngagementType] = useState('');
 
+  // Customer List
+  const [customerFile, setCustomerFile] = useState(null); // { name, rows, preview }
+  const [customerDataType, setCustomerDataType] = useState('email');
+  const customerFileRef = useRef(null);
+
   // Instagram
   const [igAccounts, setIgAccounts] = useState([]);
   const [selectedIgId, setSelectedIgId] = useState('');
@@ -167,6 +172,29 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
     setSelectedVideoIds(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]);
   };
 
+  const handleCustomerFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      // Try to detect data type from first row
+      const first = lines[0]?.toLowerCase() || '';
+      let detectedType = 'email';
+      if (/^[\d+\s()-]+$/.test(first) || first.includes('+')) detectedType = 'phone';
+      else if (first.includes('@')) detectedType = 'email';
+      else if (/^\d{10,}$/.test(first)) detectedType = 'phone';
+      // If CSV header row, skip it
+      const hasHeader = /email|phone|name|first|last/i.test(first);
+      const dataRows = hasHeader ? lines.slice(1) : lines;
+      setCustomerDataType(detectedType);
+      setCustomerFile({ name: file.name, rows: dataRows.length, preview: dataRows.slice(0, 5) });
+    } catch (err) {
+      console.error('Failed to parse file:', err);
+    }
+    e.target.value = '';
+  };
+
   const buildPrompt = () => {
     const audName = name ? `"${name}"` : '';
     if (tab === 'website') {
@@ -198,6 +226,10 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
       return `Create a video engagement custom audience${audName ? ` called ${audName}` : ''} for people who ${engDesc} of these videos: ${vidNames} (IDs: ${selectedVideoIds.join(', ')}), ${retentionDays} day retention`;
     }
     if (tab === 'customer_list') {
+      if (customerFile) {
+        const typeLabel = { email: 'emails', phone: 'phone numbers', fn_ln: 'first + last names', madid: 'mobile advertiser IDs' }[customerDataType] || customerDataType;
+        return `Create a customer list custom audience${audName ? ` called ${audName}` : ''} using ${customerFile.rows} ${typeLabel} from file "${customerFile.name}"`;
+      }
       return `Create a customer list custom audience${audName ? ` called ${audName}` : ''}. I will provide the customer data.`;
     }
     if (tab === 'ig') {
@@ -379,10 +411,63 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
 
           {/* ── Customer List ── */}
           {tab === 'customer_list' && (
-            <div className="text-center py-6">
-              <Users size={28} className="text-slate-300 mx-auto mb-2" />
-              <p className="text-xs text-slate-500 mb-1">Customer list audiences are created via the AI agent.</p>
-              <p className="text-[10px] text-slate-400">Click "Create" and the agent will guide you through uploading emails/phones.</p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Data Type</label>
+                <select value={customerDataType} onChange={e => setCustomerDataType(e.target.value)} className={INPUT_CLS}>
+                  <option value="email">Emails</option>
+                  <option value="phone">Phone Numbers</option>
+                  <option value="fn_ln">First Name + Last Name</option>
+                  <option value="madid">Mobile Advertiser IDs</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                  Upload Customer File
+                  <span className="text-slate-400 font-normal ml-1.5">CSV or TXT</span>
+                </label>
+                {customerFile ? (
+                  <div className="border border-slate-200 rounded-lg px-4 py-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <ClipboardCopy size={14} className="text-blue-500" />
+                        <span className="text-xs font-medium text-slate-700">{customerFile.name}</span>
+                      </div>
+                      <button onClick={() => setCustomerFile(null)} className="text-slate-300 hover:text-red-400 transition-colors">
+                        <X size={14} />
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mb-2">{customerFile.rows.toLocaleString()} rows detected</p>
+                    {customerFile.preview.length > 0 && (
+                      <div className="bg-slate-50 rounded-md px-3 py-2">
+                        <p className="text-[10px] font-semibold text-slate-400 mb-1">Preview:</p>
+                        {customerFile.preview.map((row, i) => (
+                          <p key={i} className="text-[11px] font-mono text-slate-600 truncate">{row}</p>
+                        ))}
+                        {customerFile.rows > 5 && <p className="text-[10px] text-slate-400 mt-1">...and {customerFile.rows - 5} more</p>}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button onClick={() => customerFileRef.current?.click()}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-6 rounded-xl border-2 border-dashed border-slate-200 text-sm font-medium text-slate-400 hover:text-blue-500 hover:border-blue-300 transition-colors">
+                    <Plus size={16} />
+                    Choose CSV or TXT file
+                  </button>
+                )}
+                <input ref={customerFileRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleCustomerFile} />
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5">
+                <p className="text-[11px] font-semibold text-blue-700 mb-1">Supported formats:</p>
+                <ul className="text-[11px] text-blue-600 space-y-0.5 list-disc list-inside">
+                  <li>CSV with one column (email, phone, etc.) — header row optional</li>
+                  <li>TXT with one entry per line</li>
+                  <li>Emails: user@example.com</li>
+                  <li>Phones: include country code, e.g. +852XXXXXXXX</li>
+                </ul>
+              </div>
             </div>
           )}
 
