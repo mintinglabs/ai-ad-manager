@@ -111,8 +111,13 @@ export const getCampaign = async (token, campaignId) => {
 };
 
 export const createCampaign = async (token, adAccountId, params) => {
+  // Default is_adset_budget_sharing_enabled to false if not specified (required by Meta API)
+  const campaignParams = {
+    is_adset_budget_sharing_enabled: false,
+    ...params,
+  };
   const { data } = await metaApi.post(`/${adAccountId}/campaigns`, null, {
-    params: { access_token: token, ...params }
+    params: { access_token: token, ...campaignParams }
   });
   return data;
 };
