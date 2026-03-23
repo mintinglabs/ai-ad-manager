@@ -996,7 +996,7 @@ const SlashPicker = ({ skills, filter, onSelect, selectedIndex }) => {
   );
   if (filtered.length === 0) return null;
   return (
-    <div className="absolute bottom-full left-0 right-0 mb-2 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-xl shadow-xl shadow-slate-200/50 max-h-64 overflow-y-auto z-50">
+    <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-xl shadow-xl shadow-slate-200/50 max-h-64 overflow-y-auto z-50">
       <div className="px-3 py-2 border-b border-slate-100">
         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Skills — type to filter</p>
       </div>
@@ -1055,10 +1055,6 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
 
   return (
     <div className="relative">
-      {/* Slash command picker — positioned above the input box */}
-      {showSlash && filteredSkills.length > 0 && (
-        <SlashPicker skills={filteredSkills} filter={slashFilter} onSelect={onSlashSelect} selectedIndex={slashIndex} />
-      )}
       <div className={`bg-white/80 backdrop-blur-xl border rounded-2xl overflow-hidden shadow-lg shadow-slate-200/50 transition-all
         ${isOver ? 'border-blue-400 ring-2 ring-blue-100' : 'border-slate-200'}`}>
         <AttachmentBar attachments={attachments} onRemove={onRemoveAttachment} />
@@ -1118,6 +1114,10 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
           </div>
         </div>
       </div>
+      {/* Slash command dropdown — below the input box */}
+      {showSlash && filteredSkills.length > 0 && (
+        <SlashPicker skills={filteredSkills} filter={slashFilter} onSelect={onSlashSelect} selectedIndex={slashIndex} />
+      )}
     </div>
   );
 };
@@ -1381,10 +1381,10 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, onSend, onStop
 
       {/* Empty State */}
       {isEmptyState && (
-        <div className="flex-1 flex flex-col px-8 overflow-visible">
+        <div className="flex-1 flex flex-col px-8 overflow-y-auto">
           <div className="flex-[0_0_18%]" />
 
-          <div className="w-full max-w-2xl mx-auto" style={{ overflow: 'visible' }}>
+          <div className="w-full max-w-2xl mx-auto">
             <h1 className="text-3xl font-extrabold text-slate-900 mb-6 text-center tracking-tight">
               What would you like to know?
             </h1>
