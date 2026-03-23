@@ -3,19 +3,29 @@ import api from '../services/api.js';
 
 const ACTIVE_KEY = 'aam_active_skill';
 
+// Fallback defaults so slash picker works even if API hasn't loaded yet
+const DEFAULT_SKILLS = [
+  { id: 'performance_analyst', name: 'Performance Analyst', description: 'Deep-dive into campaign metrics, ROAS, CPA, CTR trends', icon: 'chart', isDefault: true, content: '' },
+  { id: 'creative_strategist', name: 'Creative Strategist', description: 'Ad copy, creative testing, fatigue detection', icon: 'palette', isDefault: true, content: '' },
+  { id: 'budget_optimizer', name: 'Budget Optimizer', description: 'Budget allocation, spend efficiency, scaling recommendations', icon: 'dollar', isDefault: true, content: '' },
+  { id: 'audience_strategist', name: 'Audience Strategist', description: 'Audience analysis, targeting, lookalikes, overlap fixes', icon: 'users', isDefault: true, content: '' },
+  { id: 'inception_funnel_audit', name: 'Inception Funnel Audit', description: 'Full-funnel audit from awareness to conversion', icon: 'funnel', isDefault: true, content: '' },
+];
+
 export const useSkills = () => {
-  const [skills, setSkills] = useState([]);
+  const [skills, setSkills] = useState(DEFAULT_SKILLS);
   const [loading, setLoading] = useState(true);
   const [activeSkillId, setActiveSkillId] = useState(() => localStorage.getItem(ACTIVE_KEY) || null);
 
-  // Fetch all skills from server
+  // Fetch all skills from server (replaces defaults with full data including content)
   const fetchSkills = useCallback(async () => {
     try {
       setLoading(true);
       const { data } = await api.get('/skills');
-      setSkills(data);
+      if (data?.length) setSkills(data);
     } catch (err) {
       console.error('Failed to fetch skills:', err);
+      // Keep DEFAULT_SKILLS as fallback
     } finally {
       setLoading(false);
     }
