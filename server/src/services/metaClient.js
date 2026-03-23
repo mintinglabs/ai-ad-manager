@@ -407,21 +407,27 @@ export const getAdVideoStatus = async (token, videoId) => {
 
 // ─── Insights ────────────────────────────────────────────────────────
 
-export const getInsights = async (token, adAccountId, datePreset = 'last_7d') => {
-  const { data } = await metaApi.get(`/${adAccountId}/insights`, {
-    params: {
-      access_token: token,
-      fields: 'spend,actions,action_values,impressions,clicks,ctr,cpm',
-      date_preset: datePreset
-    }
-  });
+export const getInsights = async (token, adAccountId, datePreset = 'last_7d', timeRange = null) => {
+  const params = {
+    access_token: token,
+    fields: 'spend,actions,action_values,impressions,clicks,ctr,cpm,cpc,frequency,reach,cost_per_action_type',
+  };
+  if (timeRange?.since && timeRange?.until) {
+    params.time_range = JSON.stringify(timeRange);
+  } else {
+    params.date_preset = datePreset;
+  }
+  const { data } = await metaApi.get(`/${adAccountId}/insights`, { params });
   return data.data[0] || {};
 };
 
 export const getObjectInsights = async (token, objectId, params = {}) => {
-  const { data } = await metaApi.get(`/${objectId}/insights`, {
-    params: { access_token: token, ...params }
-  });
+  // If time_range is passed as an object, stringify it for the API
+  const queryParams = { access_token: token, ...params };
+  if (params.time_range && typeof params.time_range === 'object') {
+    queryParams.time_range = JSON.stringify(params.time_range);
+  }
+  const { data } = await metaApi.get(`/${objectId}/insights`, { params: queryParams });
   return data.data;
 };
 
