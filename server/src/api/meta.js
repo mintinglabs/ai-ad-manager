@@ -291,6 +291,19 @@ router.post('/businesses/:id/claim-adaccount', async (req, res, next) => {
   }
 });
 
+// Saved audiences for an ad account
+router.get('/saved-audiences', async (req, res, next) => {
+  try {
+    const adAccountId = req.query.adAccountId;
+    if (!adAccountId) return res.status(400).json({ error: 'adAccountId required' });
+    const data = await metaClient.getSavedAudiences(req.token, adAccountId);
+    res.json(data);
+  } catch (err) {
+    const metaErr = err.response?.data?.error;
+    res.status(err.response?.status || 500).json({ error: metaErr?.message || err.message, code: metaErr?.code });
+  }
+});
+
 // --- Extended Audiences ---
 router.get('/customaudiences/:id', async (req, res, next) => {
   try {

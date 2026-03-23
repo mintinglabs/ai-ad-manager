@@ -36,40 +36,76 @@ const SUBTYPE_LABELS = {
   SHOPPING: 'Shopping', CATALOGUE: 'Catalogue', AR_EXPERIENCE: 'AR',
   FB_EVENT: 'FB Event', PAGE: 'Page',
 };
-const SUBTYPE_COLORS = {
-  WEBSITE: 'bg-blue-100 text-blue-700',
-  ENGAGEMENT: 'bg-purple-100 text-purple-700',
-  CUSTOM: 'bg-amber-100 text-amber-700',
-  LOOKALIKE: 'bg-emerald-100 text-emerald-700',
-  IG_BUSINESS: 'bg-pink-100 text-pink-700',
-  IG_BUSINESS_PROFILE: 'bg-pink-100 text-pink-700',
-  OFFLINE_CONVERSION: 'bg-slate-100 text-slate-600',
-  APP: 'bg-cyan-100 text-cyan-700',
-  VIDEO: 'bg-violet-100 text-violet-700',
-  LEAD_AD: 'bg-orange-100 text-orange-700',
-  SHOPPING: 'bg-lime-100 text-lime-700',
-  CATALOGUE: 'bg-teal-100 text-teal-700',
-  AR_EXPERIENCE: 'bg-fuchsia-100 text-fuchsia-700',
-  FB_EVENT: 'bg-rose-100 text-rose-700',
-  PAGE: 'bg-indigo-100 text-indigo-700',
-};
 
 const fmtDate = (ts) => {
   if (!ts) return '—';
-  // Meta returns epoch seconds (not ms) — detect and convert
   const ms = ts < 1e12 ? ts * 1000 : ts;
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(ms));
+  const d = new Date(ms);
+  const date = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(d);
+  const time = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
+  return `${date}\n${time}`;
 };
 
-const fmtSize = (lower, upper) => {
+const fmtSize = (lower, upper, aud) => {
+  // Check if audience is pending/populating with no size data
+  const opCode = aud?.operation_status?.code;
+  if (opCode === 411 || opCode === 412 || opCode === 415) {
+    return { text: 'Pending', sub: 'Size temporarily unavailable' };
+  }
   if (!lower && !upper) return null;
+  if (lower && lower < 1000 && (!upper || upper < 1000)) return { text: `Below 1,000` };
   const fmt = (n) => {
-    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
-    if (n >= 1_000) return Math.round(n / 1_000) + 'K';
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(0).replace(/\.0$/, '') + ',000,000';
+    if (n >= 1_000) return n.toLocaleString();
     return n.toLocaleString();
   };
-  if (lower && upper && lower !== upper) return `${fmt(lower)} – ${fmt(upper)}`;
-  return fmt(lower || upper || 0);
+  if (lower && upper && lower !== upper) return { text: `${fmt(lower)} - ${fmt(upper)}` };
+  return { text: fmt(lower || upper || 0) };
+};
+
+// Map subtypes to Meta's two-line Type display
+const getTypeDisplay = (aud) => {
+  const sub = aud.subtype || 'CUSTOM';
+  if (sub === 'LOOKALIKE') return { main: 'Lookalike Audience', detail: null };
+  if (sub === 'SAVED' || aud._isSaved) return { main: 'Saved Audience', detail: null };
+  // Custom audiences — show subtype detail
+  const detailMap = {
+    WEBSITE: 'Website',
+    VIDEO: 'Video engagement',
+    IG_BUSINESS: 'Engagement – Instagram',
+    IG_BUSINESS_PROFILE: 'Engagement – Instagram',
+    PAGE: 'Engagement – Page',
+    ENGAGEMENT: 'Engagement',
+    CUSTOM: 'Customer list',
+    LEAD_AD: 'Lead ad',
+    OFFLINE_CONVERSION: 'Offline',
+    APP: 'Mobile app',
+    SHOPPING: 'Shopping',
+    CATALOGUE: 'Catalogue',
+    AR_EXPERIENCE: 'Augmented reality',
+    FB_EVENT: 'Facebook event',
+  };
+  return { main: 'Custom Audience', detail: detailMap[sub] || null };
+};
+
+// Get availability display matching Meta's UI
+const getAvailability = (aud) => {
+  const op = aud.operation_status;
+  const opCode = op?.code;
+  // Meta operation_status codes: 200=Normal, 300=Expired, 400+=issues
+  // delivery_status code 200 = active delivery
+  if (opCode === 200) {
+    const lastEdited = aud.time_updated ? `Last edited on\n${new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date((aud.time_updated < 1e12 ? aud.time_updated * 1000 : aud.time_updated)))}` : null;
+    return { label: 'Ready', color: 'text-emerald-600', dot: 'bg-emerald-500', sub: lastEdited };
+  }
+  if (opCode === 411 || opCode === 412 || opCode === 415) {
+    return { label: 'Populating', color: 'text-amber-600', dot: 'bg-amber-500', sub: 'Available for use' };
+  }
+  if (opCode === 300) return { label: 'Expired', color: 'text-slate-400', dot: 'bg-slate-400', sub: null };
+  if (opCode >= 400) return { label: 'Error', color: 'text-red-500', dot: 'bg-red-500', sub: op?.description || null };
+  // Fallback for saved audiences or unknown
+  if (aud._isSaved) return { label: 'Ready', color: 'text-emerald-600', dot: 'bg-emerald-500', sub: null };
+  return { label: 'Ready', color: 'text-emerald-600', dot: 'bg-emerald-500', sub: null };
 };
 
 // ── Audience Table Row ──────────────────────────────────────────────────────
@@ -857,8 +893,21 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await api.get(`/meta/customaudiences`, { params: { adAccountId } });
-      setAudiences(Array.isArray(data) ? data : data.data || []);
+      // Fetch custom + saved audiences in parallel
+      const [customRes, savedRes] = await Promise.allSettled([
+        api.get(`/meta/customaudiences`, { params: { adAccountId } }),
+        api.get(`/meta/saved-audiences`, { params: { adAccountId } }),
+      ]);
+      const custom = customRes.status === 'fulfilled'
+        ? (Array.isArray(customRes.value.data) ? customRes.value.data : customRes.value.data?.data || [])
+        : [];
+      const saved = savedRes.status === 'fulfilled'
+        ? (Array.isArray(savedRes.value.data) ? savedRes.value.data : savedRes.value.data?.data || []).map(s => ({
+            ...s, subtype: 'SAVED', _isSaved: true,
+          }))
+        : [];
+      setAudiences([...custom, ...saved]);
+      if (customRes.status === 'rejected') setError(customRes.reason?.response?.data?.error || customRes.reason?.message);
     } catch (err) {
       setError(err.response?.data?.error || err.message);
     } finally {
@@ -911,20 +960,22 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
     const matchesType = filterType.length === 0
       || (filterType.includes('CUSTOM') && isCustom)
       || (filterType.includes('LOOKALIKE') && sub === 'LOOKALIKE')
-      || (filterType.includes('SAVED') && sub === 'SAVED');
+      || (filterType.includes('SAVED') && (sub === 'SAVED' || aud._isSaved));
 
-    // Availability filter
-    const opStatus = aud.operation_status?.status || aud.delivery_status?.status || '';
+    // Availability filter — uses operation_status.code (200=Normal, 300=Expired, 411/412/415=Populating, 400+=Error)
+    const opCode = aud.operation_status?.code;
     const matchesAvail = filterAvailability.length === 0
-      || (filterAvailability.includes('ready') && (!opStatus || opStatus === 'Normal' || opStatus === '200'))
-      || (filterAvailability.includes('not_ready') && (opStatus === 'Not Ready' || opStatus === 'Pending'))
-      || (filterAvailability.includes('error') && (opStatus === 'Error' || opStatus === 'Failed'));
+      || (filterAvailability.includes('ready') && (opCode === 200 || !opCode))
+      || (filterAvailability.includes('not_ready') && (opCode === 411 || opCode === 412 || opCode === 415 || opCode === 300))
+      || (filterAvailability.includes('error') && (opCode >= 400 && opCode !== 411 && opCode !== 412 && opCode !== 415));
 
-    // Status filter (best-effort from available data)
+    // Status filter — uses delivery_status and timing data
+    const deliveryCode = aud.delivery_status?.code;
     const matchesStatus = filterStatus.length === 0
-      || (filterStatus.includes('in_active_ads') && aud.delivery_status?.status === '200')
+      || (filterStatus.includes('in_active_ads') && deliveryCode === 200)
       || (filterStatus.includes('recently_used') && aud.time_updated && (Date.now() / 1000 - aud.time_updated) < 30 * 86400)
-      || (filterStatus.includes('action_needed') && (opStatus === 'Error' || opStatus === 'Failed'));
+      || (filterStatus.includes('shared') && aud.is_value_based)
+      || (filterStatus.includes('action_needed') && opCode >= 400 && opCode !== 411 && opCode !== 412 && opCode !== 415);
 
     return matchesSearch && matchesType && matchesAvail && matchesStatus;
   });
@@ -994,7 +1045,7 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
           <div>
             <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <Users size={20} className="text-blue-500" />
-              Custom Audiences
+              Audiences
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
               {audiences.length} audiences
@@ -1151,51 +1202,82 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
         {sorted.length > 0 && (
           <table className="w-full border-collapse">
             <thead>
-              <tr className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                <th className="text-left py-1.5 px-4 font-semibold cursor-pointer hover:text-slate-600 select-none" onClick={() => toggleSort('name')}>
+              <tr className="text-[11px] font-semibold text-slate-500 border-b border-slate-200">
+                <th className="text-left py-2.5 px-4 font-semibold cursor-pointer hover:text-slate-700 select-none" onClick={() => toggleSort('name')}>
                   <span className="inline-flex items-center gap-1">Name <SortIcon col="name" /></span>
                 </th>
-                <th className="text-center py-1.5 px-2 font-semibold w-[100px] cursor-pointer hover:text-slate-600 select-none" onClick={() => toggleSort('subtype')}>
-                  <span className="inline-flex items-center gap-1 justify-center">Type <SortIcon col="subtype" /></span>
+                <th className="text-left py-2.5 px-3 font-semibold w-[160px] cursor-pointer hover:text-slate-700 select-none" onClick={() => toggleSort('subtype')}>
+                  <span className="inline-flex items-center gap-1">Type <SortIcon col="subtype" /></span>
                 </th>
-                <th className="text-right py-1.5 px-2 font-semibold w-[120px] cursor-pointer hover:text-slate-600 select-none" onClick={() => toggleSort('size')}>
-                  <span className="inline-flex items-center gap-1 justify-end">Size <SortIcon col="size" /></span>
+                <th className="text-right py-2.5 px-3 font-semibold w-[180px] cursor-pointer hover:text-slate-700 select-none" onClick={() => toggleSort('size')}>
+                  <span className="inline-flex items-center gap-1 justify-end">Estimated audience size <SortIcon col="size" /></span>
                 </th>
-                <th className="text-right py-1.5 px-2 font-semibold w-[90px] cursor-pointer hover:text-slate-600 select-none" onClick={() => toggleSort('time_created')}>
-                  <span className="inline-flex items-center gap-1 justify-end">Created <SortIcon col="time_created" /></span>
+                <th className="text-left py-2.5 px-3 font-semibold w-[150px]">
+                  Availability
                 </th>
-                <th className="w-[110px]"></th>
+                <th className="text-left py-2.5 px-3 font-semibold w-[120px]">
+                  Audience ID
+                </th>
+                <th className="text-right py-2.5 px-3 font-semibold w-[100px] cursor-pointer hover:text-slate-700 select-none" onClick={() => toggleSort('time_created')}>
+                  <span className="inline-flex items-center gap-1 justify-end">Date Created <SortIcon col="time_created" /></span>
+                </th>
+                <th className="w-[100px]"></th>
               </tr>
             </thead>
             <tbody>
               {sorted.map(aud => {
                 const subtype = aud.subtype || 'CUSTOM';
-                const colorCls = SUBTYPE_COLORS[subtype] || 'bg-slate-100 text-slate-600';
-                const size = fmtSize(aud.approximate_count_lower_bound, aud.approximate_count_upper_bound);
+                const typeInfo = getTypeDisplay(aud);
+                const sizeInfo = fmtSize(aud.approximate_count_lower_bound, aud.approximate_count_upper_bound, aud);
+                const avail = getAvailability(aud);
                 return (
                   <tr key={aud.id} className="group border-t border-slate-100 hover:bg-blue-50/30 transition-colors">
-                    <td className="py-2 px-4">
-                      <p className="text-[12px] font-semibold text-slate-800 truncate max-w-[500px]">{aud.name}</p>
+                    {/* Name */}
+                    <td className="py-3 px-4">
+                      <p className="text-[13px] font-medium text-blue-700 truncate max-w-[350px] group-hover:underline cursor-pointer">{aud.name}</p>
+                    </td>
+                    {/* Type */}
+                    <td className="py-3 px-3">
+                      <p className="text-[12px] text-slate-700">{typeInfo.main}</p>
+                      {typeInfo.detail && <p className="text-[11px] text-slate-400">{typeInfo.detail}</p>}
+                    </td>
+                    {/* Size */}
+                    <td className="py-3 px-3 text-right">
+                      {sizeInfo ? (
+                        <div>
+                          <span className="text-[12px] text-slate-700 tabular-nums">{sizeInfo.text}</span>
+                          {sizeInfo.sub && <p className="text-[10px] text-slate-400">{sizeInfo.sub}</p>}
+                        </div>
+                      ) : (
+                        <span className="text-[12px] text-slate-300">—</span>
+                      )}
+                    </td>
+                    {/* Availability */}
+                    <td className="py-3 px-3">
+                      <div className="flex items-start gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${avail.dot} mt-1 shrink-0`} />
+                        <div>
+                          <p className={`text-[12px] font-medium ${avail.color}`}>{avail.label}</p>
+                          {avail.sub && <p className="text-[10px] text-slate-400 whitespace-pre-line">{avail.sub}</p>}
+                        </div>
+                      </div>
+                    </td>
+                    {/* Audience ID */}
+                    <td className="py-3 px-3">
                       <CopyableId id={aud.id} />
                     </td>
-                    <td className="py-2 px-2 text-center">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap ${colorCls}`}>
-                        {SUBTYPE_LABELS[subtype] || subtype}
-                      </span>
+                    {/* Date Created */}
+                    <td className="py-3 px-3 text-right">
+                      <span className="text-[11px] text-slate-500 whitespace-pre-line">{fmtDate(aud.time_created)}</span>
                     </td>
-                    <td className="py-2 px-2 text-right">
-                      <span className="text-[12px] font-bold text-slate-900 tabular-nums whitespace-nowrap">{size || '—'}</span>
-                    </td>
-                    <td className="py-2 px-2 text-right">
-                      <span className="text-[10px] text-slate-400 whitespace-nowrap">{fmtDate(aud.time_created)}</span>
-                    </td>
-                    <td className="py-2 px-2 text-right">
+                    {/* Actions */}
+                    <td className="py-3 px-2 text-right">
                       <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => handleUse(aud)} title="Use in campaign"
                           className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-semibold bg-blue-600 text-white hover:bg-blue-500 transition-colors">
                           <Target size={10} /> Use
                         </button>
-                        {subtype !== 'LOOKALIKE' && (
+                        {subtype !== 'LOOKALIKE' && !aud._isSaved && (
                           <button onClick={() => handleCreateLookalike(aud)} title="Create lookalike"
                             className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors border border-emerald-200">
                             <Copy size={10} /> LAL
