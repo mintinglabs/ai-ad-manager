@@ -1054,66 +1054,68 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
   const hasChips = slashSkills.length > 0 || activeSkill;
 
   return (
-    <div className={`bg-white/80 backdrop-blur-xl border rounded-2xl overflow-hidden shadow-lg shadow-slate-200/50 transition-all relative
-      ${isOver ? 'border-blue-400 ring-2 ring-blue-100' : 'border-slate-200'}`}>
-      {/* Slash command picker */}
+    <div className="relative">
+      {/* Slash command picker — positioned above the input box */}
       {showSlash && filteredSkills.length > 0 && (
         <SlashPicker skills={filteredSkills} filter={slashFilter} onSelect={onSlashSelect} selectedIndex={slashIndex} />
       )}
-      <AttachmentBar attachments={attachments} onRemove={onRemoveAttachment} />
-      {/* Skill chips — shown above textarea */}
-      {hasChips && (
-        <div className="px-4 pt-3 pb-0 flex flex-wrap items-center gap-1.5">
-          {slashSkills.map(sk => (
-            <div key={sk.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-50 border border-violet-200 text-[11px] font-semibold text-violet-700 animate-in fade-in">
-              <Sparkles size={11} />
-              /{sk.id}
-              <button onClick={() => onRemoveSlashSkill(sk.id)} className="ml-0.5 text-violet-400 hover:text-violet-600 transition-colors">
-                <X size={11} />
-              </button>
-            </div>
-          ))}
-          {activeSkill && (
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-[11px] font-semibold text-indigo-700">
-              <Sparkles size={11} />
-              {activeSkill.name}
-              <button onClick={onDeactivateSkill} className="ml-0.5 text-indigo-400 hover:text-indigo-600 transition-colors">
-                <X size={11} />
-              </button>
-            </div>
-          )}
+      <div className={`bg-white/80 backdrop-blur-xl border rounded-2xl overflow-hidden shadow-lg shadow-slate-200/50 transition-all
+        ${isOver ? 'border-blue-400 ring-2 ring-blue-100' : 'border-slate-200'}`}>
+        <AttachmentBar attachments={attachments} onRemove={onRemoveAttachment} />
+        {/* Skill chips — shown above textarea */}
+        {hasChips && (
+          <div className="px-4 pt-3 pb-0 flex flex-wrap items-center gap-1.5">
+            {slashSkills.map(sk => (
+              <div key={sk.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-50 border border-violet-200 text-[11px] font-semibold text-violet-700">
+                <Sparkles size={11} />
+                /{sk.id}
+                <button onClick={() => onRemoveSlashSkill(sk.id)} className="ml-0.5 text-violet-400 hover:text-violet-600 transition-colors">
+                  <X size={11} />
+                </button>
+              </div>
+            ))}
+            {activeSkill && (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-[11px] font-semibold text-indigo-700">
+                <Sparkles size={11} />
+                {activeSkill.name}
+                <button onClick={onDeactivateSkill} className="ml-0.5 text-indigo-400 hover:text-indigo-600 transition-colors">
+                  <X size={11} />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        <div className="px-4 pt-4 pb-3">
+          <textarea
+            value={input}
+            onChange={handleChange}
+            onKeyDown={handleSlashKeyDown}
+            placeholder={slashSkills.length ? 'Type your message...' : activeSkill ? `Ask with ${activeSkill.name} active...` : attachments.length ? 'Describe what to do with these files...' : 'Ask anything about your ads... (type / for skills)'}
+            rows={1}
+            disabled={isTyping}
+            className="w-full resize-none text-sm bg-transparent text-slate-800 placeholder:text-slate-400 focus:outline-none disabled:text-slate-400 max-h-32 overflow-y-auto"
+            style={{ lineHeight: '1.5' }}
+          />
         </div>
-      )}
-      <div className="px-4 pt-4 pb-3">
-        <textarea
-          value={input}
-          onChange={handleChange}
-          onKeyDown={handleSlashKeyDown}
-          placeholder={slashSkills.length ? 'Type your message...' : activeSkill ? `Ask with ${activeSkill.name} active...` : attachments.length ? 'Describe what to do with these files...' : 'Ask anything about your ads... (type / for skills)'}
-          rows={1}
-          disabled={isTyping}
-          className="w-full resize-none text-sm bg-transparent text-slate-800 placeholder:text-slate-400 focus:outline-none disabled:text-slate-400 max-h-32 overflow-y-auto"
-          style={{ lineHeight: '1.5' }}
-        />
-      </div>
-      <div className="px-4 pb-3 flex items-center justify-end">
-        <div className="flex items-center gap-2">
-          <button onClick={() => fileRef.current?.click()} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
-            <Paperclip size={16} />
-          </button>
-          <input ref={fileRef} type="file" accept="image/*,video/*,.pdf,.txt,.doc,.docx" multiple className="hidden" onChange={handleFileUpload} />
-          {isTyping ? (
-            <button onClick={onStop}
-              className="w-8 h-8 rounded-lg bg-red-500 hover:bg-red-400 text-white flex items-center justify-center transition-colors shadow-sm"
-              title="Stop generating">
-              <Square size={12} fill="currentColor" />
+        <div className="px-4 pb-3 flex items-center justify-end">
+          <div className="flex items-center gap-2">
+            <button onClick={() => fileRef.current?.click()} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+              <Paperclip size={16} />
             </button>
-          ) : (
-            <button onClick={onSend} disabled={!input.trim() && !attachments.length}
-              className="w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:bg-slate-200 disabled:text-slate-400 text-white flex items-center justify-center transition-colors shadow-sm">
-              <Send size={14} />
-            </button>
-          )}
+            <input ref={fileRef} type="file" accept="image/*,video/*,.pdf,.txt,.doc,.docx" multiple className="hidden" onChange={handleFileUpload} />
+            {isTyping ? (
+              <button onClick={onStop}
+                className="w-8 h-8 rounded-lg bg-red-500 hover:bg-red-400 text-white flex items-center justify-center transition-colors shadow-sm"
+                title="Stop generating">
+                <Square size={12} fill="currentColor" />
+              </button>
+            ) : (
+              <button onClick={onSend} disabled={!input.trim() && !attachments.length}
+                className="w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:bg-slate-200 disabled:text-slate-400 text-white flex items-center justify-center transition-colors shadow-sm">
+                <Send size={14} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -1379,10 +1381,10 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, onSend, onStop
 
       {/* Empty State */}
       {isEmptyState && (
-        <div className="flex-1 flex flex-col px-8 overflow-y-auto">
+        <div className="flex-1 flex flex-col px-8 overflow-visible">
           <div className="flex-[0_0_18%]" />
 
-          <div className="w-full max-w-2xl mx-auto">
+          <div className="w-full max-w-2xl mx-auto" style={{ overflow: 'visible' }}>
             <h1 className="text-3xl font-extrabold text-slate-900 mb-6 text-center tracking-tight">
               What would you like to know?
             </h1>
