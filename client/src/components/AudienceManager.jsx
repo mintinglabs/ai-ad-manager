@@ -1,67 +1,113 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Users, Plus, RefreshCw, Trash2, Copy, Target, Globe, Clock, Hash, ChevronDown, X, AlertTriangle, ExternalLink, Film } from 'lucide-react';
+import { Users, Plus, RefreshCw, Trash2, Copy, Target, Globe, Hash, X, AlertTriangle, Search, Film, ClipboardCopy } from 'lucide-react';
 import api from '../services/api.js';
 
-const SUBTYPE_LABELS = { WEBSITE: 'Website', ENGAGEMENT: 'Engagement', CUSTOM: 'Customer List', LOOKALIKE: 'Lookalike', OFFLINE_CONVERSION: 'Offline' };
-const SUBTYPE_COLORS = { WEBSITE: 'bg-blue-50 text-blue-600 border-blue-200', ENGAGEMENT: 'bg-purple-50 text-purple-600 border-purple-200', CUSTOM: 'bg-amber-50 text-amber-600 border-amber-200', LOOKALIKE: 'bg-emerald-50 text-emerald-600 border-emerald-200' };
-const STATUS_COLORS = { ready: 'text-emerald-600', too_small: 'text-amber-500', not_ready: 'text-slate-400' };
-
-const fmtDate = (ts) => ts ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(ts)) : '—';
-const fmtSize = (lower, upper) => {
-  if (!lower && !upper) return '—';
-  if (lower === upper) return lower?.toLocaleString() || '—';
-  return `${(lower || 0).toLocaleString()} - ${(upper || 0).toLocaleString()}`;
+// ── Constants ───────────────────────────────────────────────────────────────
+const SUBTYPE_LABELS = {
+  WEBSITE: 'Website', ENGAGEMENT: 'Engagement', CUSTOM: 'Customer List',
+  LOOKALIKE: 'Lookalike', OFFLINE_CONVERSION: 'Offline',
+  IG_BUSINESS: 'Instagram', IG_BUSINESS_PROFILE: 'Instagram',
+};
+const SUBTYPE_COLORS = {
+  WEBSITE: 'bg-blue-100 text-blue-700',
+  ENGAGEMENT: 'bg-purple-100 text-purple-700',
+  CUSTOM: 'bg-amber-100 text-amber-700',
+  LOOKALIKE: 'bg-emerald-100 text-emerald-700',
+  IG_BUSINESS: 'bg-pink-100 text-pink-700',
+  IG_BUSINESS_PROFILE: 'bg-pink-100 text-pink-700',
+  OFFLINE_CONVERSION: 'bg-slate-100 text-slate-600',
 };
 
-// ── Audience Card ───────────────────────────────────────────────────────────
-const AudienceCard = ({ audience, onUse, onCreateLookalike, onDelete }) => {
+const fmtDate = (ts) => {
+  if (!ts) return '—';
+  // Meta returns epoch seconds (not ms) — detect and convert
+  const ms = ts < 1e12 ? ts * 1000 : ts;
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(ms));
+};
+
+const fmtSize = (lower, upper) => {
+  if (!lower && !upper) return null;
+  const fmt = (n) => {
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return n.toLocaleString();
+  };
+  if (lower === upper || !upper) return fmt(lower || 0);
+  if (!lower) return fmt(upper);
+  return `${fmt(lower)} – ${fmt(upper)}`;
+};
+
+// ── Audience Row ────────────────────────────────────────────────────────────
+const AudienceRow = ({ audience, onUse, onCreateLookalike, onDelete }) => {
+  const [copied, setCopied] = useState(false);
   const subtype = audience.subtype || 'CUSTOM';
-  const colorCls = SUBTYPE_COLORS[subtype] || 'bg-slate-50 text-slate-600 border-slate-200';
+  const colorCls = SUBTYPE_COLORS[subtype] || 'bg-slate-100 text-slate-600';
   const status = audience.operation_status?.status || audience.delivery_status?.status || 'ready';
-  const statusCls = STATUS_COLORS[status] || 'text-slate-400';
   const size = fmtSize(audience.approximate_count_lower_bound, audience.approximate_count_upper_bound);
+  const audienceId = audience.id?.replace('act_', '');
+
+  const copyId = (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(audience.id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4 hover:border-slate-300 transition-colors group">
-      <div className="flex items-start justify-between mb-2">
+    <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 hover:shadow-md hover:border-slate-300 transition-all group">
+      {/* Top: Name + Size */}
+      <div className="flex items-start justify-between gap-4 mb-2">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-slate-800 truncate">{audience.name}</p>
-          <div className="flex items-center gap-2 mt-1">
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${colorCls}`}>
-              {SUBTYPE_LABELS[subtype] || subtype}
-            </span>
-            <span className={`text-[10px] font-medium capitalize ${statusCls}`}>{status.replace(/_/g, ' ')}</span>
+          <p className="text-[13px] font-semibold text-slate-800 leading-snug">{audience.name}</p>
+          {audience.description && (
+            <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{audience.description}</p>
+          )}
+        </div>
+        {size && (
+          <div className="text-right shrink-0">
+            <p className="text-xl font-bold text-slate-900 leading-none">{size}</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">people</p>
           </div>
-        </div>
-        <div className="text-right shrink-0 ml-3">
-          <p className="text-lg font-bold text-slate-900">{size}</p>
-          <p className="text-[10px] text-slate-400">est. size</p>
-        </div>
+        )}
       </div>
 
-      {audience.description && (
-        <p className="text-xs text-slate-500 mb-2 line-clamp-1">{audience.description}</p>
-      )}
-
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] text-slate-400">
-          <Clock size={10} className="inline mr-1" />
+      {/* Middle: Tags row */}
+      <div className="flex items-center gap-2 flex-wrap mb-3">
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${colorCls}`}>
+          {SUBTYPE_LABELS[subtype] || subtype}
+        </span>
+        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-md capitalize
+          ${status === 'ready' ? 'bg-emerald-50 text-emerald-600' :
+            status === 'too_small' ? 'bg-amber-50 text-amber-600' :
+            'bg-slate-50 text-slate-400'}`}>
+          {status.replace(/_/g, ' ')}
+        </span>
+        <span className="text-[10px] text-slate-400 ml-auto">
           {fmtDate(audience.time_created)}
         </span>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      </div>
+
+      {/* Bottom: ID + Actions */}
+      <div className="flex items-center justify-between">
+        <button onClick={copyId} title="Copy audience ID"
+          className="flex items-center gap-1.5 text-[11px] font-mono text-slate-400 hover:text-slate-600 transition-colors">
+          <ClipboardCopy size={11} />
+          <span>{copied ? 'Copied!' : audienceId}</span>
+        </button>
+        <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <button onClick={() => onUse(audience)} title="Use in campaign"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-blue-600 text-white hover:bg-blue-500 transition-colors shadow-sm">
             <Target size={11} /> Use
           </button>
           {subtype !== 'LOOKALIKE' && (
             <button onClick={() => onCreateLookalike(audience)} title="Create lookalike"
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors">
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors border border-emerald-200">
               <Copy size={11} /> Lookalike
             </button>
           )}
           <button onClick={() => onDelete(audience)} title="Delete"
-            className="p-1 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
-            <Trash2 size={12} />
+            className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+            <Trash2 size={13} />
           </button>
         </div>
       </div>
@@ -69,26 +115,33 @@ const AudienceCard = ({ audience, onUse, onCreateLookalike, onDelete }) => {
   );
 };
 
+// ── Filter Tabs ─────────────────────────────────────────────────────────────
+const FILTER_TABS = [
+  { id: 'all', label: 'All' },
+  { id: 'WEBSITE', label: 'Website' },
+  { id: 'ENGAGEMENT', label: 'Engagement' },
+  { id: 'LOOKALIKE', label: 'Lookalike' },
+  { id: 'CUSTOM', label: 'Customer List' },
+  { id: 'IG', label: 'Instagram' },
+];
+
 // ── Create Audience Modal ───────────────────────────────────────────────────
-const TABS = [
+const CREATE_TABS = [
   { id: 'website', label: 'Website', icon: Globe },
   { id: 'video', label: 'Video', icon: Film },
   { id: 'engagement', label: 'Engagement', icon: Hash },
   { id: 'lookalike', label: 'Lookalike', icon: Users },
 ];
 
-const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId }) => {
+const CreateAudienceModal = ({ onClose, onCreateViaChat }) => {
   const [tab, setTab] = useState('website');
   const [name, setName] = useState('');
   const [retentionDays, setRetentionDays] = useState(30);
   const [urlFilter, setUrlFilter] = useState('');
-  // Lookalike
   const [sourceAudienceId, setSourceAudienceId] = useState('');
   const [country, setCountry] = useState('SG');
   const [ratio, setRatio] = useState(1);
-  // Engagement
   const [engagementType, setEngagementType] = useState('page_engagement');
-  // Video
   const [videoSource, setVideoSource] = useState('facebook_page');
   const [videoId, setVideoId] = useState('');
   const [videoWatchPct, setVideoWatchPct] = useState(50);
@@ -119,16 +172,14 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId }) => {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
-        {/* Header */}
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
           <h2 className="text-base font-bold text-slate-900">Create Custom Audience</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-slate-100">
-          {TABS.map(t => (
+          {CREATE_TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold transition-colors
                 ${tab === t.id ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
@@ -137,7 +188,6 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId }) => {
           ))}
         </div>
 
-        {/* Form */}
         <div className="px-5 py-4 space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Audience Name</label>
@@ -204,6 +254,26 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId }) => {
             </>
           )}
 
+          {tab === 'engagement' && (
+            <>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Engagement Type</label>
+                <select value={engagementType} onChange={e => setEngagementType(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                  <option value="page_engagement">Facebook Page Engagement</option>
+                  <option value="video_watched">Video Viewers</option>
+                  <option value="ig_business_profile">Instagram Profile Visitors</option>
+                  <option value="lead_form">Lead Form Openers</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Retention (days)</label>
+                <input type="number" value={retentionDays} onChange={e => setRetentionDays(Number(e.target.value))} min={1} max={365}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" />
+              </div>
+            </>
+          )}
+
           {tab === 'lookalike' && (
             <>
               <div>
@@ -233,35 +303,13 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId }) => {
               </div>
             </>
           )}
-
-          {tab === 'engagement' && (
-            <>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Engagement Type</label>
-                <select value={engagementType} onChange={e => setEngagementType(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                  <option value="page_engagement">Facebook Page Engagement</option>
-                  <option value="video_watched">Video Viewers</option>
-                  <option value="ig_business_profile">Instagram Profile Visitors</option>
-                  <option value="lead_form">Lead Form Openers</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Retention (days)</label>
-                <input type="number" value={retentionDays} onChange={e => setRetentionDays(Number(e.target.value))} min={1} max={365}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" />
-              </div>
-            </>
-          )}
         </div>
 
-        {/* Info banner */}
         <div className="mx-5 mb-4 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
           <AlertTriangle size={14} className="text-amber-500 shrink-0 mt-0.5" />
           <p className="text-[11px] text-amber-700">Audiences created via API won't appear in Ads Manager's audience picker, but work perfectly when assigned to ad sets through this tool.</p>
         </div>
 
-        {/* Actions */}
         <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-100">
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-50">Cancel</button>
           <button onClick={handleCreate}
@@ -280,6 +328,8 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('all');
 
   const fetchAudiences = useCallback(async () => {
     if (!adAccountId) return;
@@ -297,48 +347,93 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
 
   useEffect(() => { fetchAudiences(); }, [fetchAudiences]);
 
-  const handleUse = (aud) => {
-    onSendToChat(`Create an ad set targeting custom audience "${aud.name}" (ID: ${aud.id})`);
-  };
-  const handleCreateLookalike = (aud) => {
-    onSendToChat(`Create a 1% lookalike audience from "${aud.name}" (ID: ${aud.id}) targeting Singapore`);
-  };
+  // Filter + search
+  const filtered = audiences.filter(aud => {
+    const matchesSearch = !searchQuery || aud.name?.toLowerCase().includes(searchQuery.toLowerCase()) || aud.id?.includes(searchQuery);
+    const sub = aud.subtype || 'CUSTOM';
+    const matchesFilter = filterType === 'all'
+      || (filterType === 'IG' && (sub === 'IG_BUSINESS' || sub === 'IG_BUSINESS_PROFILE'))
+      || sub === filterType;
+    return matchesSearch && matchesFilter;
+  });
+
+  // Count by type
+  const typeCounts = audiences.reduce((acc, a) => {
+    const sub = a.subtype || 'CUSTOM';
+    acc[sub] = (acc[sub] || 0) + 1;
+    if (sub === 'IG_BUSINESS' || sub === 'IG_BUSINESS_PROFILE') acc['IG'] = (acc['IG'] || 0) + 1;
+    return acc;
+  }, {});
+
+  const handleUse = (aud) => onSendToChat(`Create an ad set targeting custom audience "${aud.name}" (ID: ${aud.id})`);
+  const handleCreateLookalike = (aud) => onSendToChat(`Create a 1% lookalike audience from "${aud.name}" (ID: ${aud.id}) targeting Singapore`);
   const handleDelete = (aud) => {
     if (confirm(`Delete audience "${aud.name}"? This cannot be undone.`)) {
       onSendToChat(`Delete custom audience "${aud.name}" (ID: ${aud.id})`);
     }
   };
-  const handleCreateViaChat = (prompt) => {
-    onSendToChat(prompt);
-  };
 
   return (
-    <div className="flex-1 flex flex-col h-full">
+    <div className="flex-1 flex flex-col h-full bg-slate-50/50">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
-        <div>
-          <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <Users size={20} className="text-blue-500" />
-            Custom Audiences
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5">{audiences.length} audiences · {adAccountId || 'No account selected'}</p>
+      <div className="bg-white border-b border-slate-200 shrink-0">
+        <div className="flex items-center justify-between px-6 py-4">
+          <div>
+            <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Users size={20} className="text-blue-500" />
+              Custom Audiences
+            </h1>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {audiences.length} audiences
+              <span className="mx-1.5 text-slate-300">·</span>
+              {adAccountId || 'No account'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={fetchAudiences} disabled={loading}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
+              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
+            </button>
+            <button onClick={() => setShowCreate(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-500 transition-colors shadow-sm">
+              <Plus size={13} /> Create Audience
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={fetchAudiences} disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
-            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
-          </button>
-          <button onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-500 transition-colors">
-            <Plus size={13} /> Create Audience
-          </button>
-        </div>
+
+        {/* Search + Filter row */}
+        {audiences.length > 0 && (
+          <div className="px-6 pb-3 flex items-center gap-3">
+            <div className="relative flex-1 max-w-xs">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search by name or ID..."
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 bg-slate-50"
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              {FILTER_TABS.map(f => {
+                const count = f.id === 'all' ? audiences.length : (typeCounts[f.id] || 0);
+                if (f.id !== 'all' && !count) return null;
+                return (
+                  <button key={f.id} onClick={() => setFilterType(f.id)}
+                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors
+                      ${filterType === f.id ? 'bg-blue-100 text-blue-700' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}>
+                    {f.label} <span className="ml-0.5 opacity-60">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {!adAccountId && (
-          <div className="text-center py-12 text-sm text-slate-400">Select an ad account to view audiences</div>
+          <div className="text-center py-16 text-sm text-slate-400">Select an ad account to view audiences</div>
         )}
 
         {error && (
@@ -346,16 +441,16 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
         )}
 
         {loading && !audiences.length && (
-          <div className="text-center py-12">
+          <div className="text-center py-16">
             <RefreshCw size={24} className="animate-spin text-slate-300 mx-auto mb-2" />
             <p className="text-sm text-slate-400">Loading audiences...</p>
           </div>
         )}
 
         {!loading && adAccountId && !audiences.length && !error && (
-          <div className="text-center py-12">
-            <Users size={32} className="text-slate-200 mx-auto mb-3" />
-            <p className="text-sm text-slate-500 mb-1">No custom audiences yet</p>
+          <div className="text-center py-16">
+            <Users size={36} className="text-slate-200 mx-auto mb-3" />
+            <p className="text-sm font-medium text-slate-500 mb-1">No custom audiences yet</p>
             <p className="text-xs text-slate-400 mb-4">Create your first audience to start targeting</p>
             <button onClick={() => setShowCreate(true)}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-500">
@@ -364,12 +459,18 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
           </div>
         )}
 
-        {audiences.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {audiences.map(aud => (
-              <AudienceCard key={aud.id} audience={aud}
+        {filtered.length > 0 && (
+          <div className="space-y-2">
+            {filtered.map(aud => (
+              <AudienceRow key={aud.id} audience={aud}
                 onUse={handleUse} onCreateLookalike={handleCreateLookalike} onDelete={handleDelete} />
             ))}
+          </div>
+        )}
+
+        {audiences.length > 0 && filtered.length === 0 && (
+          <div className="text-center py-12 text-sm text-slate-400">
+            No audiences match your search
           </div>
         )}
       </div>
@@ -378,8 +479,7 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
       {showCreate && (
         <CreateAudienceModal
           onClose={() => setShowCreate(false)}
-          onCreateViaChat={handleCreateViaChat}
-          adAccountId={adAccountId}
+          onCreateViaChat={(prompt) => onSendToChat(prompt)}
         />
       )}
     </div>
