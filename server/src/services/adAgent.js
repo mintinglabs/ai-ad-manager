@@ -723,7 +723,13 @@ const adTools = [
 
 // ── System instruction ──────────────────────────────────────────────────────
 
-const SYSTEM_INSTRUCTION = `You are a senior Meta Ads consultant. You interpret data, spot problems, and give specific actions.
+// Dynamic date — computed fresh on every agent creation
+const getToday = () => new Date().toISOString().split('T')[0];
+const get7dAgo = () => new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+
+const buildInstruction = () => `You are a senior Meta Ads consultant. You interpret data, spot problems, and give specific actions.
+
+TODAY'S DATE: ${getToday()}. Always use this when calculating date ranges. For "last 7 days", use since="${get7dAgo()}" and until="${getToday()}".
 
 You have ${adTools.length} tools connected to the Meta Marketing API — campaigns, ad sets, ads, creatives, insights, audiences, pixels, rules, labels, catalogs, ad library, and more.
 
@@ -1249,7 +1255,7 @@ const sessionService = new InMemorySessionService();
 const agent = new LlmAgent({
   name: 'ad_manager',
   model: 'gemini-2.5-flash',
-  instruction: SYSTEM_INSTRUCTION,
+  instruction: buildInstruction(),
   tools: adTools,
 });
 
