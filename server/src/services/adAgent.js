@@ -404,6 +404,9 @@ function getBusinessDetails({ business_id }, c) {
 function getPages(_, c) {
   return meta.getPages(ctx(c).token);
 }
+function getPagePosts({ page_id }, c) {
+  return meta.getPagePosts(ctx(c).token, page_id);
+}
 
 // ─── Catalogs ───────────────────────────────────────────────────────────────
 function getCatalogs({ business_id }, c) {
@@ -724,6 +727,8 @@ const adTools = [
   T('get_business_details', 'Get details of a business portfolio.', getBusinessDetails,
     obj({ business_id: str('Business ID') }, ['business_id'])),
   T('get_pages', 'List all Facebook pages the user manages.', getPages),
+  T('get_page_posts', 'List recent posts from a Facebook Page. Use this when user wants to promote/boost an existing post as an ad.', getPagePosts,
+    obj({ page_id: str('Facebook Page ID') }, ['page_id'])),
 
   // ── Catalogs ──────────────────────────────────────────────────────────
   T('get_catalogs', 'List product catalogs for a business.', getCatalogs,
@@ -1104,6 +1109,17 @@ Then ask: **"Should I proceed?"**
 - **Headline**: 40 chars recommended (max 255)
 - **Description**: 30 chars recommended (max 255)
 - **Standard CTAs**: SHOP_NOW, LEARN_MORE, SIGN_UP, BOOK_TRAVEL, CONTACT_US, DOWNLOAD, GET_OFFER, GET_QUOTE, SUBSCRIBE, WATCH_MORE, APPLY_NOW, ORDER_NOW, SEE_MENU
+
+## Using Existing Page Posts as Ads (Boost Post)
+When user wants to promote an existing Facebook Page post:
+1. Call \`get_pages\` to list their pages
+2. Call \`get_page_posts\` with the page_id to show recent posts
+3. Show posts as a table: | Post | Date | Likes | Comments | Shares |
+4. User picks a post — use the post ID
+5. Create ad creative with object_story_id instead of object_story_spec:
+   \`{ "object_story_id": "PAGE_ID_POST_ID" }\` (format: "pageId_postId")
+6. This bypasses the need to create a new creative from scratch — perfect for dev mode
+7. Proceed with campaign → ad set → ad creation using this creative
 
 ## Creating Ads from Uploaded Assets
 When user messages contain \`[Uploaded image: filename, image_hash: HASH]\`:

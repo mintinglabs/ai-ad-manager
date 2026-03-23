@@ -1188,6 +1188,13 @@ export const getPageAds = async (token, pageId) => {
   return data.data;
 };
 
+export const getPagePosts = async (token, pageId) => {
+  const { data } = await metaApi.get(`/${pageId}/posts`, {
+    params: { access_token: token, fields: 'id,message,created_time,full_picture,permalink_url,shares,likes.summary(true),comments.summary(true)', limit: 25 }
+  });
+  return data.data;
+};
+
 // ─── Batch API ───────────────────────────────────────────────────────
 
 export const batchRequest = async (token, batch) => {
