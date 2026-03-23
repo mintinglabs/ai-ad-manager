@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Users, Plus, RefreshCw, Trash2, Copy, Target, Globe, Hash, X, AlertTriangle, Search, Film, ClipboardCopy, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Users, Plus, RefreshCw, Trash2, Copy, Target, Globe, Hash, X, AlertTriangle, Search, Film, ClipboardCopy, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronUp, SlidersHorizontal, FolderOpen } from 'lucide-react';
 import api from '../services/api.js';
 
 // ── Confirm Dialog ──────────────────────────────────────────────────────────
@@ -79,14 +79,22 @@ const CopyableId = ({ id }) => {
   );
 };
 
-// ── Filter Tabs ─────────────────────────────────────────────────────────────
-const FILTER_TABS = [
-  { id: 'all', label: 'All' },
-  { id: 'WEBSITE', label: 'Website' },
-  { id: 'ENGAGEMENT', label: 'Engagement' },
-  { id: 'LOOKALIKE', label: 'Lookalike' },
-  { id: 'CUSTOM', label: 'Customer List' },
-  { id: 'IG', label: 'Instagram' },
+// ── Filter Options (matching Meta's Audience Manager) ──────────────────────
+const STATUS_FILTERS = [
+  { id: 'in_active_ads', label: 'In Active Ads' },
+  { id: 'recently_used', label: 'Recently Used' },
+  { id: 'shared', label: 'Shared' },
+  { id: 'action_needed', label: 'Action Needed' },
+];
+const TYPE_FILTERS = [
+  { id: 'CUSTOM', label: 'Custom Audience' },
+  { id: 'LOOKALIKE', label: 'Lookalike Audience' },
+  { id: 'SAVED', label: 'Saved Audience' },
+];
+const AVAILABILITY_FILTERS = [
+  { id: 'ready', label: 'Ready' },
+  { id: 'not_ready', label: 'Not Ready' },
+  { id: 'error', label: 'Error' },
 ];
 
 // ── Create Audience Modal ───────────────────────────────────────────────────
@@ -101,8 +109,8 @@ const CREATE_TABS = [
 
 const INPUT_CLS = 'w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100';
 
-const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId }) => {
-  const [tab, setTab] = useState('website');
+const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab = 'website' }) => {
+  const [tab, setTab] = useState(defaultTab);
   const [name, setName] = useState('');
   const [retentionDays, setRetentionDays] = useState(30);
 
@@ -530,10 +538,17 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [createDefaultTab, setCreateDefaultTab] = useState('website');
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState('all');
   const [sortKey, setSortKey] = useState('time_created');
   const [sortDir, setSortDir] = useState('desc');
+  // Filters matching Meta's UI
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [filterStatus, setFilterStatus] = useState([]);
+  const [filterType, setFilterType] = useState([]);
+  const [filterAvailability, setFilterAvailability] = useState([]);
+  const createMenuRef = useRef(null);
 
   const fetchAudiences = useCallback(async () => {
     if (!adAccountId) return;
@@ -553,9 +568,20 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
   useEffect(() => {
     setAudiences([]);
     setSearchQuery('');
-    setFilterType('all');
+    setFilterType([]);
+    setFilterStatus([]);
+    setFilterAvailability([]);
     fetchAudiences();
   }, [adAccountId, fetchAudiences]);
+
+  // Close create menu on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (createMenuRef.current && !createMenuRef.current.contains(e.target)) setShowCreateMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // Filter + search
   const toggleSort = (key) => {
@@ -568,13 +594,37 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
     return sortDir === 'asc' ? <ArrowUp size={10} className="text-blue-500" /> : <ArrowDown size={10} className="text-blue-500" />;
   };
 
+  const toggleFilter = (arr, setArr, val) => {
+    setArr(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
+  };
+
+  const activeFilterCount = filterStatus.length + filterType.length + filterAvailability.length;
+
   const filtered = audiences.filter(aud => {
     const matchesSearch = !searchQuery || aud.name?.toLowerCase().includes(searchQuery.toLowerCase()) || aud.id?.includes(searchQuery);
+
+    // Type filter
     const sub = aud.subtype || 'CUSTOM';
-    const matchesFilter = filterType === 'all'
-      || (filterType === 'IG' && (sub === 'IG_BUSINESS' || sub === 'IG_BUSINESS_PROFILE'))
-      || sub === filterType;
-    return matchesSearch && matchesFilter;
+    const isCustom = sub !== 'LOOKALIKE' && sub !== 'SAVED';
+    const matchesType = filterType.length === 0
+      || (filterType.includes('CUSTOM') && isCustom)
+      || (filterType.includes('LOOKALIKE') && sub === 'LOOKALIKE')
+      || (filterType.includes('SAVED') && sub === 'SAVED');
+
+    // Availability filter
+    const opStatus = aud.operation_status?.status || aud.delivery_status?.status || '';
+    const matchesAvail = filterAvailability.length === 0
+      || (filterAvailability.includes('ready') && (!opStatus || opStatus === 'Normal' || opStatus === '200'))
+      || (filterAvailability.includes('not_ready') && (opStatus === 'Not Ready' || opStatus === 'Pending'))
+      || (filterAvailability.includes('error') && (opStatus === 'Error' || opStatus === 'Failed'));
+
+    // Status filter (best-effort from available data)
+    const matchesStatus = filterStatus.length === 0
+      || (filterStatus.includes('in_active_ads') && aud.delivery_status?.status === '200')
+      || (filterStatus.includes('recently_used') && aud.time_content_updated && (Date.now() / 1000 - aud.time_content_updated) < 30 * 86400)
+      || (filterStatus.includes('action_needed') && (opStatus === 'Error' || opStatus === 'Failed'));
+
+    return matchesSearch && matchesType && matchesAvail && matchesStatus;
   });
 
   const sorted = [...filtered].sort((a, b) => {
@@ -592,13 +642,16 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
     return 0;
   });
 
-  // Count by type
-  const typeCounts = audiences.reduce((acc, a) => {
-    const sub = a.subtype || 'CUSTOM';
-    acc[sub] = (acc[sub] || 0) + 1;
-    if (sub === 'IG_BUSINESS' || sub === 'IG_BUSINESS_PROFILE') acc['IG'] = (acc['IG'] || 0) + 1;
-    return acc;
-  }, {});
+  const handleOpenCreate = (type) => {
+    setShowCreateMenu(false);
+    if (type === 'lookalike') setCreateDefaultTab('lookalike');
+    else if (type === 'saved') {
+      // Saved audiences are interest/behavior-based — send to chat
+      onSendToChat('Create a saved audience with interest and behavior targeting');
+      return;
+    } else setCreateDefaultTab('website');
+    setShowCreate(true);
+  };
 
   const [confirmAction, setConfirmAction] = useState(null); // { title, message, details, confirmLabel, confirmColor, onConfirm }
 
@@ -652,10 +705,29 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
             </button>
-            <button onClick={() => setShowCreate(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-500 transition-colors shadow-sm">
-              <Plus size={13} /> Create Audience
-            </button>
+            {/* Create Audience dropdown */}
+            <div className="relative" ref={createMenuRef}>
+              <button onClick={() => setShowCreateMenu(v => !v)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-500 transition-colors shadow-sm">
+                Create Audience <ChevronDown size={12} />
+              </button>
+              {showCreateMenu && (
+                <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-30">
+                  <button onClick={() => handleOpenCreate('custom')}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-left">
+                    <Users size={16} className="text-slate-400" /> Custom Audience
+                  </button>
+                  <button onClick={() => handleOpenCreate('lookalike')}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-left">
+                    <Copy size={16} className="text-slate-400" /> Lookalike Audience
+                  </button>
+                  <button onClick={() => handleOpenCreate('saved')}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-left">
+                    <FolderOpen size={16} className="text-slate-400" /> Saved Audience
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -667,22 +739,79 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
               <input
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search by name or ID..."
+                placeholder="Search by name or audience ID"
                 className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 bg-slate-50"
               />
             </div>
-            <div className="flex items-center gap-1">
-              {FILTER_TABS.map(f => {
-                const count = f.id === 'all' ? audiences.length : (typeCounts[f.id] || 0);
-                if (f.id !== 'all' && !count) return null;
-                return (
-                  <button key={f.id} onClick={() => setFilterType(f.id)}
-                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors
-                      ${filterType === f.id ? 'bg-blue-100 text-blue-700' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}>
-                    {f.label} <span className="ml-0.5 opacity-60">{count}</span>
-                  </button>
-                );
-              })}
+            <button onClick={() => setShowFilterPanel(v => !v)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-colors
+                ${showFilterPanel || activeFilterCount > 0
+                  ? 'bg-blue-50 border-blue-200 text-blue-700'
+                  : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+              <SlidersHorizontal size={13} />
+              Filter
+              {activeFilterCount > 0 && (
+                <span className="ml-1 bg-blue-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{activeFilterCount}</span>
+              )}
+            </button>
+            {activeFilterCount > 0 && (
+              <button onClick={() => { setFilterStatus([]); setFilterType([]); setFilterAvailability([]); }}
+                className="text-[11px] text-blue-600 hover:text-blue-800 font-medium">
+                Clear all
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Filter panel (collapsible, like Meta) */}
+        {showFilterPanel && audiences.length > 0 && (
+          <div className="px-6 pb-4 border-t border-slate-100 pt-3">
+            <div className="flex gap-6">
+              {/* Status */}
+              <div className="min-w-[150px]">
+                <button onClick={() => {}} className="flex items-center justify-between w-full text-xs font-bold text-slate-700 mb-2">
+                  Status <ChevronUp size={12} className="text-slate-400" />
+                </button>
+                <div className="space-y-1.5">
+                  {STATUS_FILTERS.map(f => (
+                    <label key={f.id} className="flex items-center gap-2 cursor-pointer group">
+                      <input type="checkbox" checked={filterStatus.includes(f.id)} onChange={() => toggleFilter(filterStatus, setFilterStatus, f.id)}
+                        className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-200" />
+                      <span className="text-xs text-slate-600 group-hover:text-slate-900">{f.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {/* Type */}
+              <div className="min-w-[150px]">
+                <button onClick={() => {}} className="flex items-center justify-between w-full text-xs font-bold text-slate-700 mb-2">
+                  Type <ChevronUp size={12} className="text-slate-400" />
+                </button>
+                <div className="space-y-1.5">
+                  {TYPE_FILTERS.map(f => (
+                    <label key={f.id} className="flex items-center gap-2 cursor-pointer group">
+                      <input type="checkbox" checked={filterType.includes(f.id)} onChange={() => toggleFilter(filterType, setFilterType, f.id)}
+                        className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-200" />
+                      <span className="text-xs text-slate-600 group-hover:text-slate-900">{f.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {/* Availability */}
+              <div className="min-w-[150px]">
+                <button onClick={() => {}} className="flex items-center justify-between w-full text-xs font-bold text-slate-700 mb-2">
+                  Availability <ChevronUp size={12} className="text-slate-400" />
+                </button>
+                <div className="space-y-1.5">
+                  {AVAILABILITY_FILTERS.map(f => (
+                    <label key={f.id} className="flex items-center gap-2 cursor-pointer group">
+                      <input type="checkbox" checked={filterAvailability.includes(f.id)} onChange={() => toggleFilter(filterAvailability, setFilterAvailability, f.id)}
+                        className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-200" />
+                      <span className="text-xs text-slate-600 group-hover:text-slate-900">{f.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -710,7 +839,7 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
             <Users size={36} className="text-slate-200 mx-auto mb-3" />
             <p className="text-sm font-medium text-slate-500 mb-1">No custom audiences yet</p>
             <p className="text-xs text-slate-400 mb-4">Create your first audience to start targeting</p>
-            <button onClick={() => setShowCreate(true)}
+            <button onClick={() => handleOpenCreate('custom')}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-500">
               <Plus size={14} /> Create Audience
             </button>
@@ -794,6 +923,7 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
       {showCreate && (
         <CreateAudienceModal
           adAccountId={adAccountId}
+          defaultTab={createDefaultTab}
           onClose={() => setShowCreate(false)}
           onCreateViaChat={(prompt) => onSendToChat(prompt)}
         />
