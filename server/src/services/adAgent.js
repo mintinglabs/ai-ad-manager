@@ -40,7 +40,19 @@ function getCampaigns(_, c) {
   return meta.getCampaigns(token, adAccountId);
 }
 function createCampaign(args, c) {
-  return meta.createCampaign(ctx(c).token, ctx(c).adAccountId, args);
+  // Auto-handle special_ad_categories — default to NONE if not specified
+  const params = { ...args };
+  if (!params.special_ad_categories) {
+    params.special_ad_categories = JSON.stringify(['NONE']);
+  } else if (typeof params.special_ad_categories === 'string') {
+    // Agent might pass as comma-separated string instead of array
+    try { JSON.parse(params.special_ad_categories); } catch {
+      params.special_ad_categories = JSON.stringify(params.special_ad_categories.split(',').map(s => s.trim()));
+    }
+  } else if (Array.isArray(params.special_ad_categories)) {
+    params.special_ad_categories = JSON.stringify(params.special_ad_categories);
+  }
+  return meta.createCampaign(ctx(c).token, ctx(c).adAccountId, params);
 }
 function updateCampaign({ campaign_id, ...updates }, c) {
   return meta.updateCampaign(ctx(c).token, campaign_id, updates);
@@ -68,7 +80,15 @@ function getAdSet({ ad_set_id }, c) {
   return meta.getAdSet(ctx(c).token, ad_set_id);
 }
 function createAdSet(args, c) {
-  return meta.createAdSet(ctx(c).token, ctx(c).adAccountId, args);
+  // Parse targeting if passed as JSON string
+  const params = { ...args };
+  if (typeof params.targeting === 'string') {
+    try { params.targeting = JSON.parse(params.targeting); } catch {}
+  }
+  if (params.targeting && typeof params.targeting === 'object') {
+    params.targeting = JSON.stringify(params.targeting);
+  }
+  return meta.createAdSet(ctx(c).token, ctx(c).adAccountId, params);
 }
 function updateAdSet({ ad_set_id, ...updates }, c) {
   return meta.updateAdSet(ctx(c).token, ad_set_id, updates);
@@ -96,7 +116,16 @@ function getAd({ ad_id }, c) {
   return meta.getAd(ctx(c).token, ad_id);
 }
 function createAd(args, c) {
-  return meta.createAd(ctx(c).token, ctx(c).adAccountId, args);
+  const params = { ...args };
+  // Convert creative_id string to the creative object Meta API expects
+  if (params.creative_id && !params.creative) {
+    params.creative = JSON.stringify({ creative_id: params.creative_id });
+    delete params.creative_id;
+  }
+  if (typeof params.creative === 'object') {
+    params.creative = JSON.stringify(params.creative);
+  }
+  return meta.createAd(ctx(c).token, ctx(c).adAccountId, params);
 }
 function updateAd({ ad_id, ...updates }, c) {
   return meta.updateAd(ctx(c).token, ad_id, updates);
@@ -121,7 +150,15 @@ function getAdCreative({ creative_id }, c) {
   return meta.getAdCreative(ctx(c).token, creative_id);
 }
 function createAdCreative(args, c) {
-  return meta.createAdCreative(ctx(c).token, ctx(c).adAccountId, args);
+  const params = { ...args };
+  // Parse object_story_spec from JSON string if needed
+  if (typeof params.object_story_spec === 'string') {
+    try { params.object_story_spec = JSON.parse(params.object_story_spec); } catch {}
+  }
+  if (params.object_story_spec && typeof params.object_story_spec === 'object') {
+    params.object_story_spec = JSON.stringify(params.object_story_spec);
+  }
+  return meta.createAdCreative(ctx(c).token, ctx(c).adAccountId, params);
 }
 function updateAdCreative({ creative_id, ...updates }, c) {
   return meta.updateAdCreative(ctx(c).token, creative_id, updates);
@@ -498,8 +535,8 @@ const num = (desc) => ({ type: 'number', description: desc });
 const adTools = [
   // ── Campaigns ───────────────────────────────────────────────────────────
   T('get_campaigns', 'List all campaigns with last 7 days performance (spend, impressions, clicks, ROAS).', getCampaigns),
-  T('create_campaign', 'Create a new campaign. Requires name, objective (e.g. OUTCOME_TRAFFIC, OUTCOME_ENGAGEMENT, OUTCOME_SALES), status, special_ad_categories.', createCampaign,
-    obj({ name: str('Campaign name'), objective: str('OUTCOME_TRAFFIC, OUTCOME_ENGAGEMENT, OUTCOME_AWARENESS, OUTCOME_LEADS, OUTCOME_SALES, OUTCOME_APP_PROMOTION'), status: str('ACTIVE or PAUSED'), special_ad_categories: { type: 'array', items: { type: 'string' }, description: 'e.g. ["NONE"] or ["HOUSING","CREDIT"]' } }, ['name', 'objective', 'status'])),
+  T('create_campaign', 'Create a new campaign. Requires name, objective, status. special_ad_categories defaults to NONE.', createCampaign,
+    obj({ name: str('Campaign name'), objective: str('OUTCOME_TRAFFIC, OUTCOME_ENGAGEMENT, OUTCOME_AWARENESS, OUTCOME_LEADS, OUTCOME_SALES, OUTCOME_APP_PROMOTION'), status: str('ACTIVE or PAUSED'), special_ad_categories: str('Comma-separated: NONE, HOUSING, CREDIT, EMPLOYMENT, ISSUES_ELECTIONS_POLITICS. Defaults to NONE if omitted.') }, ['name', 'objective', 'status'])),
   T('update_campaign', 'Update a campaign (name, status, daily_budget, etc). CONFIRM with user before executing.', updateCampaign,
     obj({ campaign_id: str('Campaign ID'), name: str('New name'), status: str('ACTIVE or PAUSED'), daily_budget: num('Budget in cents') }, ['campaign_id'])),
   T('delete_campaign', 'Delete a campaign. CONFIRM with user first.', deleteCampaign,
@@ -515,8 +552,8 @@ const adTools = [
   T('get_ad_sets', 'List all ad sets with targeting, budget, and optimization details.', getAdSets),
   T('get_ad_set', 'Get detailed info for a single ad set.', getAdSet,
     obj({ ad_set_id: str('Ad set ID') }, ['ad_set_id'])),
-  T('create_ad_set', 'Create a new ad set. Requires campaign_id, name, targeting, optimization_goal, billing_event, bid_amount/daily_budget.', createAdSet,
-    obj({ campaign_id: str('Parent campaign ID'), name: str('Ad set name'), targeting: { type: 'object', description: 'Targeting spec' }, optimization_goal: str('e.g. REACH, LINK_CLICKS, CONVERSIONS'), billing_event: str('e.g. IMPRESSIONS, LINK_CLICKS'), daily_budget: num('Budget in cents'), status: str('ACTIVE or PAUSED') }, ['campaign_id', 'name', 'optimization_goal', 'billing_event'])),
+  T('create_ad_set', 'Create a new ad set. Requires campaign_id, name, targeting (JSON string), optimization_goal, billing_event, daily_budget.', createAdSet,
+    obj({ campaign_id: str('Parent campaign ID'), name: str('Ad set name'), targeting: str('Targeting spec as JSON string, e.g. {"geo_locations":{"countries":["US"]},"age_min":18,"age_max":65}'), optimization_goal: str('e.g. REACH, LINK_CLICKS, CONVERSIONS, OFFSITE_CONVERSIONS'), billing_event: str('e.g. IMPRESSIONS, LINK_CLICKS'), daily_budget: num('Budget in cents'), status: str('ACTIVE or PAUSED') }, ['campaign_id', 'name', 'optimization_goal', 'billing_event'])),
   T('update_ad_set', 'Update an ad set (status, budget, targeting, etc). CONFIRM first.', updateAdSet,
     obj({ ad_set_id: str('Ad set ID'), status: str('ACTIVE or PAUSED'), daily_budget: num('Budget in cents'), name: str('New name') }, ['ad_set_id'])),
   T('delete_ad_set', 'Delete an ad set. CONFIRM first.', deleteAdSet,
@@ -532,8 +569,8 @@ const adTools = [
   T('get_ads', 'List all ads in the account.', getAds),
   T('get_ad', 'Get details of a single ad.', getAd,
     obj({ ad_id: str('Ad ID') }, ['ad_id'])),
-  T('create_ad', 'Create a new ad. Requires ad set, name, and creative.', createAd,
-    obj({ adset_id: str('Ad set ID'), name: str('Ad name'), creative: { type: 'object', description: '{ creative_id } or inline creative spec' }, status: str('ACTIVE or PAUSED') }, ['adset_id', 'name', 'creative'])),
+  T('create_ad', 'Create a new ad. Requires ad set ID, name, and creative_id.', createAd,
+    obj({ adset_id: str('Ad set ID'), name: str('Ad name'), creative_id: str('Creative ID (from create_ad_creative)'), status: str('ACTIVE or PAUSED') }, ['adset_id', 'name', 'creative_id'])),
   T('update_ad', 'Update an ad. CONFIRM first.', updateAd,
     obj({ ad_id: str('Ad ID'), status: str('ACTIVE or PAUSED'), name: str('New name') }, ['ad_id'])),
   T('delete_ad', 'Delete an ad. CONFIRM first.', deleteAd,
@@ -547,11 +584,11 @@ const adTools = [
   T('get_ad_creatives', 'List all ad creatives in the account.', getAdCreatives),
   T('get_ad_creative', 'Get details of a single creative.', getAdCreative,
     obj({ creative_id: str('Creative ID') }, ['creative_id'])),
-  T('create_ad_creative', 'Create an ad creative. For IMAGE: use object_story_spec.link_data with image_hash, link, message, name, description, call_to_action. For VIDEO: use object_story_spec.video_data with video_id, message, title, description, call_to_action. For CAROUSEL: use object_story_spec.link_data with child_attachments array. Always include page_id in object_story_spec.', createAdCreative,
+  T('create_ad_creative', 'Create an ad creative with object_story_spec (as JSON string). Always include page_id.', createAdCreative,
     obj({
       name: str('Creative name'),
-      object_story_spec: { type: 'object', description: '{ page_id: "PAGE_ID", link_data: { image_hash, link, message, name, description, call_to_action: { type: "SHOP_NOW", value: { link } }, child_attachments: [{ image_hash, name, link }] } } OR { page_id, video_data: { video_id, message, title, description, call_to_action: { type, value: { link } } } }' },
-      url_tags: str('Optional UTM parameters, e.g. "utm_source=facebook&utm_medium=paid"'),
+      object_story_spec: str('JSON string of the creative spec. For image: {"page_id":"ID","link_data":{"image_hash":"HASH","link":"URL","message":"text","name":"headline","call_to_action":{"type":"SHOP_NOW","value":{"link":"URL"}}}}'),
+      url_tags: str('Optional UTM parameters'),
     }, ['name'])),
   T('update_ad_creative', 'Update an ad creative.', updateAdCreative,
     obj({ creative_id: str('Creative ID') }, ['creative_id'])),
@@ -591,7 +628,7 @@ const adTools = [
       subtype: str('WEBSITE | ENGAGEMENT | CUSTOM'),
       description: str('Description'),
       pixel_id: str('REQUIRED for WEBSITE audiences — the pixel ID'),
-      rule: { type: 'object', description: 'For WEBSITE: optional URL filter e.g. {"url":{"i_contains":"/product"}} — system auto-wraps in event_sources format. For ENGAGEMENT: full rule with event_sources e.g. {"inclusions":{"operator":"or","rules":[{"event_sources":[{"id":"PAGE_ID","type":"page"}],"retention_seconds":2592000,"filter":{"operator":"and","filters":[{"field":"event","operator":"eq","value":"video_watched"}]}}]}}' },
+      rule: str('JSON string. For WEBSITE: {"url":{"i_contains":"/product"}}. For ENGAGEMENT: full inclusions rule as JSON string.'),
       retention_days: num('Days to retain users in audience (default 30)'),
       customer_file_source: str('For CUSTOM only: USER_PROVIDED_ONLY (default), PARTNER_PROVIDED_ONLY, BOTH_USER_AND_PARTNER_PROVIDED'),
     }, ['name', 'subtype'])),
@@ -600,7 +637,7 @@ const adTools = [
   T('delete_custom_audience', 'Delete an audience. CONFIRM first.', deleteCustomAudience,
     obj({ audience_id: str('Audience ID') }, ['audience_id'])),
   T('create_lookalike_audience', 'Create a lookalike audience from an existing source audience.', createLookalikeAudience,
-    obj({ name: str('Audience name'), origin_audience_id: str('Source audience ID'), lookalike_spec: { type: 'object', description: '{ country: "US", ratio: 0.01-0.20 }' } }, ['name', 'origin_audience_id', 'lookalike_spec'])),
+    obj({ name: str('Audience name'), origin_audience_id: str('Source audience ID'), lookalike_spec: str('JSON string: {"country":"US","ratio":0.01} — ratio from 0.01 to 0.20') }, ['name', 'origin_audience_id', 'lookalike_spec'])),
   T('add_users_to_audience', 'Add users (email, phone, etc.) to a custom audience.', addUsersToAudience,
     obj({ audience_id: str('Audience ID'), payload: { type: 'object', description: '{ schema: ["EMAIL"|"PHONE"|"FN"|"LN"], data: [["hash1"],["hash2"]] }' } }, ['audience_id', 'payload'])),
   T('remove_users_from_audience', 'Remove users from a custom audience.', removeUsersFromAudience,
