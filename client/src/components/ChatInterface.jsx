@@ -1018,9 +1018,9 @@ const SlashPicker = ({ skills, filter, onSelect, selectedIndex }) => {
 
 // ── Input box with drag & drop + slash commands ─────────────────────────────
 const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, attachments, onRemoveAttachment, fileRef, isTyping, handleFileUpload, isOver, activeSkill, onDeactivateSkill, skills = [], onSlashSelect, slashSkills = [], onRemoveSlashSkill, onClearAllSlash }) => {
-  // Slash command detection — show picker when input is just "/" or "/filter"
-  const showSlash = /^\/\S*$/.test(input.trim()) && input.trim().length >= 1;
-  const slashFilter = showSlash ? input.trim().slice(1) : '';
+  // Slash command detection — show picker when input starts with "/"
+  const showSlash = input.startsWith('/');
+  const slashFilter = showSlash ? input.slice(1).trim() : '';
   const filteredSkills = showSlash ? skills.filter(s =>
     !slashSkills.find(ss => ss.id === s.id) && // hide already-selected
     (!slashFilter || s.name.toLowerCase().includes(slashFilter.toLowerCase()) || s.id.includes(slashFilter.toLowerCase()))
