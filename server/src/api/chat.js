@@ -111,7 +111,7 @@ router.post('/', async (req, res) => {
     };
 
     // Run the agent and stream events (with retry on MALFORMED_FUNCTION_CALL)
-    const MAX_RETRIES = 2;
+    const MAX_RETRIES = 1;
     let fullText = '';
     let eventCount = 0;
 

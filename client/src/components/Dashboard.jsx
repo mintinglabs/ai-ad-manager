@@ -9,17 +9,17 @@ import { ReportPanel } from './ReportPanel.jsx';
 
 const SUGGESTED_ACTIONS = [
   { icon: 'BarChart3',     label: 'Weekly Performance Report',      desc: 'Spend, ROAS, CTR, CPA across all campaigns — with trends vs last week.',
-    prompt: 'Generate a full weekly performance report: show all active campaigns with spend, ROAS, CTR, CPA, and impressions for the last 7 days. Compare each metric to the previous 7 days. Highlight which campaigns improved and which declined. Include a budget allocation breakdown and top 3 recommendations.' },
+    prompt: 'Show my weekly performance report for the last 7 days with all campaigns, spend, ROAS, CTR, CPA. Compare to previous week.' },
   { icon: 'AlertTriangle', label: 'Problems & Quick Wins',          desc: 'Find issues, wasted spend, and actionable fixes you can apply today.',
-    prompt: 'Analyze my ad account for problems and quick wins: flag campaigns with rising CPA or declining ROAS (compare last 7d vs previous 7d), find ad sets with audience overlap or high frequency, identify wasted budget on low performers, and give me a prioritized action plan of changes I can make right now.' },
+    prompt: 'Find problems and quick wins in my ad account. Flag low ROAS campaigns, wasted spend, and give me fixes.' },
   { icon: 'Search',        label: 'Creative Performance Analysis',  desc: 'Which ads are winning, which show fatigue — with copy recommendations.',
-    prompt: 'Do a full creative performance analysis: show all my ads with their CTR, CPA, ROAS, and frequency. Flag creatives showing fatigue (frequency > 3 or declining CTR). Identify my top 3 best-performing ads and explain why they work. Then write 3 new ad copy variations based on the winning patterns.' },
+    prompt: 'Analyze my ad creative performance. Show CTR, CPA, frequency for all ads. Flag fatigue and suggest new copy.' },
   { icon: 'DollarSign',    label: 'Budget Optimization Plan',       desc: 'Where to shift spend for maximum ROAS — with specific reallocation amounts.',
-    prompt: 'Create a budget optimization plan: analyze spend vs ROAS across all campaigns and ad sets. Show which ones are overspending relative to their returns and which deserve more budget. Give me specific dollar amounts to reallocate, the expected ROAS impact, and step-by-step instructions to make the changes.' },
+    prompt: 'Create a budget optimization plan. Show spend vs ROAS per campaign and recommend specific budget reallocations.' },
   { icon: 'Target',        label: 'Audience & Targeting Review',    desc: 'Audience sizes, overlap issues, and expansion opportunities.',
-    prompt: 'Review my audiences and targeting: show all custom audiences with their sizes, find overlap between ad sets that\'s wasting budget, check if any audiences are too narrow or too broad, and suggest new lookalike or interest-based audiences I should test based on my best-performing segments.' },
+    prompt: 'Review my audiences and targeting. Show sizes, find overlap, suggest new audiences to test.' },
   { icon: 'BarChart3',     label: 'Full Account Health Audit',      desc: 'Pixel, CAPI, campaign structure, exclusions — scored with fix priorities.',
-    prompt: 'Run a comprehensive account health audit: check my pixel setup and CAPI integration, review campaign structure and naming conventions, verify audience exclusions are in place, analyze budget distribution, check for overlapping ad sets, and give me a health score out of 10 with a prioritized list of fixes.' },
+    prompt: 'Run a full account health audit. Check pixel, structure, budget, overlaps. Give me a score out of 10.' },
 ];
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
