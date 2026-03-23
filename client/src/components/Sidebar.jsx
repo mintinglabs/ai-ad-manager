@@ -270,32 +270,18 @@ export const Sidebar = ({
 
       {/* Skills Library */}
       <div className="px-3 mb-2">
-        <div className="flex items-center justify-between px-1 py-1">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Skills Library</p>
-          <button onClick={onOpenSkillsLibrary} className="text-slate-300 hover:text-indigo-500 transition-colors" title="Open Skills Library">
-            <ChevronRight size={12} />
-          </button>
-        </div>
-        <div className="space-y-1">
-          {skills.slice(0, 5).map(skill => (
-            <button key={skill.id}
-              onClick={() => onToggleSkill?.(skill.id)}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] font-medium transition-all
-                ${skill.id === activeSkillId ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
-                  'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
-            >
-              <Sparkles size={14} className={skill.id === activeSkillId ? 'text-indigo-500' : 'text-slate-400'} />
-              <span className="flex-1 text-left truncate">{skill.name}</span>
-              {skill.id === activeSkillId && <span className="w-2 h-2 rounded-full bg-indigo-500" />}
-            </button>
-          ))}
-          {skills.length > 5 && (
-            <button onClick={onOpenSkillsLibrary}
-              className="w-full text-center text-[11px] text-indigo-500 hover:text-indigo-700 font-medium py-1.5 transition-colors">
-              View all {skills.length} skills
-            </button>
-          )}
-        </div>
+        <button
+          onClick={onOpenSkillsLibrary}
+          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
+            ${activeView?.type === 'skills'
+              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
+        >
+          <Sparkles size={14} className={activeView?.type === 'skills' ? 'text-indigo-500' : 'text-slate-400'} />
+          <span className="flex-1 text-left">Skills Library</span>
+          {activeSkillId && <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" title="Skill active" />}
+          <ChevronRight size={12} className="text-slate-300" />
+        </button>
       </div>
 
       {/* Scrollable area: Folders first, then Chat History */}
