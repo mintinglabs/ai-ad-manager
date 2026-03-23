@@ -93,44 +93,131 @@ const FILTER_TABS = [
 const CREATE_TABS = [
   { id: 'website', label: 'Website', icon: Globe },
   { id: 'video', label: 'Video', icon: Film },
-  { id: 'engagement', label: 'Engagement', icon: Hash },
+  { id: 'customer_list', label: 'Customer List', icon: Users },
+  { id: 'ig', label: 'Instagram', icon: Hash },
+  { id: 'fb_page', label: 'FB Page', icon: Globe },
   { id: 'lookalike', label: 'Lookalike', icon: Users },
 ];
 
-const CreateAudienceModal = ({ onClose, onCreateViaChat }) => {
+const INPUT_CLS = 'w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100';
+
+const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId }) => {
   const [tab, setTab] = useState('website');
   const [name, setName] = useState('');
   const [retentionDays, setRetentionDays] = useState(30);
+
+  // Website
+  const [pixels, setPixels] = useState([]);
+  const [selectedPixelId, setSelectedPixelId] = useState('');
+  const [websiteEvent, setWebsiteEvent] = useState('all_visitors');
   const [urlFilter, setUrlFilter] = useState('');
+
+  // Video
+  const [videos, setVideos] = useState([]);
+  const [videosLoading, setVideosLoading] = useState(false);
+  const [selectedVideoIds, setSelectedVideoIds] = useState([]);
+  const [engagementType, setEngagementType] = useState('');
+
+  // Instagram
+  const [igAccounts, setIgAccounts] = useState([]);
+  const [selectedIgId, setSelectedIgId] = useState('');
+  const [igEngagement, setIgEngagement] = useState('');
+
+  // FB Page
+  const [pages, setPages] = useState([]);
+  const [selectedPageId, setSelectedPageId] = useState('');
+  const [pageEngagement, setPageEngagement] = useState('');
+
+  // Lookalike
   const [sourceAudienceId, setSourceAudienceId] = useState('');
   const [country, setCountry] = useState('SG');
   const [ratio, setRatio] = useState(1);
-  const [engagementType, setEngagementType] = useState('page_engagement');
-  const [videoSource, setVideoSource] = useState('facebook_page');
-  const [videoId, setVideoId] = useState('');
-  const [videoWatchPct, setVideoWatchPct] = useState(50);
 
-  const VIDEO_SOURCES = [
-    { id: 'facebook_page', label: 'Facebook Page', desc: 'People who watched videos on your Page' },
-    { id: 'instagram', label: 'Instagram professional account', desc: 'People who watched videos on your IG' },
-    { id: 'campaign', label: 'Campaign', desc: 'People who watched videos from your ads' },
-    { id: 'video_id', label: 'Video ID', desc: 'People who watched a specific video' },
-  ];
-
+  // Confirm
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingPrompt, setPendingPrompt] = useState('');
 
+  // Fetch data when tab changes
+  useEffect(() => {
+    if (!adAccountId) return;
+    if (tab === 'website' && !pixels.length) {
+      api.get(`/meta/adaccounts/${adAccountId}/pixels`).then(r => setPixels(r.data || [])).catch(() => {});
+    }
+    if (tab === 'video' && !videos.length) {
+      setVideosLoading(true);
+      api.get(`/meta/adaccounts/${adAccountId}/videos`).then(r => { setVideos(r.data || []); setVideosLoading(false); }).catch(() => setVideosLoading(false));
+    }
+    if (tab === 'ig' && !igAccounts.length) {
+      api.get(`/meta/adaccounts/${adAccountId}/instagram-accounts`).then(r => setIgAccounts(r.data || [])).catch(() => {});
+    }
+    if ((tab === 'fb_page') && !pages.length) {
+      api.get('/meta/pages').then(r => setPages(r.data || [])).catch(() => {});
+    }
+  }, [tab, adAccountId]);
+
+  const toggleVideo = (id) => {
+    setSelectedVideoIds(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]);
+  };
+
   const buildPrompt = () => {
+    const audName = name ? `"${name}"` : '';
     if (tab === 'website') {
-      return `Create a website custom audience called "${name || 'Website Visitors - Last ' + retentionDays + 'd'}" with ${retentionDays} day retention${urlFilter ? `, only visitors to pages containing "${urlFilter}"` : ''}`;
-    } else if (tab === 'video') {
-      const srcLabel = VIDEO_SOURCES.find(s => s.id === videoSource)?.label || videoSource;
-      const defaultName = `Video Viewers ${videoWatchPct}% - ${srcLabel} - Last ${retentionDays}d`;
-      return `Create a video engagement custom audience called "${name || defaultName}" for people who watched at least ${videoWatchPct}% of videos from ${srcLabel}${videoSource === 'video_id' && videoId ? ` (video ID: ${videoId})` : ''}, ${retentionDays} day retention`;
-    } else if (tab === 'lookalike') {
-      return `Create a lookalike audience from audience ID ${sourceAudienceId}, targeting ${country}, ${ratio}% ratio, name it "${name || 'Lookalike ' + ratio + '% - ' + country}"`;
-    } else if (tab === 'engagement') {
-      return `Create an engagement audience for ${engagementType.replace(/_/g, ' ')}, ${retentionDays} day retention, name it "${name || engagementType.replace(/_/g, ' ') + ' - Last ' + retentionDays + 'd'}"`;
+      const pixelName = pixels.find(p => p.id === selectedPixelId)?.name || '';
+      const webEventLabels = {
+        all_visitors: 'all website visitors',
+        specific_pages: `visitors to pages containing "${urlFilter}"`,
+        time_spent: 'visitors by time spent (top 25%)',
+        purchase: 'people who completed a purchase',
+        add_to_cart: 'people who added to cart',
+        lead: 'people who completed a lead form',
+        view_content: 'people who viewed content',
+      };
+      const eventDesc = webEventLabels[websiteEvent] || 'all website visitors';
+      return `Create a website custom audience${audName ? ` called ${audName}` : ''} using pixel "${pixelName}" (ID: ${selectedPixelId}), targeting ${eventDesc}, ${retentionDays} day retention`;
+    }
+    if (tab === 'video') {
+      const vidNames = selectedVideoIds.map(id => videos.find(v => v.id === id)?.title || id).join(', ');
+      const engLabels = {
+        video_watched_3s: 'viewed at least 3 seconds',
+        video_watched_10s: 'viewed at least 10 seconds',
+        video_watched_15s: 'completed or viewed at least 15 seconds (ThruPlay)',
+        video_watched_25pct: 'viewed at least 25%',
+        video_watched_50pct: 'viewed at least 50%',
+        video_watched_75pct: 'viewed at least 75%',
+        video_watched_95pct: 'viewed at least 95%',
+      };
+      const engDesc = engLabels[engagementType] || engagementType;
+      return `Create a video engagement custom audience${audName ? ` called ${audName}` : ''} for people who ${engDesc} of these videos: ${vidNames} (IDs: ${selectedVideoIds.join(', ')}), ${retentionDays} day retention`;
+    }
+    if (tab === 'customer_list') {
+      return `Create a customer list custom audience${audName ? ` called ${audName}` : ''}. I will provide the customer data.`;
+    }
+    if (tab === 'ig') {
+      const igName = igAccounts.find(a => a.id === selectedIgId)?.username || selectedIgId;
+      const igEngLabels = {
+        ig_profile_visit: 'visited your profile',
+        ig_profile_engaged: 'engaged with your profile',
+        ig_ad_interact: 'engaged with any post or ad',
+        ig_message_sent: 'sent a message to your account',
+        ig_post_saved: 'saved any post or ad',
+      };
+      const igEngDesc = igEngLabels[igEngagement] || '';
+      return `Create an Instagram engagement custom audience${audName ? ` called ${audName}` : ''} from Instagram account @${igName} (ID: ${selectedIgId})${igEngDesc ? `, targeting people who ${igEngDesc}` : ''}, ${retentionDays} day retention`;
+    }
+    if (tab === 'fb_page') {
+      const pageName = pages.find(p => p.id === selectedPageId)?.name || selectedPageId;
+      const pageEngLabels = {
+        page_liked: 'currently like or follow your Page',
+        page_engaged: 'engaged with any post or ad',
+        page_cta_clicked: 'clicked any call-to-action button',
+        page_message_sent: 'sent a message to your Page',
+        page_visited: 'visited your Page',
+      };
+      const pageEngDesc = pageEngLabels[pageEngagement] || '';
+      return `Create a Facebook Page engagement custom audience${audName ? ` called ${audName}` : ''} from page "${pageName}" (ID: ${selectedPageId})${pageEngDesc ? `, targeting people who ${pageEngDesc}` : ''}, ${retentionDays} day retention`;
+    }
+    if (tab === 'lookalike') {
+      return `Create a lookalike audience from audience ID ${sourceAudienceId}, targeting ${country}, ${ratio}% ratio${audName ? `, name it ${audName}` : ''}`;
     }
     return '';
   };
@@ -146,152 +233,280 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat }) => {
     onClose();
   };
 
+  const fmtDuration = (sec) => {
+    if (!sec) return '';
+    const m = Math.floor(sec / 60), s = Math.round(sec % 60);
+    return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `0:${String(s).padStart(2, '0')}`;
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 shrink-0">
           <h2 className="text-base font-bold text-slate-900">Create Custom Audience</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
         </div>
 
-        <div className="flex border-b border-slate-100">
+        <div className="flex border-b border-slate-100 shrink-0 overflow-x-auto">
           {CREATE_TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold transition-colors
+              className={`flex items-center justify-center gap-1.5 px-4 py-3 text-[11px] font-semibold transition-colors whitespace-nowrap
                 ${tab === t.id ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
-              <t.icon size={13} /> {t.label}
+              <t.icon size={12} /> {t.label}
             </button>
           ))}
         </div>
 
-        <div className="px-5 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {/* Name — always shown */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Audience Name</label>
-            <input value={name} onChange={e => setName(e.target.value)}
-              placeholder={tab === 'website' ? 'Website Visitors - Last 30d' : tab === 'video' ? 'Video Viewers 50% - Last 30d' : tab === 'lookalike' ? 'Lookalike 1% - SG' : 'Page Engagers - Last 30d'}
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" />
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Optional — auto-generated if empty" className={INPUT_CLS} />
           </div>
 
+          {/* ── Website ── */}
           {tab === 'website' && (
             <>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Retention (days)</label>
-                <input type="number" value={retentionDays} onChange={e => setRetentionDays(Number(e.target.value))} min={1} max={180}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Pixel</label>
+                {pixels.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">Loading pixels...</p>
+                ) : (
+                  <select value={selectedPixelId} onChange={e => setSelectedPixelId(e.target.value)} className={INPUT_CLS}>
+                    <option value="">Select a pixel</option>
+                    {pixels.map(p => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
+                  </select>
+                )}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">URL Filter (optional)</label>
-                <input value={urlFilter} onChange={e => setUrlFilter(e.target.value)} placeholder="e.g., /products or /checkout"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" />
-                <p className="text-[10px] text-slate-400 mt-1">Only include visitors to URLs containing this text</p>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Website Event</label>
+                <select value={websiteEvent} onChange={e => setWebsiteEvent(e.target.value)} className={INPUT_CLS}>
+                  <option value="all_visitors">All website visitors</option>
+                  <option value="specific_pages">People who visited specific web pages</option>
+                  <option value="time_spent">Visitors by time spent (top 25%)</option>
+                  <option value="purchase">People who completed a purchase</option>
+                  <option value="add_to_cart">People who added to cart</option>
+                  <option value="lead">People who completed a lead form</option>
+                  <option value="view_content">People who viewed content</option>
+                </select>
               </div>
-            </>
-          )}
-
-          {tab === 'video' && (
-            <>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Video Source</label>
-                <div className="space-y-1.5">
-                  {VIDEO_SOURCES.map(src => (
-                    <button key={src.id} onClick={() => setVideoSource(src.id)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors
-                        ${videoSource === src.id ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}>
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0
-                        ${videoSource === src.id ? 'border-blue-600' : 'border-slate-300'}`}>
-                        {videoSource === src.id && <div className="w-2 h-2 rounded-full bg-blue-600" />}
-                      </div>
-                      <div>
-                        <p className={`text-xs font-medium ${videoSource === src.id ? 'text-blue-700' : 'text-slate-700'}`}>{src.label}</p>
-                        <p className="text-[10px] text-slate-400">{src.desc}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {videoSource === 'video_id' && (
+              {websiteEvent === 'specific_pages' && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Video ID</label>
-                  <input value={videoId} onChange={e => setVideoId(e.target.value)} placeholder="e.g., 123456789"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">URL Contains</label>
+                  <input value={urlFilter} onChange={e => setUrlFilter(e.target.value)} placeholder="e.g., /products or /checkout" className={INPUT_CLS} />
+                  <p className="text-[10px] text-slate-400 mt-1">Only include visitors to URLs containing this text</p>
                 </div>
               )}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Watched at least: {videoWatchPct}%</label>
-                <input type="range" min={25} max={95} step={25} value={videoWatchPct} onChange={e => setVideoWatchPct(Number(e.target.value))}
-                  className="w-full accent-blue-500" />
-                <div className="flex justify-between text-[10px] text-slate-400"><span>25%</span><span>50%</span><span>75%</span><span>95%</span></div>
-              </div>
-              <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Retention (days)</label>
-                <input type="number" value={retentionDays} onChange={e => setRetentionDays(Number(e.target.value))} min={1} max={365}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                <input type="number" value={retentionDays} onChange={e => setRetentionDays(Number(e.target.value))} min={1} max={180} className={INPUT_CLS} />
               </div>
             </>
           )}
 
-          {tab === 'engagement' && (
+          {/* ── Video ── */}
+          {tab === 'video' && (
             <>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Engagement Type</label>
-                <select value={engagementType} onChange={e => setEngagementType(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                  <option value="page_engagement">Facebook Page Engagement</option>
-                  <option value="video_watched">Video Viewers</option>
-                  <option value="ig_business_profile">Instagram Profile Visitors</option>
-                  <option value="lead_form">Lead Form Openers</option>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                  Select Videos <span className="text-slate-400 font-normal">({selectedVideoIds.length} selected)</span>
+                </label>
+                {videosLoading ? (
+                  <div className="flex items-center gap-2 py-6 justify-center text-xs text-slate-400">
+                    <RefreshCw size={14} className="animate-spin" /> Loading videos...
+                  </div>
+                ) : videos.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic py-4 text-center">No videos found in this ad account</p>
+                ) : (
+                  <div className="max-h-[240px] overflow-y-auto space-y-1.5 border border-slate-200 rounded-lg p-2">
+                    {videos.map(v => (
+                      <button key={v.id} onClick={() => toggleVideo(v.id)}
+                        className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg text-left transition-colors
+                          ${selectedVideoIds.includes(v.id) ? 'bg-blue-50 border border-blue-200' : 'hover:bg-slate-50 border border-transparent'}`}>
+                        {/* Thumbnail */}
+                        <div className="w-16 h-10 rounded-md bg-slate-100 overflow-hidden shrink-0 relative">
+                          {v.picture ? (
+                            <img src={v.picture} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center"><Film size={14} className="text-slate-300" /></div>
+                          )}
+                          {v.length && (
+                            <span className="absolute bottom-0.5 right-0.5 bg-black/70 text-white text-[9px] px-1 rounded">{fmtDuration(v.length)}</span>
+                          )}
+                        </div>
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-medium text-slate-700 truncate">{v.title || `Video ${v.id}`}</p>
+                          <p className="text-[10px] text-slate-400">{v.id}</p>
+                        </div>
+                        {/* Checkbox */}
+                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0
+                          ${selectedVideoIds.includes(v.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-300'}`}>
+                          {selectedVideoIds.includes(v.id) && <span className="text-white text-[10px] font-bold">✓</span>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Engagement Type</label>
+                <select value={engagementType} onChange={e => setEngagementType(e.target.value)} className={INPUT_CLS}>
+                  <option value="">Choose an engagement type</option>
+                  <option value="video_watched_3s">People who have viewed at least 3 seconds of your video</option>
+                  <option value="video_watched_10s">People who have viewed at least 10 seconds of your video</option>
+                  <option value="video_watched_15s">People who either completed or viewed at least 15 seconds of your video (ThruPlay)</option>
+                  <option value="video_watched_25pct">People who have viewed at least 25% of your video</option>
+                  <option value="video_watched_50pct">People who have viewed at least 50% of your video</option>
+                  <option value="video_watched_75pct">People who have viewed at least 75% of your video</option>
+                  <option value="video_watched_95pct">People who have viewed at least 95% of your video</option>
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Retention (days)</label>
-                <input type="number" value={retentionDays} onChange={e => setRetentionDays(Number(e.target.value))} min={1} max={365}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                <input type="number" value={retentionDays} onChange={e => setRetentionDays(Number(e.target.value))} min={1} max={365} className={INPUT_CLS} />
               </div>
             </>
           )}
 
+          {/* ── Customer List ── */}
+          {tab === 'customer_list' && (
+            <div className="text-center py-6">
+              <Users size={28} className="text-slate-300 mx-auto mb-2" />
+              <p className="text-xs text-slate-500 mb-1">Customer list audiences are created via the AI agent.</p>
+              <p className="text-[10px] text-slate-400">Click "Create" and the agent will guide you through uploading emails/phones.</p>
+            </div>
+          )}
+
+          {/* ── Instagram ── */}
+          {tab === 'ig' && (
+            <>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Instagram Account</label>
+                {igAccounts.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">Loading Instagram accounts...</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {igAccounts.map(a => (
+                      <button key={a.id} onClick={() => setSelectedIgId(a.id)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors
+                          ${selectedIgId === a.id ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                        {a.profile_pic ? (
+                          <img src={a.profile_pic} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white text-xs font-bold shrink-0">{a.username?.[0]?.toUpperCase()}</div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-xs font-medium ${selectedIgId === a.id ? 'text-blue-700' : 'text-slate-700'}`}>@{a.username}</p>
+                          <p className="text-[10px] text-slate-400">{a.id}</p>
+                        </div>
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selectedIgId === a.id ? 'border-blue-600' : 'border-slate-300'}`}>
+                          {selectedIgId === a.id && <div className="w-2 h-2 rounded-full bg-blue-600" />}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Engagement Type</label>
+                <select value={igEngagement} onChange={e => setIgEngagement(e.target.value)} className={INPUT_CLS}>
+                  <option value="">Choose an engagement type</option>
+                  <option value="ig_profile_visit">People who visited your profile</option>
+                  <option value="ig_profile_engaged">People who engaged with your profile</option>
+                  <option value="ig_ad_interact">People who engaged with any post or ad</option>
+                  <option value="ig_message_sent">People who sent a message to your account</option>
+                  <option value="ig_post_saved">People who saved any post or ad</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Retention (days)</label>
+                <input type="number" value={retentionDays} onChange={e => setRetentionDays(Number(e.target.value))} min={1} max={365} className={INPUT_CLS} />
+              </div>
+            </>
+          )}
+
+          {/* ── Facebook Page ── */}
+          {tab === 'fb_page' && (
+            <>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Facebook Page</label>
+                {pages.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">Loading pages...</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {pages.map(p => (
+                      <button key={p.id} onClick={() => setSelectedPageId(p.id)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors
+                          ${selectedPageId === p.id ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                        <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold shrink-0">{p.name?.[0]?.toUpperCase()}</div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-xs font-medium ${selectedPageId === p.id ? 'text-blue-700' : 'text-slate-700'}`}>{p.name}</p>
+                          <p className="text-[10px] text-slate-400">{p.category} · {p.fan_count?.toLocaleString() || 0} fans</p>
+                        </div>
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selectedPageId === p.id ? 'border-blue-600' : 'border-slate-300'}`}>
+                          {selectedPageId === p.id && <div className="w-2 h-2 rounded-full bg-blue-600" />}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Engagement Type</label>
+                <select value={pageEngagement} onChange={e => setPageEngagement(e.target.value)} className={INPUT_CLS}>
+                  <option value="">Choose an engagement type</option>
+                  <option value="page_liked">People who currently like or follow your Page</option>
+                  <option value="page_engaged">People who engaged with any post or ad</option>
+                  <option value="page_cta_clicked">People who clicked any call-to-action button</option>
+                  <option value="page_message_sent">People who sent a message to your Page</option>
+                  <option value="page_visited">People who visited your Page</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Retention (days)</label>
+                <input type="number" value={retentionDays} onChange={e => setRetentionDays(Number(e.target.value))} min={1} max={365} className={INPUT_CLS} />
+              </div>
+            </>
+          )}
+
+          {/* ── Lookalike ── */}
           {tab === 'lookalike' && (
             <>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Source Audience ID</label>
-                <input value={sourceAudienceId} onChange={e => setSourceAudienceId(e.target.value)} placeholder="Paste audience ID from the list"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                <input value={sourceAudienceId} onChange={e => setSourceAudienceId(e.target.value)} placeholder="Paste audience ID from the list" className={INPUT_CLS} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Country</label>
-                <select value={country} onChange={e => setCountry(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
-                  <option value="SG">Singapore</option>
-                  <option value="HK">Hong Kong</option>
-                  <option value="US">United States</option>
-                  <option value="GB">United Kingdom</option>
-                  <option value="AU">Australia</option>
-                  <option value="MY">Malaysia</option>
-                  <option value="TW">Taiwan</option>
-                  <option value="JP">Japan</option>
+                <select value={country} onChange={e => setCountry(e.target.value)} className={INPUT_CLS}>
+                  <option value="SG">Singapore</option><option value="HK">Hong Kong</option><option value="US">United States</option>
+                  <option value="GB">United Kingdom</option><option value="AU">Australia</option><option value="MY">Malaysia</option>
+                  <option value="TW">Taiwan</option><option value="JP">Japan</option>
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Ratio: {ratio}%</label>
-                <input type="range" min={1} max={20} value={ratio} onChange={e => setRatio(Number(e.target.value))}
-                  className="w-full accent-emerald-500" />
+                <input type="range" min={1} max={20} value={ratio} onChange={e => setRatio(Number(e.target.value))} className="w-full accent-emerald-500" />
                 <div className="flex justify-between text-[10px] text-slate-400"><span>1% (most similar)</span><span>20% (broadest)</span></div>
               </div>
             </>
           )}
         </div>
 
-        <div className="mx-5 mb-4 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
-          <AlertTriangle size={14} className="text-amber-500 shrink-0 mt-0.5" />
-          <p className="text-[11px] text-amber-700">Audiences created via API won't appear in Ads Manager's audience picker, but work perfectly when assigned to ad sets through this tool.</p>
-        </div>
-
-        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-100">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-50">Cancel</button>
-          <button onClick={handleCreate}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 transition-colors">
-            Create via AI Agent
-          </button>
+        {/* Footer */}
+        <div className="shrink-0 border-t border-slate-100">
+          <div className="mx-5 my-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
+            <AlertTriangle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-amber-700">Audiences created via API won't appear in Ads Manager's audience picker, but work perfectly when assigned to ad sets through this tool.</p>
+          </div>
+          <div className="flex items-center justify-end gap-2 px-5 py-3">
+            <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-50">Cancel</button>
+            <button onClick={handleCreate}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 transition-colors">
+              Create via AI Agent
+            </button>
+          </div>
         </div>
 
         {showConfirm && (
@@ -578,6 +793,7 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
       {/* Create Modal */}
       {showCreate && (
         <CreateAudienceModal
+          adAccountId={adAccountId}
           onClose={() => setShowCreate(false)}
           onCreateViaChat={(prompt) => onSendToChat(prompt)}
         />

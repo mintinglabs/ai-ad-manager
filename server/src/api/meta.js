@@ -176,6 +176,28 @@ router.get('/adaccounts/:id/instagram-accounts', async (req, res, next) => {
   }
 });
 
+// Ad videos for an ad account
+router.get('/adaccounts/:id/videos', async (req, res, next) => {
+  try {
+    const data = await metaClient.getAdVideos(req.token, req.params.id);
+    res.json(data);
+  } catch (err) {
+    const metaErr = err.response?.data?.error;
+    res.status(err.response?.status || 500).json({ error: metaErr?.message || err.message, code: metaErr?.code });
+  }
+});
+
+// Pixels for an ad account
+router.get('/adaccounts/:id/pixels', async (req, res, next) => {
+  try {
+    const data = await metaClient.getPixels(req.token, req.params.id);
+    res.json(data);
+  } catch (err) {
+    const metaErr = err.response?.data?.error;
+    res.status(err.response?.status || 500).json({ error: metaErr?.message || err.message, code: metaErr?.code });
+  }
+});
+
 // --- Extended Business Manager ---
 router.get('/businesses/:id/details', async (req, res, next) => {
   try {
