@@ -68,6 +68,15 @@ export const LoginPage = ({ onLogin, isLoading, error }) => {
           >
             Privacy Policy
           </a>
+          <span className="mx-2">·</span>
+          <a
+            href="https://juvenile-sauce-34d.notion.site/TOS-for-AI-Ad-Manager-32c2cc383a9b8007ab29c069b2befe84"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-white transition-colors"
+          >
+            Terms of Service
+          </a>
         </p>
       </div>
     </div>
