@@ -476,7 +476,8 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
     if (videoSource === 'fb_page') {
       endpoint = `/meta/pages/${videoSourcePage}/videos?adAccountId=${adAccountId}`;
     } else if (videoSource === 'ig_account') {
-      endpoint = `/meta/instagram/${videoSourceIg}/media`;
+      const igAcct = igAccounts.find(a => a.id === videoSourceIg);
+      endpoint = `/meta/instagram/${videoSourceIg}/media${igAcct?.pageId ? `?pageId=${igAcct.pageId}` : ''}`;
     } else {
       endpoint = `/meta/adaccounts/${adAccountId}/videos`;
     }
@@ -484,13 +485,13 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
     api.get(endpoint).then(r => {
       let data = r.data || [];
       if (videoSource === 'ig_account') {
-        // Normalize IG media format to match video table expectations
+        // Normalize: handles both IG media format (caption/thumbnail_url) and page video fallback (title/picture)
         data = data.map(m => ({
           id: m.id,
-          title: m.caption ? m.caption.slice(0, 80) : 'Untitled',
-          picture: m.thumbnail_url || '',
-          source: m.media_url,
-          created_time: m.timestamp,
+          title: m.title || (m.description ? m.description.slice(0, 80) : (m.caption ? m.caption.slice(0, 80) : 'Untitled')),
+          picture: m.picture || m.thumbnail_url || '',
+          source: m.source || m.media_url,
+          created_time: m.created_time || m.timestamp,
           is_ig: true,
         }));
       } else {

@@ -1211,6 +1211,7 @@ export const getConnectedInstagramAccounts = async (token, adAccountId) => {
   // Collect { id, username, profile_pic, _source, _pageToken }
   const allResults = [];
   const pageTokenMap = new Map(); // igId -> pageToken (for username resolution)
+  const pageIdMap = new Map(); // igId -> pageId (for video fallback via page)
 
   // Run all sources in parallel
   const source1 = metaApi.get(`/${adAccountId}/connected_instagram_accounts`, {
@@ -1232,6 +1233,7 @@ export const getConnectedInstagramAccounts = async (token, adAccountId) => {
         console.log(`[IG Discovery] Source 2 - Page "${p.name}": @${ig.username}`);
         allResults.push({ id: ig.id, username: ig.username, profile_pic: ig.profile_picture_url, _source: 2 });
         if (p.access_token) pageTokenMap.set(ig.id, p.access_token);
+        pageIdMap.set(ig.id, p.id);
       }
     }
 
@@ -1248,6 +1250,7 @@ export const getConnectedInstagramAccounts = async (token, adAccountId) => {
           // page_backed_instagram_accounts often returns page name as username — always mark for resolution
           allResults.push({ id: a.id, username: a.username || page.name, profile_pic: a.profile_picture_url, _source: 4, _needsResolve: true });
           pageTokenMap.set(a.id, pageToken);
+          pageIdMap.set(a.id, page.id);
         }
       } catch (_) { /* skip */ }
       // 4b: instagram_accounts on page
@@ -1259,6 +1262,7 @@ export const getConnectedInstagramAccounts = async (token, adAccountId) => {
           console.log(`[IG Discovery] Source 4b - Page "${page.name}": id=${a.id}, username=${a.username || 'NONE'}`);
           allResults.push({ id: a.id, username: a.username, profile_pic: a.profile_picture_url, _source: 4, _needsResolve: true });
           pageTokenMap.set(a.id, pageToken);
+          pageIdMap.set(a.id, page.id);
         }
       } catch (_) { /* skip */ }
     }));
@@ -1305,8 +1309,11 @@ export const getConnectedInstagramAccounts = async (token, adAccountId) => {
     }));
   }
 
-  // Clean up internal flags before returning
-  const result = accounts.map(({ _source, _needsResolve, ...rest }) => rest);
+  // Clean up internal flags before returning, include pageId for video fallback
+  const result = accounts.map(({ _source, _needsResolve, ...rest }) => ({
+    ...rest,
+    ...(pageIdMap.get(rest.id) && { pageId: pageIdMap.get(rest.id) }),
+  }));
   console.log(`[IG Discovery] TOTAL: ${result.length} accounts`, result.map(a => a.username));
   return result;
 };
@@ -1359,7 +1366,8 @@ export const getPageVideos = async (token, pageId, adAccountId) => {
   }
 };
 
-export const getIgMedia = async (token, igAccountId) => {
+export const getIgMedia = async (token, igAccountId, { pageId } = {}) => {
+  // Try direct IG media endpoint first (requires instagram_business_basic)
   try {
     const { data } = await metaApi.get(`/${igAccountId}/media`, {
       params: {
@@ -1368,13 +1376,33 @@ export const getIgMedia = async (token, igAccountId) => {
         limit: 100
       }
     });
-    // Filter to only VIDEO types
     return (data.data || []).filter(m => m.media_type === 'VIDEO');
   } catch (err) {
-    console.error('getIgMedia error:', err.response?.data?.error?.message || err.message);
-    // Fallback: return empty array instead of crashing
-    return [];
+    console.log(`[getIgMedia] IG media endpoint failed (${err.response?.data?.error?.code || err.message}), trying page fallback...`);
   }
+
+  // Fallback: fetch videos from the linked FB Page (works without instagram_business_basic)
+  if (pageId) {
+    try {
+      const pages = await getPages(token);
+      const page = pages?.find(p => p.id === pageId);
+      const pageToken = page?.access_token || token;
+      const { data } = await metaApi.get(`/${pageId}/videos`, {
+        params: {
+          access_token: pageToken,
+          fields: 'id,title,description,source,picture,length,created_time,updated_time,source_instagram_media_id',
+          limit: 200
+        }
+      });
+      const videos = (data.data || []);
+      console.log(`[getIgMedia] Page fallback: ${videos.length} videos from page ${pageId}`);
+      return videos;
+    } catch (err2) {
+      console.error('[getIgMedia] Page fallback error:', err2.response?.data?.error?.message || err2.message);
+    }
+  }
+
+  return [];
 };
 
 export const getPageAds = async (token, pageId) => {
