@@ -336,6 +336,10 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
   const [campaignSearch, setCampaignSearch] = useState('');
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
   const [campaignsLoading, setCampaignsLoading] = useState(false);
+  // Video sort & date filter
+  const [videoSort, setVideoSort] = useState('created_time'); // created_time | title
+  const [videoDateFrom, setVideoDateFrom] = useState('');
+  const [videoDateTo, setVideoDateTo] = useState('');
 
   // Customer List
   const [customerFile, setCustomerFile] = useState(null); // { name, rows, preview }
@@ -841,13 +845,44 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
                     <p className="text-xs text-slate-400 italic py-4 text-center">No videos found</p>
                   ) : (
                     <>
+                    {/* Search + Sort + Date filters */}
                     <div className="relative mb-1.5">
                       <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input value={videoSearchQuery} onChange={e => setVideoSearchQuery(e.target.value)}
                         placeholder="Search videos..." className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300" />
                     </div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <select value={videoSort} onChange={e => setVideoSort(e.target.value)}
+                        className="px-2 py-1 rounded-md border border-slate-200 text-[11px] text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-200">
+                        <option value="created_time">Newest first</option>
+                        <option value="title">Title A–Z</option>
+                      </select>
+                      <div className="flex items-center gap-1">
+                        <input type="date" value={videoDateFrom} onChange={e => setVideoDateFrom(e.target.value)}
+                          className="px-1.5 py-1 rounded-md border border-slate-200 text-[11px] text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-200" />
+                        <span className="text-[10px] text-slate-400">to</span>
+                        <input type="date" value={videoDateTo} onChange={e => setVideoDateTo(e.target.value)}
+                          className="px-1.5 py-1 rounded-md border border-slate-200 text-[11px] text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-200" />
+                      </div>
+                      {(videoDateFrom || videoDateTo) && (
+                        <button onClick={() => { setVideoDateFrom(''); setVideoDateTo(''); }} className="text-[10px] text-red-400 hover:text-red-500">Clear</button>
+                      )}
+                    </div>
                     <div className="max-h-[200px] overflow-y-auto space-y-1.5 border border-slate-200 rounded-lg p-2">
-                      {videos.filter(v => !videoSearchQuery || (v.title || v.id || '').toLowerCase().includes(videoSearchQuery.toLowerCase())).map(v => (
+                      {videos
+                        .filter(v => !videoSearchQuery || (v.title || v.description || v.id || '').toLowerCase().includes(videoSearchQuery.toLowerCase()))
+                        .filter(v => {
+                          if (!videoDateFrom && !videoDateTo) return true;
+                          const vDate = v.created_time ? new Date(v.created_time).toISOString().slice(0, 10) : '';
+                          if (videoDateFrom && vDate < videoDateFrom) return false;
+                          if (videoDateTo && vDate > videoDateTo) return false;
+                          return true;
+                        })
+                        .sort((a, b) => {
+                          if (videoSort === 'title') return (a.title || '').localeCompare(b.title || '');
+                          return (b.created_time || '').localeCompare(a.created_time || '');
+                        })
+                        .map(v => (
                         <button key={v.id} onClick={() => toggleVideo(v.id)}
                           className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg text-left transition-colors
                             ${selectedVideoIds.includes(v.id) ? 'bg-blue-50 border border-blue-200' : 'hover:bg-slate-50 border border-transparent'}`}>
@@ -862,8 +897,8 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-medium text-slate-700 truncate">{v.title || `Video ${v.id}`}</p>
-                            <p className="text-[10px] text-slate-400">{v.id}</p>
+                            <p className="text-[11px] font-medium text-slate-700 truncate">{v.title || v.description?.slice(0, 60) || 'Untitled video'}</p>
+                            <p className="text-[10px] text-slate-400">{v.length ? `${fmtDuration(v.length)} · ` : ''}{v.created_time ? new Date(v.created_time).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : v.id}</p>
                           </div>
                           <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0
                             ${selectedVideoIds.includes(v.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-300'}`}>

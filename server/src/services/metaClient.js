@@ -1191,7 +1191,7 @@ export const getPageVideos = async (token, pageId) => {
     const { data } = await metaApi.get(`/${pageId}/videos`, {
       params: {
         access_token: pageToken,
-        fields: 'id,title,description,source,picture,length,created_time',
+        fields: 'id,title,description,source,picture,length,created_time,thumbnails',
         limit: 100
       }
     });
