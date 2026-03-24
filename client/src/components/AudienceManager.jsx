@@ -86,68 +86,6 @@ const getTypeDisplay = (aud) => {
   return { main: 'Custom Audience', detail: detailMap[sub] || null };
 };
 
-// Extract retention days and engagement type from audience rule or localStorage summary
-const getAudienceRule = (aud) => {
-  let retention = aud.retention_days || null;
-  let engagement = null;
-  try {
-    const rule = typeof aud.rule === 'string' ? JSON.parse(aud.rule) : aud.rule;
-    if (rule) {
-      // Top-level retention_seconds
-      if (rule.retention_seconds && !retention) retention = Math.round(rule.retention_seconds / 86400);
-      // Check inclusions array and flat event_sources
-      const inclusions = rule.inclusions || (rule.event_sources ? [rule] : []);
-      for (const inc of inclusions) {
-        if (inc.retention_seconds && !retention) {
-          retention = Math.round(inc.retention_seconds / 86400);
-        }
-        // Extract event type for engagement audiences
-        const filters = inc.filters || inc.rules || [];
-        for (const f of (Array.isArray(filters) ? filters : [filters])) {
-          if (f.field === 'event' && f.value) engagement = engagement || f.value;
-          if (f.type === 'event' && f.value) engagement = engagement || f.value;
-        }
-        // Also check object_id based subtypes
-        if (inc.object_id && !engagement) {
-          const sub = aud.subtype;
-          if (sub === 'VIDEO' || sub === 'ENGAGEMENT') engagement = engagement || sub.toLowerCase();
-        }
-      }
-    }
-  } catch { /* rule parsing failed */ }
-  // Fallback: parse from localStorage summary bullets
-  if (!retention || !engagement) {
-    try {
-      const stored = JSON.parse(localStorage.getItem('audience_summaries') || '{}');
-      const summary = stored[aud.name];
-      if (summary?.bullets) {
-        for (const b of summary.bullets) {
-          if (!retention) {
-            const m = b.match(/(?:Retention|retention)[:\s]*(\d+)\s*d/i);
-            if (m) retention = Number(m[1]);
-          }
-          if (!engagement) {
-            const m = b.match(/(?:Include|Engagement)[:\s]*(.*?)(?:\s*\((\d+)d\))?$/i);
-            if (m && m[1]) engagement = m[1].trim();
-          }
-        }
-      }
-    } catch { /* localStorage read failed */ }
-  }
-  return { retention, engagement };
-};
-
-const ENGAGEMENT_LABELS = {
-  video_watched: '3s views', video_watched_3s: '3s views', 'video_view': '3s views',
-  video_watched_10s: '10s views', video_watched_15s: 'ThruPlay',
-  video_watched_25pct: '25% viewed', video_watched_50pct: '50% viewed',
-  video_watched_75pct: '75% viewed', video_watched_95pct: '95% viewed',
-  page_liked: 'Page like/follow', page_engaged: 'Page engaged', page_visited: 'Page visit',
-  page_cta_clicked: 'CTA clicked', page_message_sent: 'Message sent',
-  ig_profile_visit: 'Profile visit', ig_profile_engaged: 'Profile engaged',
-  ig_ad_interact: 'Ad interaction', ig_message_sent: 'Message sent', ig_post_saved: 'Post saved',
-};
-
 // Get availability display matching Meta's real UI
 const getAvailability = (aud) => {
   const op = aud.operation_status;
@@ -1882,8 +1820,6 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
                   <span className="inline-flex items-center gap-1 justify-end">Est. audience size <SortIcon col="size" /></span>
                 </th>
                 <th className="text-left py-1.5 px-2 font-semibold w-[130px]">Availability</th>
-                <th className="text-center py-1.5 px-2 font-semibold w-[70px]">Retention</th>
-                <th className="text-left py-1.5 px-2 font-semibold w-[110px]">Engagement</th>
                 <th className="text-left py-1.5 px-2 font-semibold w-[110px]">Audience ID</th>
                 <th className="text-right py-1.5 px-2 font-semibold w-[90px] cursor-pointer hover:text-slate-600 select-none" onClick={() => toggleSort('time_created')}>
                   <span className="inline-flex items-center gap-1 justify-end">Created <SortIcon col="time_created" /></span>
@@ -1938,25 +1874,6 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
                         )}
                       </div>
                     </td>
-                    {/* Retention Days */}
-                    <td className="py-2 px-2 text-center">
-                      {(() => {
-                        const { retention } = getAudienceRule(aud);
-                        return retention ? (
-                          <span className="text-[11px] text-slate-600 font-medium">{retention}d</span>
-                        ) : <span className="text-[11px] text-slate-300">—</span>;
-                      })()}
-                    </td>
-                    {/* Engagement */}
-                    <td className="py-2 px-2">
-                      {(() => {
-                        const { engagement } = getAudienceRule(aud);
-                        const label = engagement ? (ENGAGEMENT_LABELS[engagement] || engagement.replace(/_/g, ' ')) : null;
-                        return label ? (
-                          <span className="text-[10px] text-slate-500 capitalize">{label}</span>
-                        ) : <span className="text-[11px] text-slate-300">—</span>;
-                      })()}
-                    </td>
                     {/* Audience ID */}
                     <td className="py-2 px-2">
                       <CopyableId id={aud.id} />
@@ -1987,7 +1904,7 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
                   </tr>
                   {isExpanded && (
                     <tr className="bg-slate-50/80 border-t border-slate-100">
-                      <td colSpan={9} className="px-6 py-3">
+                      <td colSpan={7} className="px-6 py-3">
                         {bullets && bullets.length > 0 ? (
                           <div className="space-y-1">
                             <p className="text-[11px] font-semibold text-slate-600 mb-1.5">Audience Configuration</p>
