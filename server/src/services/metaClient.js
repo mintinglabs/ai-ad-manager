@@ -1332,11 +1332,12 @@ export const getPageVideos = async (token, pageId, adAccountId) => {
 
   try {
     // Use page's video library (published videos on the page)
+    // Use limit=50 to avoid Meta's "reduce the amount of data" error on pages with many videos
     const { data } = await metaApi.get(`/${pageId}/videos`, {
       params: {
         access_token: pageToken,
-        fields: 'id,title,description,source,picture,length,created_time,updated_time,status,source_instagram_media_id',
-        limit: 200
+        fields: 'id,title,description,source,picture,length,created_time,status,source_instagram_media_id',
+        limit: 50
       }
     });
     const pageVideos = (data.data || []).filter(v => !v.status || v.status.video_status === 'ready');
@@ -1383,19 +1384,22 @@ export const getIgMedia = async (token, igAccountId, { pageId } = {}) => {
     const pages = await getPages(token);
     const page = pages?.find(p => p.id === pageId);
     const pageToken = page?.access_token || token;
-    try {
-      const { data } = await metaApi.get(`/${pageId}/videos`, {
-        params: {
-          access_token: pageToken,
-          fields: 'id,title,description,source,picture,length,created_time,updated_time,source_instagram_media_id',
-          limit: 200
-        }
-      });
-      const videos = data.data || [];
-      console.log(`[getIgMedia] Page fallback: ${videos.length} videos from page ${pageId}`);
-      return videos;
-    } catch (err2) {
-      console.log(`[getIgMedia] Page fallback failed: ${err2.response?.data?.error?.message || err2.message}`);
+    // Try with smaller limit first to avoid "reduce the amount of data" errors
+    for (const limit of [50, 25]) {
+      try {
+        const { data } = await metaApi.get(`/${pageId}/videos`, {
+          params: {
+            access_token: pageToken,
+            fields: 'id,title,description,source,picture,length,created_time,source_instagram_media_id',
+            limit
+          }
+        });
+        const videos = data.data || [];
+        console.log(`[getIgMedia] Page fallback: ${videos.length} videos from page ${pageId} (limit=${limit})`);
+        return videos;
+      } catch (err2) {
+        console.log(`[getIgMedia] Page fallback (limit=${limit}) failed: ${err2.response?.data?.error?.message || err2.message}`);
+      }
     }
   }
 
