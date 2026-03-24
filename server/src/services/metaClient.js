@@ -367,7 +367,7 @@ export const getAdVideos = async (token, adAccountId) => {
   const { data } = await metaApi.get(`/${adAccountId}/advideos`, {
     params: {
       access_token: token,
-      fields: 'id,title,description,source,picture,length,status,created_time,updated_time'
+      fields: 'id,title,description,source,picture,length,status,created_time,updated_time,instagram_eligible,source_instagram_media_id'
     }
   });
   return data.data;

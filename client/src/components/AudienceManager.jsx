@@ -463,27 +463,24 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
 
     // FB Page: need a page selected first
     if (videoSource === 'fb_page' && !videoSourcePage) { setVideos([]); setVideosLoading(false); return; }
-    // IG: need an account selected first
-    if (videoSource === 'ig_account' && !videoSourceIg) { setVideos([]); setVideosLoading(false); return; }
-
     setVideosLoading(true);
     setVideos([]);
     setSelectedVideoIds([]);
+    setVideoPage(0);
 
     let endpoint;
     if (videoSource === 'fb_page') {
       endpoint = `/meta/pages/${videoSourcePage}/videos?adAccountId=${adAccountId}`;
-    } else if (videoSource === 'ig_account') {
-      endpoint = `/meta/instagram/${videoSourceIg}/media`;
     } else {
+      // Both 'ig_account' and default use ad account videos
       endpoint = `/meta/adaccounts/${adAccountId}/videos`;
     }
 
     api.get(endpoint).then(r => {
       const data = r.data || [];
-      // Normalize IG media to match video shape
       if (videoSource === 'ig_account') {
-        setVideos(data.map(m => ({ id: m.id, title: m.caption?.slice(0, 60) || `Video ${m.id}`, picture: m.thumbnail_url, source: m.media_url })));
+        // Show all ad account videos but mark ones with IG source
+        setVideos(data.map(v => ({ ...v, is_ig: !!v.source_instagram_media_id })));
       } else {
         setVideos(data);
       }
@@ -666,7 +663,6 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
     if (tab === 'website' && [...websiteInclusions, ...websiteExclusions].some(r => r.retentionDays > 180)) return 'Website audience retention cannot exceed 180 days. Please reduce to proceed.';
     if (tab === 'website' && [...websiteInclusions, ...websiteExclusions].some(r => r.retentionDays < 1)) return 'Retention must be at least 1 day';
     if (tab === 'video' && videoSource === 'fb_page' && !videoSourcePage) return 'Please select a Facebook Page';
-    if (tab === 'video' && videoSource === 'ig_account' && !videoSourceIg) return 'Please select an Instagram account';
     if (tab === 'video' && videoSource === 'campaign' && !selectedCampaignId) return 'Please select a campaign';
     if (tab === 'video' && videoSource !== 'video_id' && videoSource !== 'campaign' && selectedVideoIds.length === 0) return 'Please select at least one video';
     if (tab === 'video' && videoSource === 'campaign' && selectedCampaignId && selectedVideoIds.length === 0 && !videosLoading) return 'Please select at least one video';
@@ -829,21 +825,6 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
                     )}
                   </div>
                 )}
-                {videoSource === 'ig_account' && (
-                  <div className="flex-1">
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">Instagram Account</label>
-                    {igAccountsLoading ? (
-                      <p className="text-xs text-slate-400 italic py-2">Loading...</p>
-                    ) : igAccounts.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic py-2">No Instagram accounts found</p>
-                    ) : (
-                      <select value={videoSourceIg} onChange={e => setVideoSourceIg(e.target.value)} className={INPUT_CLS}>
-                        <option value="">Select account</option>
-                        {igAccounts.map(a => <option key={a.id} value={a.id}>@{a.username}</option>)}
-                      </select>
-                    )}
-                  </div>
-                )}
                 {videoSource === 'campaign' && (
                   <div className="flex-1">
                     <label className="block text-xs font-semibold text-slate-600 mb-1">Campaign</label>
@@ -871,9 +852,6 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
               {videoSource === 'fb_page' && !videoSourcePage && (
                 <p className="text-xs text-slate-400 italic text-center py-4">Select a Facebook Page to see its videos</p>
               )}
-              {videoSource === 'ig_account' && !videoSourceIg && (
-                <p className="text-xs text-slate-400 italic text-center py-4">Select an Instagram account to see its videos</p>
-              )}
               {videoSource === 'campaign' && !selectedCampaignId && (
                 <p className="text-xs text-slate-400 italic text-center py-4">Select a campaign to see its video ads</p>
               )}
@@ -885,7 +863,7 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
                   <input value={videoIdInput} onChange={e => setVideoIdInput(e.target.value)} placeholder="Paste video IDs, comma separated" className={INPUT_CLS} />
                   <p className="text-[10px] text-slate-400 mt-1">Enter one or more video IDs separated by commas</p>
                 </div>
-              ) : (videoSource === 'fb_page' && !videoSourcePage) || (videoSource === 'ig_account' && !videoSourceIg) || (videoSource === 'campaign' && !selectedCampaignId) ? null : (
+              ) : (videoSource === 'fb_page' && !videoSourcePage) || (videoSource === 'campaign' && !selectedCampaignId) ? null : (
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1.5">
                     Select Videos <span className="text-slate-400 font-normal">({selectedVideoIds.length} selected)</span>
@@ -997,7 +975,10 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-medium text-slate-700 truncate">{v.title || v.description?.slice(0, 60)}</p>
+                            <p className="text-[11px] font-medium text-slate-700 truncate">
+                              {v.title || v.description?.slice(0, 60)}
+                              {v.is_ig && <span className="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700">IG</span>}
+                            </p>
                             <p className="text-[10px] text-slate-400">{v.length ? fmtDuration(v.length) : ''}</p>
                           </div>
                           <span className="w-20 text-[10px] text-slate-400 text-right shrink-0">{fmtVDate(v.created_time)}</span>
