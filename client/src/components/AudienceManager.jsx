@@ -386,6 +386,8 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
   const [videoDateFrom, setVideoDateFrom] = useState('');
   const [videoDateTo, setVideoDateTo] = useState('');
   const [videoPage, setVideoPage] = useState(0);
+  const [videoNextCursor, setVideoNextCursor] = useState(null);
+  const [videoLoadingMore, setVideoLoadingMore] = useState(false);
   const VIDEOS_PER_PAGE = 10;
 
   // Customer List
@@ -467,6 +469,36 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
     }).catch(() => setPixelEvents([]));
   }, [tab, selectedPixelId]);
 
+  // Normalize video data from different sources into a consistent format
+  const normalizeVideos = (raw, source) => {
+    if (source === 'ig_account') {
+      return raw.map(m => ({
+        id: m.id,
+        title: m.title || (m.description ? m.description.slice(0, 80) : (m.caption ? m.caption.slice(0, 80) : 'Untitled')),
+        picture: m.picture || m.thumbnail_url || '',
+        source: m.source || m.media_url,
+        created_time: m.created_time || m.timestamp,
+        is_ig: true,
+      }));
+    }
+    return raw.map(v => ({ ...v, is_ig: !!v.source_instagram_media_id }));
+  };
+
+  // Build the video fetch endpoint
+  const getVideoEndpoint = (after) => {
+    const sep = (url) => url.includes('?') ? '&' : '?';
+    if (videoSource === 'fb_page') {
+      const base = `/meta/pages/${videoSourcePage}/videos?adAccountId=${adAccountId}`;
+      return after ? `${base}&after=${after}` : base;
+    }
+    if (videoSource === 'ig_account') {
+      const igAcct = igAccounts.find(a => a.id === videoSourceIg);
+      const base = `/meta/instagram/${videoSourceIg}/media${igAcct?.pageId ? `?pageId=${igAcct.pageId}` : ''}`;
+      return after ? `${base}${sep(base)}after=${after}` : base;
+    }
+    return `/meta/adaccounts/${adAccountId}/videos`;
+  };
+
   // Fetch videos when video source changes — use correct endpoint per source
   useEffect(() => {
     if (tab !== 'video' || !adAccountId) return;
@@ -480,36 +512,32 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
     setVideos([]);
     setSelectedVideoIds([]);
     setVideoPage(0);
+    setVideoNextCursor(null);
 
-    let endpoint;
-    if (videoSource === 'fb_page') {
-      endpoint = `/meta/pages/${videoSourcePage}/videos?adAccountId=${adAccountId}`;
-    } else if (videoSource === 'ig_account') {
-      const igAcct = igAccounts.find(a => a.id === videoSourceIg);
-      endpoint = `/meta/instagram/${videoSourceIg}/media${igAcct?.pageId ? `?pageId=${igAcct.pageId}` : ''}`;
-    } else {
-      endpoint = `/meta/adaccounts/${adAccountId}/videos`;
-    }
-
-    api.get(endpoint).then(r => {
-      let data = r.data || [];
-      if (videoSource === 'ig_account') {
-        // Normalize: handles both IG media format (caption/thumbnail_url) and page video fallback (title/picture)
-        data = data.map(m => ({
-          id: m.id,
-          title: m.title || (m.description ? m.description.slice(0, 80) : (m.caption ? m.caption.slice(0, 80) : 'Untitled')),
-          picture: m.picture || m.thumbnail_url || '',
-          source: m.source || m.media_url,
-          created_time: m.created_time || m.timestamp,
-          is_ig: true,
-        }));
-      } else {
-        data = data.map(v => ({ ...v, is_ig: !!v.source_instagram_media_id }));
-      }
-      setVideos(data);
+    api.get(getVideoEndpoint()).then(r => {
+      const res = r.data || {};
+      // Handle both new { videos, nextCursor } format and legacy array format
+      const raw = Array.isArray(res) ? res : (res.videos || []);
+      const cursor = Array.isArray(res) ? null : (res.nextCursor || null);
+      setVideos(normalizeVideos(raw, videoSource));
+      setVideoNextCursor(cursor);
       setVideosLoading(false);
     }).catch(err => { console.error('Video fetch error:', err); setVideosLoading(false); });
   }, [tab, videoSource, videoSourcePage, videoSourceIg, adAccountId]);
+
+  // Load more videos when user paginates past current data
+  const loadMoreVideos = () => {
+    if (!videoNextCursor || videoLoadingMore) return;
+    setVideoLoadingMore(true);
+    api.get(getVideoEndpoint(videoNextCursor)).then(r => {
+      const res = r.data || {};
+      const raw = Array.isArray(res) ? res : (res.videos || []);
+      const cursor = Array.isArray(res) ? null : (res.nextCursor || null);
+      setVideos(prev => [...prev, ...normalizeVideos(raw, videoSource)]);
+      setVideoNextCursor(cursor);
+      setVideoLoadingMore(false);
+    }).catch(err => { console.error('Load more videos error:', err); setVideoLoadingMore(false); });
+  };
 
   // Fetch campaigns when video source is campaign (lightweight — no insights)
   useEffect(() => {
@@ -1124,16 +1152,26 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
                     </div>
 
                     {/* Pagination */}
-                    {totalPages > 1 && (
+                    {(totalPages > 1 || videoNextCursor) && (
                       <div className="flex items-center justify-between mt-2 px-1">
                         <button onClick={() => setVideoPage(p => Math.max(0, p - 1))} disabled={safePage === 0}
                           className={`px-2.5 py-1 rounded-md text-[11px] font-medium border ${safePage === 0 ? 'border-slate-100 text-slate-300 cursor-not-allowed' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                           ◀ Prev
                         </button>
-                        <span className="text-[10px] text-slate-400">Page {safePage + 1} of {totalPages}</span>
-                        <button onClick={() => setVideoPage(p => Math.min(totalPages - 1, p + 1))} disabled={safePage >= totalPages - 1}
-                          className={`px-2.5 py-1 rounded-md text-[11px] font-medium border ${safePage >= totalPages - 1 ? 'border-slate-100 text-slate-300 cursor-not-allowed' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-                          Next ▶
+                        <span className="text-[10px] text-slate-400">
+                          Page {safePage + 1} of {videoNextCursor ? `${totalPages}+` : totalPages}
+                        </span>
+                        <button onClick={() => {
+                          if (safePage >= totalPages - 1 && videoNextCursor) {
+                            // On last page with more data available — fetch next batch then advance
+                            loadMoreVideos();
+                            setVideoPage(p => p + 1);
+                          } else {
+                            setVideoPage(p => Math.min(totalPages - 1, p + 1));
+                          }
+                        }} disabled={safePage >= totalPages - 1 && !videoNextCursor}
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-medium border ${safePage >= totalPages - 1 && !videoNextCursor ? 'border-slate-100 text-slate-300 cursor-not-allowed' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                          {videoLoadingMore ? '…' : 'Next ▶'}
                         </button>
                       </div>
                     )}

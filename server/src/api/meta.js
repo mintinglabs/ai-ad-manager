@@ -124,7 +124,7 @@ router.get('/pages/:id/ads', async (req, res, next) => {
 // Page videos — videos uploaded to a specific Facebook Page
 router.get('/pages/:id/videos', async (req, res, next) => {
   try {
-    const data = await metaClient.getPageVideos(req.token, req.params.id, req.query.adAccountId);
+    const data = await metaClient.getPageVideos(req.token, req.params.id, req.query.adAccountId, { after: req.query.after });
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;
@@ -135,7 +135,7 @@ router.get('/pages/:id/videos', async (req, res, next) => {
 // Instagram media (videos) for a connected IG account
 router.get('/instagram/:id/media', async (req, res, next) => {
   try {
-    const data = await metaClient.getIgMedia(req.token, req.params.id, { pageId: req.query.pageId });
+    const data = await metaClient.getIgMedia(req.token, req.params.id, { pageId: req.query.pageId, after: req.query.after });
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;

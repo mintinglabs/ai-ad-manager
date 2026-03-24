@@ -1326,58 +1326,62 @@ export const getPages = async (token) => {
   return data.data;
 };
 
-export const getPageVideos = async (token, pageId, adAccountId) => {
+export const getPageVideos = async (token, pageId, adAccountId, { after } = {}) => {
   // First get the page access token (required for /{pageId}/videos)
   const pages = await getPages(token);
   const page = pages?.find(p => p.id === pageId);
   const pageToken = page?.access_token || token;
 
   try {
-    // Use page's video library — paginate to get all videos
-    const { data } = await metaApi.get(`/${pageId}/videos`, {
-      params: {
-        access_token: pageToken,
-        fields: 'id,title,description,source,picture,length,created_time,status,source_instagram_media_id',
-        limit: 50
-      }
-    });
-    const pageVideos = (data.data || []).filter(v => !v.status || v.status.video_status === 'ready');
+    const params = {
+      access_token: pageToken,
+      fields: 'id,title,description,source,picture,length,created_time,status,source_instagram_media_id',
+      limit: 50
+    };
+    if (after) params.after = after;
 
-    // Also fetch ad account videos for completeness (catches videos used in ads)
-    if (adAccountId) {
+    const { data } = await metaApi.get(`/${pageId}/videos`, { params });
+    const pageVideos = (data.data || []).filter(v => !v.status || v.status.video_status === 'ready');
+    const nextCursor = data.paging?.cursors?.after || null;
+    const hasMore = !!data.paging?.next;
+
+    // Only merge ad account videos on first page (no cursor)
+    if (!after && adAccountId) {
       try {
         const adVids = await getAdVideos(token, adAccountId);
-        // Merge: add ad account videos not already in page videos
         const pageVideoIds = new Set(pageVideos.map(v => v.id));
         const extra = (adVids || []).filter(v => !pageVideoIds.has(v.id));
-        return [...pageVideos, ...extra];
-      } catch { /* ignore — page videos alone is fine */ }
+        return { videos: [...pageVideos, ...extra], nextCursor: hasMore ? nextCursor : null };
+      } catch { /* ignore */ }
     }
 
-    return pageVideos;
+    return { videos: pageVideos, nextCursor: hasMore ? nextCursor : null };
   } catch (err) {
     console.error('getPageVideos error:', err.response?.data?.error?.message || err.message);
-    // Fallback to ad account videos if page videos fail
-    if (adAccountId) {
-      try { return await getAdVideos(token, adAccountId); } catch { /* */ }
+    if (!after && adAccountId) {
+      try { return { videos: await getAdVideos(token, adAccountId), nextCursor: null }; } catch { /* */ }
     }
-    return [];
+    return { videos: [], nextCursor: null };
   }
 };
 
-export const getIgMedia = async (token, igAccountId, { pageId } = {}) => {
+export const getIgMedia = async (token, igAccountId, { pageId, after } = {}) => {
   // Try direct IG media endpoint first (requires instagram_business_basic)
-  try {
-    const { data } = await metaApi.get(`/${igAccountId}/media`, {
-      params: {
-        access_token: token,
-        fields: 'id,media_type,media_url,thumbnail_url,caption,timestamp',
-        limit: 100
-      }
-    });
-    return (data.data || []).filter(m => m.media_type === 'VIDEO');
-  } catch (err) {
-    console.log(`[getIgMedia] IG media endpoint failed (${err.response?.data?.error?.code || err.message}), trying page fallback...`);
+  if (!after) {
+    try {
+      const { data } = await metaApi.get(`/${igAccountId}/media`, {
+        params: {
+          access_token: token,
+          fields: 'id,media_type,media_url,thumbnail_url,caption,timestamp',
+          limit: 50
+        }
+      });
+      const videos = (data.data || []).filter(m => m.media_type === 'VIDEO');
+      const nextCursor = data.paging?.cursors?.after || null;
+      return { videos, nextCursor: data.paging?.next ? nextCursor : null };
+    } catch (err) {
+      console.log(`[getIgMedia] IG media endpoint failed (${err.response?.data?.error?.code || err.message}), trying page fallback...`);
+    }
   }
 
   // Fallback: fetch videos from the linked FB Page (works without instagram_business_basic)
@@ -1386,22 +1390,23 @@ export const getIgMedia = async (token, igAccountId, { pageId } = {}) => {
     const page = pages?.find(p => p.id === pageId);
     const pageToken = page?.access_token || token;
     try {
-      const { data } = await metaApi.get(`/${pageId}/videos`, {
-        params: {
-          access_token: pageToken,
-          fields: 'id,title,description,source,picture,length,created_time,source_instagram_media_id',
-          limit: 50
-        }
-      });
+      const params = {
+        access_token: pageToken,
+        fields: 'id,title,description,source,picture,length,created_time,source_instagram_media_id',
+        limit: 50
+      };
+      if (after) params.after = after;
+      const { data } = await metaApi.get(`/${pageId}/videos`, { params });
       const videos = data.data || [];
+      const nextCursor = data.paging?.cursors?.after || null;
       console.log(`[getIgMedia] Page fallback: ${videos.length} videos from page ${pageId}`);
-      return videos;
+      return { videos, nextCursor: data.paging?.next ? nextCursor : null };
     } catch (err2) {
       console.log(`[getIgMedia] Page fallback failed: ${err2.response?.data?.error?.message || err2.message}`);
     }
   }
 
-  return [];
+  return { videos: [], nextCursor: null };
 };
 
 export const getPageAds = async (token, pageId) => {
