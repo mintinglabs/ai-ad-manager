@@ -878,8 +878,8 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
                       const fmtVDate = d => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
                       // Filter out auto-generated videos with no title and no description
                       const filtered = videos
-                        .filter(v => v.title || v.description)
-                        .filter(v => !videoSearchQuery || (v.title || v.description || v.id || '').toLowerCase().includes(videoSearchQuery.toLowerCase()))
+                        .filter(v => v.title || v.name || v.description || v.source_instagram_media_id)
+                        .filter(v => !videoSearchQuery || (v.title || v.name || v.description || v.id || '').toLowerCase().includes(videoSearchQuery.toLowerCase()))
                         .filter(v => {
                           if (!videoDateFrom && !videoDateTo) return true;
                           const dateField = videoSort === 'created_time' ? v.created_time : (v.updated_time || v.created_time);
@@ -976,8 +976,8 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-[11px] font-medium text-slate-700 truncate">
-                              {v.title || v.description?.slice(0, 60)}
-                              {v.is_ig && <span className="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700">IG</span>}
+                              {v.title || v.name || v.description?.slice(0, 60)}
+                              {(v.is_ig || v.source_instagram_media_id) && <span className="ml-1 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700">IG</span>}
                             </p>
                             <p className="text-[10px] text-slate-400">{v.length ? fmtDuration(v.length) : ''}</p>
                           </div>
