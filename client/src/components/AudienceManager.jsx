@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Users, Plus, RefreshCw, Trash2, Copy, Target, Globe, Hash, X, AlertTriangle, Search, Film, ClipboardCopy, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronUp, SlidersHorizontal, FolderOpen, Smartphone, ShoppingBag, BookOpen, Sparkles, CalendarDays, Database, FileText } from 'lucide-react';
 import api from '../services/api.js';
 
@@ -676,6 +676,79 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
   };
   const validationError = getValidationError();
 
+  // Build a bullet-point summary of the audience configuration for the details panel
+  const buildSummaryBullets = () => {
+    const bullets = [];
+    const srcLabel = SOURCE_LIST.find(s => s.id === tab)?.label || tab;
+    bullets.push(`Source: ${srcLabel}`);
+    if (name) bullets.push(`Name: ${name}`);
+    if (description) bullets.push(`Description: ${description}`);
+    bullets.push(`Match type: ${matchType.toUpperCase()}`);
+
+    if (tab === 'website') {
+      const pixelName = pixels.find(p => p.id === selectedPixelId)?.name || selectedPixelId;
+      bullets.push(`Pixel: ${pixelName}`);
+      websiteInclusions.forEach(r => {
+        const eventLabel = WEBSITE_EVENTS.find(e => e.value === r.event)?.label || r.event;
+        let detail = `Include: ${eventLabel} (${r.retentionDays}d)`;
+        if (r.urlFilter) detail += ` — URL ${r.urlCondition} "${r.urlFilter}"`;
+        bullets.push(detail);
+      });
+      websiteExclusions.forEach(r => {
+        const eventLabel = WEBSITE_EVENTS.find(e => e.value === r.event)?.label || r.event;
+        let detail = `Exclude: ${eventLabel} (${r.retentionDays}d)`;
+        if (r.urlFilter) detail += ` — URL ${r.urlCondition} "${r.urlFilter}"`;
+        bullets.push(detail);
+      });
+    }
+
+    if (tab === 'video') {
+      const engLabels = { video_watched_3s: '3 seconds', video_watched_10s: '10 seconds', video_watched_15s: '15 seconds (ThruPlay)', video_watched_25pct: '25%', video_watched_50pct: '50%', video_watched_75pct: '75%', video_watched_95pct: '95%' };
+      bullets.push(`Engagement: Viewed at least ${engLabels[engagementType] || engagementType}`);
+      bullets.push(`Retention: ${retentionDays} days`);
+      const videoIds = videoSource === 'video_id' ? videoIdInput.split(/[,\s]+/).filter(Boolean) : selectedVideoIds;
+      const vidNames = videoIds.map(id => videos.find(v => v.id === id)?.title || id);
+      if (vidNames.length <= 3) bullets.push(`Videos: ${vidNames.join(', ')}`);
+      else bullets.push(`Videos: ${vidNames.length} selected`);
+    }
+
+    if (tab === 'fb_page') {
+      const pageName = pages.find(p => p.id === selectedPageId)?.name || selectedPageId;
+      bullets.push(`Page: ${pageName}`);
+      const pageEngLabels = { page_liked: 'Like or follow Page', page_engaged: 'Engaged with any post/ad', page_cta_clicked: 'Clicked any CTA', page_message_sent: 'Sent a message', page_visited: 'Visited Page' };
+      pageInclusions.filter(r => r.engagement).forEach(r => {
+        bullets.push(`Include: ${pageEngLabels[r.engagement] || r.engagement} (${r.retentionDays}d)`);
+      });
+      pageExclusions.filter(r => r.engagement).forEach(r => {
+        bullets.push(`Exclude: ${pageEngLabels[r.engagement] || r.engagement} (${r.retentionDays}d)`);
+      });
+    }
+
+    if (tab === 'customer_list' && customerFile) {
+      const typeLabel = { email: 'Emails', phone: 'Phone numbers', fn_ln: 'First + last names', madid: 'Mobile advertiser IDs' }[customerDataType] || customerDataType;
+      bullets.push(`Data type: ${typeLabel}`);
+      bullets.push(`File: ${customerFile.name} (${customerFile.rows} rows)`);
+    }
+
+    if (tab === 'lookalike') {
+      const srcAud = existingAudiences.find(a => a.id === sourceAudienceId);
+      bullets.push(`Source audience: ${srcAud?.name || sourceAudienceId}`);
+      bullets.push(`Country: ${country}`);
+      bullets.push(`Ratio: ${ratio}%`);
+    }
+
+    return bullets;
+  };
+
+  // Save audience config summary to localStorage
+  const saveAudienceSummary = (name, bullets) => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('audience_summaries') || '{}');
+      stored[name] = { bullets, createdAt: new Date().toISOString() };
+      localStorage.setItem('audience_summaries', JSON.stringify(stored));
+    } catch (_) {}
+  };
+
   const handleCreate = () => {
     if (validationError) return;
     const prompt = buildPrompt();
@@ -684,6 +757,10 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
   };
 
   const handleConfirmCreate = () => {
+    // Save the bullet-point summary before sending to chat
+    const bullets = buildSummaryBullets();
+    const name = audName || `${SOURCE_LIST.find(s => s.id === tab)?.label || tab} audience`;
+    saveAudienceSummary(name, bullets);
     onCreateViaChat(pendingPrompt);
     onClose();
   };
@@ -1367,6 +1444,13 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
   const [filterStatus, setFilterStatus] = useState([]);
   const [filterType, setFilterType] = useState([]);
   const [filterAvailability, setFilterAvailability] = useState([]);
+  const [expandedAudienceId, setExpandedAudienceId] = useState(null);
+  const getAudienceSummary = (audName) => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('audience_summaries') || '{}');
+      return stored[audName]?.bullets || null;
+    } catch (_) { return null; }
+  };
   const createMenuRef = useRef(null);
 
   const fetchAudiences = useCallback(async () => {
@@ -1707,8 +1791,12 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
                 const typeInfo = getTypeDisplay(aud);
                 const sizeInfo = fmtSize(aud.approximate_count_lower_bound, aud.approximate_count_upper_bound, aud);
                 const avail = getAvailability(aud);
+                const isExpanded = expandedAudienceId === aud.id;
+                const bullets = isExpanded ? getAudienceSummary(aud.name) : null;
                 return (
-                  <tr key={aud.id} className="group border-t border-slate-100 hover:bg-blue-50/30 transition-colors">
+                  <React.Fragment key={aud.id}>
+                  <tr onClick={() => setExpandedAudienceId(isExpanded ? null : aud.id)}
+                    className="group border-t border-slate-100 hover:bg-blue-50/30 transition-colors cursor-pointer">
                     {/* Name */}
                     <td className="py-2 px-4">
                       <p className="text-[12px] font-semibold text-blue-700 truncate max-w-[320px]">{aud.name}</p>
@@ -1755,23 +1843,42 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack }) => {
                     {/* Actions */}
                     <td className="py-2 px-2 text-right">
                       <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleUse(aud)} title="Use in campaign"
+                        <button onClick={(e) => { e.stopPropagation(); handleUse(aud); }} title="Use in campaign"
                           className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-semibold bg-blue-600 text-white hover:bg-blue-500 transition-colors">
                           <Target size={10} /> Use
                         </button>
                         {subtype !== 'LOOKALIKE' && !aud._isSaved && (
-                          <button onClick={() => handleCreateLookalike(aud)} title="Create lookalike"
+                          <button onClick={(e) => { e.stopPropagation(); handleCreateLookalike(aud); }} title="Create lookalike"
                             className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors border border-emerald-200">
                             <Copy size={10} /> LAL
                           </button>
                         )}
-                        <button onClick={() => handleDelete(aud)} title="Delete"
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(aud); }} title="Delete"
                           className="p-1 rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
                           <Trash2 size={11} />
                         </button>
                       </div>
                     </td>
                   </tr>
+                  {isExpanded && (
+                    <tr className="bg-slate-50/80 border-t border-slate-100">
+                      <td colSpan={7} className="px-6 py-3">
+                        {bullets && bullets.length > 0 ? (
+                          <div className="space-y-1">
+                            <p className="text-[11px] font-semibold text-slate-600 mb-1.5">Audience Configuration</p>
+                            <ul className="list-disc list-inside space-y-0.5">
+                              {bullets.map((b, i) => (
+                                <li key={i} className="text-[11px] text-slate-600 leading-relaxed">{b}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-slate-400 italic">No configuration details saved for this audience.</p>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 );
               })}
             </tbody>
