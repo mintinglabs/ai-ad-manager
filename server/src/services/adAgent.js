@@ -635,14 +635,14 @@ const adTools = [
   T('get_custom_audiences', 'List all custom audiences.', getCustomAudiences),
   T('get_custom_audience', 'Get details of a single audience (size, status, etc).', getCustomAudience,
     obj({ audience_id: str('Audience ID') }, ['audience_id'])),
-  T('create_custom_audience', 'Create a custom audience. Do NOT ask about special_ad_categories (campaign-only). For WEBSITE: pass pixel_id + optional URL rule. For ENGAGEMENT (video/IG/page/lead_ad/offline): pass full rule with event_sources. For CUSTOM (customer list): just name + subtype. See system prompt for full rule examples per source type.', createCustomAudience,
+  T('create_custom_audience', 'Create a custom audience. For WEBSITE: pass pixel_id + optional URL rule (system auto-builds event_sources). For ENGAGEMENT (video/IG/page/lead_ad/offline): pass full rule JSON with inclusions/exclusions and event_sources. For CUSTOM (customer list): just name + subtype. See system prompt for full rule examples.', createCustomAudience,
     obj({
       name: str('Audience name'),
-      subtype: str('WEBSITE | ENGAGEMENT | CUSTOM'),
+      subtype: str('WEBSITE | ENGAGEMENT | CUSTOM — use ENGAGEMENT for video, IG, page, lead_ad, offline, fb_event, shopping, catalogue, AR audiences'),
       description: str('Description'),
       pixel_id: str('REQUIRED for WEBSITE audiences — the pixel ID'),
-      rule: str('JSON string. For WEBSITE: {"url":{"i_contains":"/product"}}. For ENGAGEMENT: full inclusions rule as JSON string.'),
-      retention_days: num('Days to retain users in audience (default 30)'),
+      rule: str('JSON string. For WEBSITE: {"url":{"i_contains":"/product"}}. For ENGAGEMENT: full rule with inclusions/exclusions containing event_sources, retention_seconds, and filters.'),
+      retention_days: num('Days to retain (default 30 for website, 365 for engagement). Max: website=180, lead_ad=90, offline=180, video/IG/page=365'),
       customer_file_source: str('For CUSTOM only: USER_PROVIDED_ONLY (default), PARTNER_PROVIDED_ONLY, BOTH_USER_AND_PARTNER_PROVIDED'),
     }, ['name', 'subtype'])),
   T('update_custom_audience', 'Update an audience.', updateCustomAudience,
@@ -942,9 +942,22 @@ Meta auction mechanics, CBO vs ABO, bidding strategies, audience segmentation, l
 
 # CRITICAL RULES FOR SPECIFIC FLOWS
 
-## Audience Creation
+## Audience Creation — Chat-Based Flow
+Users can create custom audiences simply by chatting. The flow should be conversational and efficient — gather all required info, confirm once, then create.
+
+**GOLDEN RULE: Gather ALL info in as few messages as possible, then confirm and create.**
+
 - \`special_ad_categories\` is a CAMPAIGN-level field. NEVER ask about it when creating audiences.
-- Do NOT ask unnecessary questions. Ask for name and type, then create.
+- Do NOT ask one question at a time. Batch related questions together.
+- When user says "create audience" or similar, ask what TYPE they want in ONE message with all options listed.
+- Use smart defaults: retention=30d for website, 365d for engagement/IG/page. Auto-generate name if not provided.
+- When user provides enough info (e.g. "create video audience for 3s viewers of my TopGlow videos"), go straight to confirming details and creating — don't ask questions you already have answers to.
+
+### Chat-based audience creation flow:
+1. **Detect intent** — user mentions audience, retargeting, custom audience, lookalike, etc.
+2. **Gather info efficiently** — ask for missing details in batches, not one-by-one
+3. **Confirm before creating** — show a summary of what will be created, ask "Should I create this?"
+4. **Create and follow up** — create the audience, explain the API limitation, offer next steps
 
 ### IMPORTANT: API-created audiences & Meta Ads Manager UI
 Audiences created via API do NOT appear in Meta Ads Manager's audience dropdown picker. This is a known Meta limitation. You MUST:
@@ -967,20 +980,31 @@ Audiences created via API do NOT appear in Meta Ads Manager's audience dropdown 
 
 ### ENGAGEMENT audience (video viewers):
 Video sources: Facebook Page videos, Instagram videos, Campaign video ads, or direct Video IDs.
-1. Ask which video source they want to use:
-   - **Facebook Page**: Call \`get_pages\`, then ask which page. Videos come from that specific page.
-   - **Instagram**: Call \`get_connected_instagram_accounts\`, then ask which account. Videos come from that IG account's media.
-   - **Campaign**: Ask which campaign. Videos are extracted from the campaign's ad creatives.
-   - **Video ID**: User provides video IDs directly.
-2. Call \`get_pages\` to get the Page ID (needed as event source for the rule)
-3. Ask: which engagement type? (3s view, 10s view, ThruPlay/15s, 25%, 50%, 75%, 95%)
-4. Ask retention days (default 30, max 365)
-5. Call \`create_custom_audience\` with: name, description, subtype="ENGAGEMENT", rule containing event_sources
-6. You MUST build the full rule for engagement audiences:
+
+**Efficient chat flow:**
+- If user says "create video audience", ask in ONE message: which videos (or page), engagement type, and retention days
+- If user provides video IDs directly, you already have enough — just confirm and create
+- Auto-default: retention=365 days, engagement=video_watched (3s views), auto-generate name if not provided
+
+**Steps:**
+1. Get video source — ask which videos to target. User may provide:
+   - Page name → call \`get_pages\` to get Page ID, then offer to list videos or let user specify
+   - IG account → call \`get_connected_instagram_accounts\` to get IG ID (use as event_source type "ig_business")
+   - Video IDs directly → use as-is
+   - Campaign → ask which campaign, extract video IDs from ad creatives
+2. Get the Page ID — REQUIRED as event_source for video rules. Call \`get_pages\` if not known.
+3. Get engagement type — 3s view (video_watched), 10s (video_watched), ThruPlay/15s (video_completed), 25%/50%/75%/95%
+4. Get retention (default 365, max 365)
+5. Confirm summary, then call \`create_custom_audience\` with subtype="ENGAGEMENT" and full rule
+
+**You MUST build the full rule for engagement audiences:**
 \`\`\`json
-{"inclusions":{"operator":"or","rules":[{"event_sources":[{"id":"PAGE_ID","type":"page"}],"retention_seconds":2592000,"filter":{"operator":"and","filters":[{"field":"event","operator":"eq","value":"video_watched"},{"field":"video.video_id","operator":"is_any","value":["VIDEO_ID"]}]}}]}}
+{"inclusions":{"operator":"or","rules":[{"event_sources":[{"id":"PAGE_ID","type":"page"}],"retention_seconds":SECONDS,"filter":{"operator":"and","filters":[{"field":"event","operator":"eq","value":"video_watched"},{"field":"video.video_id","operator":"is_any","value":["VIDEO_ID_1","VIDEO_ID_2"]}]}}]}}
 \`\`\`
-7. For ThruPlay, change event value to "video_completed"
+
+**Engagement event values:**
+- 3 seconds: "video_watched" | 10 seconds: "video_watched" (same) | ThruPlay/15s: "video_completed"
+- 25%: "video_watched_25_percent" | 50%: "video_watched_50_percent" | 75%: "video_watched_75_percent" | 95%: "video_watched_95_percent"
 
 ### CUSTOM audience (customer list):
 - Just needs name, description, subtype="CUSTOM"
@@ -988,26 +1012,44 @@ Video sources: Facebook Page videos, Instagram videos, Campaign video ads, or di
 - Then use \`add_users_to_audience\` to upload hashed data
 
 ### INSTAGRAM engagement audience:
-1. Call \`get_connected_instagram_accounts\` to list IG accounts
-2. Ask: which engagement type? (profile visit, engaged with profile, any post/ad, sent message, saved post)
-3. Ask if they want to add more inclusion rules or exclusion rules (e.g., include people who visited profile BUT exclude people who already sent a message)
-4. Ask retention days per rule (default 365)
-5. Build rule with event_sources type "ig_business":
+**Efficient chat flow:** If user says "create IG audience" or "Instagram retargeting", ask in ONE message: which IG account, engagement type, and retention.
+
+1. Call \`get_connected_instagram_accounts\` to list IG accounts (show as options)
+2. Ask engagement type + retention in the SAME message. Defaults: all engagement, 365 days
+3. Optionally ask about exclusion rules (e.g., include visitors BUT exclude people who already messaged)
+4. Confirm summary, then create
+
+**Build rule with event_sources type "ig_business":**
 \`\`\`json
-{"inclusions":{"operator":"or","rules":[{"event_sources":[{"id":"IG_ACCOUNT_ID","type":"ig_business"}],"retention_seconds":2592000,"filter":{"operator":"and","filters":[{"field":"event","operator":"eq","value":"ig_business_profile_all"}]}}]}}
+{"inclusions":{"operator":"or","rules":[{"event_sources":[{"id":"IG_ACCOUNT_ID","type":"ig_business"}],"retention_seconds":SECONDS,"filter":{"operator":"and","filters":[{"field":"event","operator":"eq","value":"EVENT_VALUE"}]}}]}}
 \`\`\`
-6. Event values: ig_business_profile_all (all engagement), ig_business_profile_visit (visited profile), ig_user_messaged (sent message), ig_user_saved_media (saved post/ad), ig_user_interacted_ad_or_organic (engaged with post/ad)
+
+**For multiple include/exclude rules:**
+\`\`\`json
+{"inclusions":{"operator":"or","rules":[RULE1,RULE2]},"exclusions":{"operator":"or","rules":[RULE3]}}
+\`\`\`
+
+**Event values:**
+- ig_business_profile_all (all engagement) | ig_business_profile_visit (visited profile)
+- ig_user_messaged (sent message) | ig_user_saved_media (saved post/ad)
+- ig_user_interacted_ad_or_organic (engaged with post/ad)
 
 ### FACEBOOK PAGE engagement audience:
-1. Call \`get_pages\` to list user's pages
-2. Ask: which engagement type? (liked/followed page, engaged with post/ad, clicked CTA, sent message, visited page)
-3. Ask if they want to add more inclusion rules or exclusion rules (e.g., include people who engaged with posts BUT exclude people who already liked the page)
-4. Ask retention days per rule (default 365)
-5. Build rule with event_sources type "page":
+**Efficient chat flow:** If user says "create page audience" or "FB page retargeting", ask in ONE message: which page, engagement type, and retention.
+
+1. Call \`get_pages\` to list pages (show as options)
+2. Ask engagement type + retention in the SAME message. Defaults: all engagement, 365 days
+3. Optionally ask about exclusion rules
+4. Confirm summary, then create
+
+**Build rule with event_sources type "page":**
 \`\`\`json
-{"inclusions":{"operator":"or","rules":[{"event_sources":[{"id":"PAGE_ID","type":"page"}],"retention_seconds":2592000,"filter":{"operator":"and","filters":[{"field":"event","operator":"eq","value":"page_engaged"}]}}]}}
+{"inclusions":{"operator":"or","rules":[{"event_sources":[{"id":"PAGE_ID","type":"page"}],"retention_seconds":SECONDS,"filter":{"operator":"and","filters":[{"field":"event","operator":"eq","value":"EVENT_VALUE"}]}}]}}
 \`\`\`
-6. Event values: page_engaged (any engagement), page_liked (likes/follows), page_cta_clicked (CTA clicks), page_messaged (messages), page_visited (page visits)
+
+**Event values:**
+- page_engaged (any engagement) | page_liked (likes/follows) | page_cta_clicked (CTA clicks)
+- page_messaged (messages) | page_visited (page visits)
 
 ### LOOKALIKE audience:
 1. Call \`get_custom_audiences\` to list existing audiences as source options
