@@ -383,6 +383,7 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
 
   // Instagram
   const [igAccounts, setIgAccounts] = useState([]);
+  const [igAccountsLoading, setIgAccountsLoading] = useState(false);
   const [selectedIgId, setSelectedIgId] = useState('');
   // IG include/exclude
   const [igInclusions, setIgInclusions] = useState([{ engagement: '', retentionDays: 365 }]);
@@ -418,11 +419,15 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
         setPagesLoading(true);
         api.get('/meta/pages').then(r => setPages(r.data || [])).catch(() => {}).finally(() => setPagesLoading(false));
       }
-      if (!igAccounts.length) api.get(`/meta/adaccounts/${adAccountId}/instagram-accounts`).then(r => setIgAccounts(r.data || [])).catch(() => {});
+      if (!igAccounts.length && !igAccountsLoading) {
+        setIgAccountsLoading(true);
+        api.get(`/meta/adaccounts/${adAccountId}/instagram-accounts`).then(r => setIgAccounts(r.data || [])).catch(() => {}).finally(() => setIgAccountsLoading(false));
+      }
       // Videos loaded by separate effect below
     }
-    if (tab === 'ig' && !igAccounts.length) {
-      api.get(`/meta/adaccounts/${adAccountId}/instagram-accounts`).then(r => setIgAccounts(r.data || [])).catch(() => {});
+    if (tab === 'ig' && !igAccounts.length && !igAccountsLoading) {
+      setIgAccountsLoading(true);
+      api.get(`/meta/adaccounts/${adAccountId}/instagram-accounts`).then(r => setIgAccounts(r.data || [])).catch(() => {}).finally(() => setIgAccountsLoading(false));
     }
     if ((tab === 'fb_page') && !pages.length && !pagesLoading) {
       setPagesLoading(true);
@@ -824,8 +829,10 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
                 {videoSource === 'ig_account' && (
                   <div className="flex-1">
                     <label className="block text-xs font-semibold text-slate-600 mb-1">Instagram Account</label>
-                    {igAccounts.length === 0 ? (
+                    {igAccountsLoading ? (
                       <p className="text-xs text-slate-400 italic py-2">Loading...</p>
+                    ) : igAccounts.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic py-2">No Instagram accounts found</p>
                     ) : (
                       <select value={videoSourceIg} onChange={e => setVideoSourceIg(e.target.value)} className={INPUT_CLS}>
                         <option value="">Select account</option>
@@ -1042,8 +1049,10 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
             <>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Instagram Account</label>
-                {igAccounts.length === 0 ? (
+                {igAccountsLoading ? (
                   <p className="text-xs text-slate-400 italic">Loading Instagram accounts...</p>
+                ) : igAccounts.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">No Instagram accounts found</p>
                 ) : (
                   <select value={selectedIgId} onChange={e => setSelectedIgId(e.target.value)} className={INPUT_CLS}>
                     <option value="">Select an account</option>
