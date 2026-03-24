@@ -177,10 +177,6 @@ const WEBSITE_EVENTS = [
   { value: 'all_visitors', label: 'All website visitors' },
   { value: 'specific_pages', label: 'People who visited specific web pages' },
   { value: 'time_spent', label: 'Visitors by time spent (top 25%)' },
-  { value: 'purchase', label: 'People who completed a purchase' },
-  { value: 'add_to_cart', label: 'People who added to cart' },
-  { value: 'lead', label: 'People who completed a lead form' },
-  { value: 'view_content', label: 'People who viewed content' },
 ];
 
 const URL_CONDITIONS = [
@@ -202,7 +198,7 @@ const WebsiteRuleCard = ({ rule, onChange, onRemove, isOnly, type }) => (
     <select value={rule.event} onChange={e => onChange({ ...rule, event: e.target.value })} className={INPUT_CLS}>
       {WEBSITE_EVENTS.map(ev => <option key={ev.value} value={ev.value}>{ev.label}</option>)}
     </select>
-    {(rule.event === 'specific_pages' || rule.event === 'purchase' || rule.event === 'add_to_cart' || rule.event === 'lead' || rule.event === 'view_content') && (
+    {rule.event === 'specific_pages' && (
       <div className="flex gap-2">
         <select value={rule.urlCondition || 'contains'} onChange={e => onChange({ ...rule, urlCondition: e.target.value })} className="px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 w-36 shrink-0">
           {URL_CONDITIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -426,10 +422,6 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
       all_visitors: 'all website visitors',
       specific_pages: 'visitors to specific web pages',
       time_spent: 'visitors by time spent (top 25%)',
-      purchase: 'people who completed a purchase',
-      add_to_cart: 'people who added to cart',
-      lead: 'people who completed a lead form',
-      view_content: 'people who viewed content',
     };
 
     const fmtWebRule = (rule) => {
@@ -616,16 +608,6 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
 
           {/* Config panel */}
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-            {/* Name — always shown */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Audience Name</label>
-              <input value={name} onChange={e => setName(e.target.value)} placeholder="Optional — auto-generated if empty" className={INPUT_CLS} />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Description <span className="text-slate-400 font-normal">(optional)</span></label>
-              <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe this audience..." rows={2}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none" />
-            </div>
 
           {/* ── Website ── */}
           {tab === 'website' && (
@@ -1121,6 +1103,19 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
               </div>
             </>
           )}
+          {/* ── Name & Description (bottom, matching Meta UI) ── */}
+          <div className="border-t border-slate-100 pt-4 mt-2 space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Audience Name</label>
+              <input value={name} onChange={e => setName(e.target.value)} placeholder="Optional — auto-generated if empty" className={INPUT_CLS} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Description <span className="text-slate-400 font-normal">(optional)</span></label>
+              <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe this audience..." rows={2}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none" />
+            </div>
+          </div>
+
           </div>{/* end config panel */}
         </div>{/* end flex wrapper (sidebar + config) */}
 
