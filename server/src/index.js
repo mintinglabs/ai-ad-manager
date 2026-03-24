@@ -34,18 +34,6 @@ app.get('/api/debug', (_req, res) => res.json({
   nodeVersion: process.version,
 }));
 
-// Debug: check token permissions (temporary)
-app.get('/api/debug/token-permissions', async (req, res) => {
-  const auth = req.headers.authorization;
-  const token = auth?.startsWith('Bearer ') ? auth.slice(7) : null;
-  if (!token) return res.status(401).json({ error: 'No token' });
-  try {
-    const axios = (await import('axios')).default;
-    const { data } = await axios.get('https://graph.facebook.com/v25.0/me/permissions', { params: { access_token: token } });
-    res.json(data.data?.filter(p => p.status === 'granted').map(p => p.permission));
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
 // Auth route is public (no token required — it issues tokens)
 app.use('/api/auth', authRouter);
 

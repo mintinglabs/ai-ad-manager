@@ -152,21 +152,21 @@ const AVAILABILITY_FILTERS = [
 const YOUR_SOURCES = [
   { id: 'website', label: 'Website', icon: Globe },
   { id: 'customer_list', label: 'Customer list', icon: Users },
-  { id: 'mobile_app', label: 'Mobile App', icon: Smartphone },
-  { id: 'offline', label: 'Offline events', icon: Database },
+  { id: 'mobile_app', label: 'Mobile App', icon: Smartphone, developing: true },
+  { id: 'offline', label: 'Offline events', icon: Database, developing: true },
 ];
 const META_SOURCES = [
   { id: 'video', label: 'Video', icon: Film },
-  { id: 'ig', label: 'Instagram account', icon: Hash },
+  { id: 'ig', label: 'Instagram account', icon: Hash, developing: true },
   { id: 'fb_page', label: 'Facebook Page', icon: FileText },
-  { id: 'lead_ad', label: 'Lead Ad', icon: ClipboardCopy },
-  { id: 'fb_event', label: 'Facebook event', icon: CalendarDays },
-  { id: 'shopping', label: 'Shopping', icon: ShoppingBag },
-  { id: 'catalogue', label: 'Catalogue', icon: BookOpen },
-  { id: 'ar', label: 'Augmented reality', icon: Sparkles },
+  { id: 'lead_ad', label: 'Lead Ad', icon: ClipboardCopy, developing: true },
+  { id: 'fb_event', label: 'Facebook event', icon: CalendarDays, developing: true },
+  { id: 'shopping', label: 'Shopping', icon: ShoppingBag, developing: true },
+  { id: 'catalogue', label: 'Catalogue', icon: BookOpen, developing: true },
+  { id: 'ar', label: 'Augmented reality', icon: Sparkles, developing: true },
 ];
 const OTHER_SOURCES = [
-  { id: 'lookalike', label: 'Lookalike audience', icon: Copy },
+  { id: 'lookalike', label: 'Lookalike audience', icon: Copy, developing: true },
 ];
 const SOURCE_LIST = [...YOUR_SOURCES, ...META_SOURCES, ...OTHER_SOURCES];
 
@@ -383,6 +383,9 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
   const [customerFile, setCustomerFile] = useState(null); // { name, rows, preview }
   const [customerDataType, setCustomerDataType] = useState('email');
   const customerFileRef = useRef(null);
+
+  // Match type: ANY or ALL
+  const [matchType, setMatchType] = useState('any');
 
   // Instagram
   const [igAccounts, setIgAccounts] = useState([]);
@@ -708,29 +711,32 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
           <div className="w-52 shrink-0 border-r border-slate-100 overflow-y-auto py-1">
             <p className="px-4 pt-2 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Your Sources</p>
             {YOUR_SOURCES.map(s => (
-              <button key={s.id} onClick={() => setTab(s.id)}
+              <button key={s.id} onClick={() => !s.developing && setTab(s.id)} disabled={s.developing}
                 className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs text-left transition-colors
-                  ${tab === s.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
-                <s.icon size={14} className={tab === s.id ? 'text-blue-500' : 'text-slate-400'} />
+                  ${s.developing ? 'text-slate-300 cursor-not-allowed' : tab === s.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
+                <s.icon size={14} className={s.developing ? 'text-slate-300' : tab === s.id ? 'text-blue-500' : 'text-slate-400'} />
                 {s.label}
+                {s.developing && <span className="ml-auto text-[9px] font-medium text-slate-300 bg-slate-50 px-1.5 py-0.5 rounded">Soon</span>}
               </button>
             ))}
             <p className="px-4 pt-3 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Meta Sources</p>
             {META_SOURCES.map(s => (
-              <button key={s.id} onClick={() => setTab(s.id)}
+              <button key={s.id} onClick={() => !s.developing && setTab(s.id)} disabled={s.developing}
                 className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs text-left transition-colors
-                  ${tab === s.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
-                <s.icon size={14} className={tab === s.id ? 'text-blue-500' : 'text-slate-400'} />
+                  ${s.developing ? 'text-slate-300 cursor-not-allowed' : tab === s.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
+                <s.icon size={14} className={s.developing ? 'text-slate-300' : tab === s.id ? 'text-blue-500' : 'text-slate-400'} />
                 {s.label}
+                {s.developing && <span className="ml-auto text-[9px] font-medium text-slate-300 bg-slate-50 px-1.5 py-0.5 rounded">Soon</span>}
               </button>
             ))}
             <div className="border-t border-slate-100 mt-2 pt-1">
               {OTHER_SOURCES.map(s => (
-                <button key={s.id} onClick={() => setTab(s.id)}
+                <button key={s.id} onClick={() => !s.developing && setTab(s.id)} disabled={s.developing}
                   className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs text-left transition-colors
-                    ${tab === s.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
-                  <s.icon size={14} className={tab === s.id ? 'text-blue-500' : 'text-slate-400'} />
+                    ${s.developing ? 'text-slate-300 cursor-not-allowed' : tab === s.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
+                  <s.icon size={14} className={s.developing ? 'text-slate-300' : tab === s.id ? 'text-blue-500' : 'text-slate-400'} />
                   {s.label}
+                  {s.developing && <span className="ml-auto text-[9px] font-medium text-slate-300 bg-slate-50 px-1.5 py-0.5 rounded">Soon</span>}
                 </button>
               ))}
             </div>
@@ -756,7 +762,12 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
 
               {/* Include rules */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Include people who meet</label>
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 mb-1.5">Include people who meet
+                  <select value={matchType} onChange={e => setMatchType(e.target.value)} className="px-2 py-0.5 rounded border border-slate-200 text-xs font-bold text-blue-700 bg-white cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-200">
+                    <option value="any">ANY</option>
+                    <option value="all">ALL</option>
+                  </select>
+                  of the following criteria</label>
                 <div className="space-y-2">
                   {websiteInclusions.map((rule, i) => (
                     <WebsiteRuleCard key={`inc-${i}`} rule={rule} type="include" pixelEvents={pixelEvents}
@@ -1106,14 +1117,19 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
                 ) : (
                   <select value={selectedIgId} onChange={e => setSelectedIgId(e.target.value)} className={INPUT_CLS}>
                     <option value="">Select an account</option>
-                    {igAccounts.map(a => <option key={a.id} value={a.id}>@{a.username}</option>)}
+                    {igAccounts.map(a => <option key={a.id} value={a.id}>{a.username?.includes(' ') || !a.username ? `📄 ${a.username || a.id}` : `@${a.username}`}</option>)}
                   </select>
                 )}
               </div>
 
               {/* Include rules */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Include people who</label>
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 mb-1.5">Include people who meet
+                  <select value={matchType} onChange={e => setMatchType(e.target.value)} className="px-2 py-0.5 rounded border border-slate-200 text-xs font-bold text-blue-700 bg-white cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-200">
+                    <option value="any">ANY</option>
+                    <option value="all">ALL</option>
+                  </select>
+                  of the following criteria</label>
                 <div className="space-y-2">
                   {igInclusions.map((rule, i) => (
                     <EngagementRuleCard key={`ig-inc-${i}`} rule={rule} type="include"
@@ -1175,7 +1191,12 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
               </div>
               {/* Include rules */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Include people who</label>
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 mb-1.5">Include people who meet
+                  <select value={matchType} onChange={e => setMatchType(e.target.value)} className="px-2 py-0.5 rounded border border-slate-200 text-xs font-bold text-blue-700 bg-white cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-200">
+                    <option value="any">ANY</option>
+                    <option value="all">ALL</option>
+                  </select>
+                  of the following criteria</label>
                 <div className="space-y-2">
                   {pageInclusions.map((rule, i) => (
                     <EngagementRuleCard key={`pg-inc-${i}`} rule={rule} type="include"
