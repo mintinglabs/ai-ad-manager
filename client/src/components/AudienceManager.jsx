@@ -93,14 +93,24 @@ const getAudienceRule = (aud) => {
   try {
     const rule = typeof aud.rule === 'string' ? JSON.parse(aud.rule) : aud.rule;
     if (rule) {
+      // Top-level retention_seconds
+      if (rule.retention_seconds && !retention) retention = Math.round(rule.retention_seconds / 86400);
+      // Check inclusions array and flat event_sources
       const inclusions = rule.inclusions || (rule.event_sources ? [rule] : []);
       for (const inc of inclusions) {
         if (inc.retention_seconds && !retention) {
           retention = Math.round(inc.retention_seconds / 86400);
         }
+        // Extract event type for engagement audiences
         const filters = inc.filters || inc.rules || [];
         for (const f of (Array.isArray(filters) ? filters : [filters])) {
           if (f.field === 'event' && f.value) engagement = engagement || f.value;
+          if (f.type === 'event' && f.value) engagement = engagement || f.value;
+        }
+        // Also check object_id based subtypes
+        if (inc.object_id && !engagement) {
+          const sub = aud.subtype;
+          if (sub === 'VIDEO' || sub === 'ENGAGEMENT') engagement = engagement || sub.toLowerCase();
         }
       }
     }
