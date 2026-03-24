@@ -54,7 +54,7 @@ app.use('/api/leads', requireToken, leadsRouter);
 app.use('/api/catalogs', requireToken, catalogsRouter);
 app.use('/api/previews', requireToken, previewsRouter);
 app.use('/api/chat', optionalToken, chatRouter);
-app.use('/api/skills', requireToken, skillsRouter);
+app.use('/api/skills', skillsRouter); // No auth needed — skills are local config, not Meta data
 
 app.use((err, _req, res, _next) => {
   console.error('EXPRESS ERROR:', err?.message, err?.stack);
