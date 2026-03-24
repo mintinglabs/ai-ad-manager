@@ -1193,12 +1193,12 @@ export const getConnectedInstagramAccounts = async (token, adAccountId) => {
   // 1. Try ad account's connected_instagram_accounts
   try {
     const { data } = await metaApi.get(`/${adAccountId}/connected_instagram_accounts`, {
-      params: { access_token: token, fields: 'id,username,profile_pic' }
+      params: { access_token: token, fields: 'id,username,profile_picture_url' }
     });
     const found = data.data || [];
     console.log(`[IG Discovery] Source 1 - connected_instagram_accounts: ${found.length} accounts`, found.map(a => a.username));
     for (const a of found) {
-      if (!seenIds.has(a.id)) { seenIds.add(a.id); accounts.push(a); }
+      if (!seenIds.has(a.id)) { seenIds.add(a.id); accounts.push({ id: a.id, username: a.username, profile_pic: a.profile_picture_url }); }
     }
   } catch (err) {
     console.error('[IG Discovery] Source 1 ERROR:', err.response?.data?.error?.message || err.message);
