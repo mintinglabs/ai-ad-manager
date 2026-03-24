@@ -193,6 +193,24 @@ const URL_CONDITIONS = [
 
 const MAX_RETENTION_DAYS = 180;
 
+const PAGE_ENGAGEMENTS = [
+  { value: 'page_visited', label: 'Anyone who visited your Page', desc: 'Includes people who visited your Page, regardless of the actions they took.' },
+  { value: 'page_engaged', label: 'People who engaged with any post or ad', desc: 'Includes people who have taken an action on a post or ad, such as reactions, shares, comments, link clicks or carousel swipes.' },
+  { value: 'page_cta_clicked', label: 'People who clicked on any call-to-action button', desc: 'Includes people who clicked on a call-to-action button on your Page, such as "Call" or "Message".' },
+  { value: 'page_message_sent', label: 'People who sent a message to your Page', desc: 'Includes only the people who send a message to your Page.' },
+  { value: 'page_whatsapp_lead', label: 'People who became a lead after messaging your Page in WhatsApp', desc: 'Only includes people who messaged your Page on WhatsApp and then became leads.' },
+  { value: 'page_saved_post', label: 'People who saved any post', desc: 'Includes only the people who saved a post on your Page.' },
+  { value: 'page_liked', label: 'People who currently like or follow your Page', desc: 'Includes people who currently like or follow your Page.' },
+];
+
+const IG_ENGAGEMENTS = [
+  { value: 'ig_profile_engaged', label: 'Everyone who engaged with your professional account', desc: 'Includes people who have visited your profile or taken an action on your content or ads.' },
+  { value: 'ig_profile_visit', label: 'Anyone who visited your professional account\'s profile', desc: 'Includes people who have visited your profile.' },
+  { value: 'ig_ad_interact', label: 'People who engaged with any post or ad', desc: 'Includes people who have engaged with a post or ad, such as reactions, shares, comments, or saves.' },
+  { value: 'ig_message_sent', label: 'People who sent a message to your professional account', desc: 'Includes only the people who sent a message to your professional account.' },
+  { value: 'ig_post_saved', label: 'People who saved any post or ad', desc: 'Includes only the people who saved a post or ad.' },
+];
+
 const WebsiteRuleCard = ({ rule, onChange, onRemove, isOnly, type, pixelEvents = [] }) => {
   const retentionExceeded = rule.retentionDays > MAX_RETENTION_DAYS;
 
@@ -287,7 +305,7 @@ const WebsiteRuleCard = ({ rule, onChange, onRemove, isOnly, type, pixelEvents =
 };
 
 const EngagementRuleCard = ({ rule, onChange, onRemove, isOnly, type, engagementOptions }) => (
-  <div className="border border-slate-200 rounded-lg p-3 space-y-2 bg-white relative">
+  <div className="border border-slate-200 rounded-lg p-3 space-y-2.5 bg-white relative">
     {!isOnly && (
       <button onClick={onRemove} className="absolute top-2 right-2 text-slate-300 hover:text-red-400 transition-colors"><X size={14} /></button>
     )}
@@ -296,10 +314,27 @@ const EngagementRuleCard = ({ rule, onChange, onRemove, isOnly, type, engagement
         {type === 'include' ? 'Include' : 'Exclude'}
       </span>
     </div>
-    <select value={rule.engagement} onChange={e => onChange({ ...rule, engagement: e.target.value })} className={INPUT_CLS}>
-      <option value="">Choose an engagement type</option>
-      {engagementOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
+    {/* Radio-style event selector with descriptions */}
+    <div>
+      <label className="block text-xs font-semibold text-slate-600 mb-1">Events</label>
+      <div className="border border-slate-200 rounded-lg overflow-hidden">
+        {engagementOptions.map((o, i) => (
+          <button key={o.value} onClick={() => onChange({ ...rule, engagement: o.value })}
+            className={`w-full text-left px-3 py-2.5 flex items-start gap-2.5 transition-colors
+              ${rule.engagement === o.value ? 'bg-blue-50' : 'hover:bg-slate-50'}
+              ${i > 0 ? 'border-t border-slate-100' : ''}`}>
+            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5
+              ${rule.engagement === o.value ? 'border-blue-600' : 'border-slate-300'}`}>
+              {rule.engagement === o.value && <div className="w-2 h-2 rounded-full bg-blue-600" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`text-xs font-medium ${rule.engagement === o.value ? 'text-blue-700' : 'text-slate-700'}`}>{o.label}</p>
+              {o.desc && <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">{o.desc}</p>}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
     <div className="flex items-center gap-2">
       <label className="text-[10px] text-slate-500 shrink-0">In the past</label>
       <input type="number" value={rule.retentionDays} onChange={e => onChange({ ...rule, retentionDays: Number(e.target.value) })} min={1} max={365} className="w-16 px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100" />
@@ -355,6 +390,7 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
 
   // FB Page
   const [pages, setPages] = useState([]);
+  const [pagesLoading, setPagesLoading] = useState(false);
   const [selectedPageId, setSelectedPageId] = useState('');
   // FB Page include/exclude
   const [pageInclusions, setPageInclusions] = useState([{ engagement: '', retentionDays: 365 }]);
@@ -378,15 +414,19 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
     }
     if (tab === 'video') {
       // Load pages + IG accounts for video source picker
-      if (!pages.length) api.get('/meta/pages').then(r => setPages(r.data || [])).catch(() => {});
+      if (!pages.length && !pagesLoading) {
+        setPagesLoading(true);
+        api.get('/meta/pages').then(r => setPages(r.data || [])).catch(() => {}).finally(() => setPagesLoading(false));
+      }
       if (!igAccounts.length) api.get(`/meta/adaccounts/${adAccountId}/instagram-accounts`).then(r => setIgAccounts(r.data || [])).catch(() => {});
       // Videos loaded by separate effect below
     }
     if (tab === 'ig' && !igAccounts.length) {
       api.get(`/meta/adaccounts/${adAccountId}/instagram-accounts`).then(r => setIgAccounts(r.data || [])).catch(() => {});
     }
-    if ((tab === 'fb_page') && !pages.length) {
-      api.get('/meta/pages').then(r => setPages(r.data || [])).catch(() => {});
+    if ((tab === 'fb_page') && !pages.length && !pagesLoading) {
+      setPagesLoading(true);
+      api.get('/meta/pages').then(r => setPages(r.data || [])).catch(() => {}).finally(() => setPagesLoading(false));
     }
     if (tab === 'lookalike' && !existingAudiences.length) {
       api.get('/meta/customaudiences', { params: { adAccountId } }).then(r => {
@@ -443,15 +483,16 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
     }).catch(err => { console.error('Video fetch error:', err); setVideosLoading(false); });
   }, [tab, videoSource, videoSourcePage, videoSourceIg, adAccountId]);
 
-  // Fetch campaigns when video source is campaign
+  // Fetch campaigns when video source is campaign (lightweight — no insights)
   useEffect(() => {
     if (tab !== 'video' || videoSource !== 'campaign' || !adAccountId) return;
-    if (campaigns.length) return;
+    if (campaigns.length || campaignsLoading) return;
     setCampaignsLoading(true);
-    api.get('/campaigns', { params: { adAccountId } }).then(r => {
+    api.get(`/meta/adaccounts/${adAccountId}/campaigns-list`).then(r => {
       setCampaigns(r.data || []);
-      setCampaignsLoading(false);
-    }).catch(() => setCampaignsLoading(false));
+    }).catch(err => {
+      console.error('Campaign list fetch error:', err);
+    }).finally(() => setCampaignsLoading(false));
   }, [tab, videoSource, adAccountId]);
 
   // Fetch ads/videos when a campaign is selected
@@ -768,8 +809,10 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
                 {videoSource === 'fb_page' && (
                   <div className="flex-1">
                     <label className="block text-xs font-semibold text-slate-600 mb-1">Facebook Page</label>
-                    {pages.length === 0 ? (
+                    {pagesLoading ? (
                       <p className="text-xs text-slate-400 italic py-2">Loading...</p>
+                    ) : pages.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic py-2">No pages found</p>
                     ) : (
                       <select value={videoSourcePage} onChange={e => setVideoSourcePage(e.target.value)} className={INPUT_CLS}>
                         <option value="">Select a page</option>
@@ -1002,26 +1045,10 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
                 {igAccounts.length === 0 ? (
                   <p className="text-xs text-slate-400 italic">Loading Instagram accounts...</p>
                 ) : (
-                  <div className="space-y-1.5">
-                    {igAccounts.map(a => (
-                      <button key={a.id} onClick={() => setSelectedIgId(a.id)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors
-                          ${selectedIgId === a.id ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}>
-                        {a.profile_pic ? (
-                          <img src={a.profile_pic} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white text-xs font-bold shrink-0">{a.username?.[0]?.toUpperCase()}</div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-xs font-medium ${selectedIgId === a.id ? 'text-blue-700' : 'text-slate-700'}`}>@{a.username}</p>
-                          <p className="text-[10px] text-slate-400">{a.id}</p>
-                        </div>
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selectedIgId === a.id ? 'border-blue-600' : 'border-slate-300'}`}>
-                          {selectedIgId === a.id && <div className="w-2 h-2 rounded-full bg-blue-600" />}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                  <select value={selectedIgId} onChange={e => setSelectedIgId(e.target.value)} className={INPUT_CLS}>
+                    <option value="">Select an account</option>
+                    {igAccounts.map(a => <option key={a.id} value={a.id}>@{a.username}</option>)}
+                  </select>
                 )}
               </div>
 
@@ -1032,13 +1059,7 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
                   {igInclusions.map((rule, i) => (
                     <EngagementRuleCard key={`ig-inc-${i}`} rule={rule} type="include"
                       isOnly={igInclusions.length === 1 && igExclusions.length === 0}
-                      engagementOptions={[
-                        { value: 'ig_profile_visit', label: 'Visited your profile' },
-                        { value: 'ig_profile_engaged', label: 'Engaged with your profile' },
-                        { value: 'ig_ad_interact', label: 'Engaged with any post or ad' },
-                        { value: 'ig_message_sent', label: 'Sent a message to your account' },
-                        { value: 'ig_post_saved', label: 'Saved any post or ad' },
-                      ]}
+                      engagementOptions={IG_ENGAGEMENTS}
                       onChange={updated => setIgInclusions(prev => prev.map((r, j) => j === i ? updated : r))}
                       onRemove={() => setIgInclusions(prev => prev.filter((_, j) => j !== i))} />
                   ))}
@@ -1081,26 +1102,16 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
           {tab === 'fb_page' && (
             <>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Facebook Page</label>
-                {pages.length === 0 ? (
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Page</label>
+                {pagesLoading ? (
                   <p className="text-xs text-slate-400 italic">Loading pages...</p>
+                ) : pages.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">No pages found</p>
                 ) : (
-                  <div className="space-y-1.5">
-                    {pages.map(p => (
-                      <button key={p.id} onClick={() => setSelectedPageId(p.id)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors
-                          ${selectedPageId === p.id ? 'border-blue-300 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}>
-                        <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold shrink-0">{p.name?.[0]?.toUpperCase()}</div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-xs font-medium ${selectedPageId === p.id ? 'text-blue-700' : 'text-slate-700'}`}>{p.name}</p>
-                          <p className="text-[10px] text-slate-400">{p.category} · {p.fan_count?.toLocaleString() || 0} fans</p>
-                        </div>
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selectedPageId === p.id ? 'border-blue-600' : 'border-slate-300'}`}>
-                          {selectedPageId === p.id && <div className="w-2 h-2 rounded-full bg-blue-600" />}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                  <select value={selectedPageId} onChange={e => setSelectedPageId(e.target.value)} className={INPUT_CLS}>
+                    <option value="">Select a page</option>
+                    {pages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
                 )}
               </div>
               {/* Include rules */}
@@ -1110,13 +1121,7 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
                   {pageInclusions.map((rule, i) => (
                     <EngagementRuleCard key={`pg-inc-${i}`} rule={rule} type="include"
                       isOnly={pageInclusions.length === 1 && pageExclusions.length === 0}
-                      engagementOptions={[
-                        { value: 'page_liked', label: 'Currently like or follow your Page' },
-                        { value: 'page_engaged', label: 'Engaged with any post or ad' },
-                        { value: 'page_cta_clicked', label: 'Clicked any call-to-action button' },
-                        { value: 'page_message_sent', label: 'Sent a message to your Page' },
-                        { value: 'page_visited', label: 'Visited your Page' },
-                      ]}
+                      engagementOptions={PAGE_ENGAGEMENTS}
                       onChange={updated => setPageInclusions(prev => prev.map((r, j) => j === i ? updated : r))}
                       onRemove={() => setPageInclusions(prev => prev.filter((_, j) => j !== i))} />
                   ))}
@@ -1135,13 +1140,7 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
                     {pageExclusions.map((rule, i) => (
                       <EngagementRuleCard key={`pg-exc-${i}`} rule={rule} type="exclude"
                         isOnly={false}
-                        engagementOptions={[
-                          { value: 'page_liked', label: 'Currently like or follow your Page' },
-                          { value: 'page_engaged', label: 'Engaged with any post or ad' },
-                          { value: 'page_cta_clicked', label: 'Clicked any call-to-action button' },
-                          { value: 'page_message_sent', label: 'Sent a message to your Page' },
-                          { value: 'page_visited', label: 'Visited your Page' },
-                        ]}
+                        engagementOptions={PAGE_ENGAGEMENTS}
                         onChange={updated => setPageExclusions(prev => prev.map((r, j) => j === i ? updated : r))}
                         onRemove={() => setPageExclusions(prev => prev.filter((_, j) => j !== i))} />
                     ))}

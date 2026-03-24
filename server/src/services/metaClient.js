@@ -90,6 +90,18 @@ export const getMinimumBudgets = async (token, adAccountId) => {
 
 // ─── Campaigns ───────────────────────────────────────────────────────
 
+// Lightweight campaign list (id + name only) for pickers/dropdowns
+export const getCampaignsList = async (token, adAccountId) => {
+  const { data } = await metaApi.get(`/${adAccountId}/campaigns`, {
+    params: {
+      access_token: token,
+      limit: 500,
+      fields: 'id,name,status',
+    },
+  });
+  return data.data;
+};
+
 export const getCampaigns = async (token, adAccountId) => {
   // Get campaigns with inline insights — limit to 100 to avoid timeout
   // For full account totals, agent should use get_account_insights separately

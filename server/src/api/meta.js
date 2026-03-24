@@ -143,6 +143,17 @@ router.get('/instagram/:id/media', async (req, res, next) => {
   }
 });
 
+// Lightweight campaign list for pickers (no insights)
+router.get('/adaccounts/:id/campaigns-list', async (req, res, next) => {
+  try {
+    const data = await metaClient.getCampaignsList(req.token, req.params.id);
+    res.json(data);
+  } catch (err) {
+    const metaErr = err.response?.data?.error;
+    res.status(err.response?.status || 500).json({ error: metaErr?.message || err.message, code: metaErr?.code });
+  }
+});
+
 // --- Ad Account Details ---
 router.get('/adaccounts/:id/details', async (req, res, next) => {
   try {
