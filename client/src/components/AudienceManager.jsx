@@ -759,8 +759,8 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
   const handleConfirmCreate = () => {
     // Save the bullet-point summary before sending to chat
     const bullets = buildSummaryBullets();
-    const name = audName || `${SOURCE_LIST.find(s => s.id === tab)?.label || tab} audience`;
-    saveAudienceSummary(name, bullets);
+    const audName = name || `${SOURCE_LIST.find(s => s.id === tab)?.label || tab} audience`;
+    saveAudienceSummary(audName, bullets);
     onCreateViaChat(pendingPrompt);
     onClose();
   };
