@@ -157,7 +157,7 @@ const YOUR_SOURCES = [
 ];
 const META_SOURCES = [
   { id: 'video', label: 'Video', icon: Film },
-  { id: 'ig', label: 'Instagram account', icon: Hash, developing: true },
+  { id: 'ig', label: 'Instagram account', icon: Hash },
   { id: 'fb_page', label: 'Facebook Page', icon: FileText },
   { id: 'lead_ad', label: 'Lead Ad', icon: ClipboardCopy, developing: true },
   { id: 'fb_event', label: 'Facebook event', icon: CalendarDays, developing: true },

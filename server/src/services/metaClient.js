@@ -1335,14 +1335,28 @@ export const getPageVideos = async (token, pageId, adAccountId) => {
 
   try {
     // Use page's video library (published videos on the page)
-    const { data } = await metaApi.get(`/${pageId}/videos`, {
-      params: {
-        access_token: pageToken,
-        fields: 'id,title,description,source,picture,length,created_time,updated_time,status',
-        limit: 200
-      }
-    });
-    const pageVideos = (data.data || []).filter(v => !v.status || v.status.video_status === 'ready');
+    let pageVideos;
+    try {
+      const { data } = await metaApi.get(`/${pageId}/videos`, {
+        params: {
+          access_token: pageToken,
+          fields: 'id,title,description,source,picture,length,created_time,updated_time,status,source_instagram_media_id,video_insights{video_3_sec_watched_actions}',
+          limit: 200
+        }
+      });
+      pageVideos = (data.data || []).filter(v => !v.status || v.status.video_status === 'ready')
+        .map(v => ({ ...v, three_second_views: extract3sViews(v) }));
+    } catch {
+      // Fallback without video_insights
+      const { data } = await metaApi.get(`/${pageId}/videos`, {
+        params: {
+          access_token: pageToken,
+          fields: 'id,title,description,source,picture,length,created_time,updated_time,status,source_instagram_media_id',
+          limit: 200
+        }
+      });
+      pageVideos = (data.data || []).filter(v => !v.status || v.status.video_status === 'ready');
+    }
 
     // Also fetch ad account videos for completeness (catches videos used in ads)
     if (adAccountId) {
@@ -1383,22 +1397,24 @@ export const getIgMedia = async (token, igAccountId, { pageId } = {}) => {
 
   // Fallback: fetch videos from the linked FB Page (works without instagram_business_basic)
   if (pageId) {
-    try {
-      const pages = await getPages(token);
-      const page = pages?.find(p => p.id === pageId);
-      const pageToken = page?.access_token || token;
-      const { data } = await metaApi.get(`/${pageId}/videos`, {
-        params: {
-          access_token: pageToken,
-          fields: 'id,title,description,source,picture,length,created_time,updated_time,source_instagram_media_id',
-          limit: 200
-        }
-      });
-      const videos = (data.data || []);
-      console.log(`[getIgMedia] Page fallback: ${videos.length} videos from page ${pageId}`);
-      return videos;
-    } catch (err2) {
-      console.error('[getIgMedia] Page fallback error:', err2.response?.data?.error?.message || err2.message);
+    const pages = await getPages(token);
+    const page = pages?.find(p => p.id === pageId);
+    const pageToken = page?.access_token || token;
+    // Try with video_insights first, fall back without
+    for (const fields of [
+      'id,title,description,source,picture,length,created_time,updated_time,source_instagram_media_id,video_insights{video_3_sec_watched_actions}',
+      'id,title,description,source,picture,length,created_time,updated_time,source_instagram_media_id',
+    ]) {
+      try {
+        const { data } = await metaApi.get(`/${pageId}/videos`, {
+          params: { access_token: pageToken, fields, limit: 200 }
+        });
+        const videos = (data.data || []).map(v => ({ ...v, three_second_views: extract3sViews(v) }));
+        console.log(`[getIgMedia] Page fallback: ${videos.length} videos from page ${pageId}`);
+        return videos;
+      } catch (err2) {
+        console.log(`[getIgMedia] Page fallback attempt failed: ${err2.response?.data?.error?.message || err2.message}`);
+      }
     }
   }
 
