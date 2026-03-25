@@ -1263,80 +1263,31 @@ export const getConnectedInstagramAccounts = async (token, adAccountId) => {
       }
     }
 
-    // Source 4: page-backed + page instagram_accounts (parallel across pages)
-    await Promise.allSettled(pages.map(async (page) => {
-      const pageToken = page.access_token || token;
-      // 4a: page_backed_instagram_accounts
-      try {
-        const { data: igData } = await metaApi.get(`/${page.id}/page_backed_instagram_accounts`, {
-          params: { access_token: pageToken, fields: 'id,username,name,profile_picture_url' }
-        });
-        for (const a of (igData.data || [])) {
-          console.log(`[IG Discovery] Source 4a - Page "${page.name}": id=${a.id}, username=${a.username || 'NONE'}`);
-          // page_backed_instagram_accounts often returns page name as username — always mark for resolution
-          allResults.push({ id: a.id, username: a.username || page.name, profile_pic: a.profile_picture_url, _source: 4, _needsResolve: true });
-          pageTokenMap.set(a.id, pageToken);
-          pageIdMap.set(a.id, page.id);
-        }
-      } catch (_) { /* skip */ }
-      // 4b: instagram_accounts on page
-      try {
-        const { data: igData } = await metaApi.get(`/${page.id}/instagram_accounts`, {
-          params: { access_token: pageToken, fields: 'id,username,profile_picture_url' }
-        });
-        for (const a of (igData.data || [])) {
-          console.log(`[IG Discovery] Source 4b - Page "${page.name}": id=${a.id}, username=${a.username || 'NONE'}`);
-          allResults.push({ id: a.id, username: a.username, profile_pic: a.profile_picture_url, _source: 4, _needsResolve: true });
-          pageTokenMap.set(a.id, pageToken);
-          pageIdMap.set(a.id, page.id);
-        }
-      } catch (_) { /* skip */ }
-    }));
+    // Store page tokens/IDs for Source 2 accounts (needed for video fallback)
+    for (const p of pages) {
+      if (p.instagram_business_account && p.access_token) {
+        pageTokenMap.set(p.instagram_business_account.id, p.access_token);
+        pageIdMap.set(p.instagram_business_account.id, p.id);
+      }
+    }
   }).catch(err => console.error('[IG Discovery] Source 2/4 ERROR:', err.response?.data?.error?.message || err.message));
 
   await Promise.allSettled([source1, source2and4]);
 
-  // Deduplicate by ID — prefer Source 1 > Source 2 > Source 4
-  const seenIds = new Map(); // id -> index in accounts
+  // Deduplicate by ID — prefer Source 1 > Source 2
+  const seenIds = new Map();
   const accounts = [];
-  // Sort: source 1 first (most reliable usernames), then 2, then 4
   allResults.sort((a, b) => (a._source || 99) - (b._source || 99));
   for (const a of allResults) {
     if (!a.id) continue;
-    const existing = seenIds.get(a.id);
-    if (existing === undefined) {
+    if (!seenIds.has(a.id)) {
       seenIds.set(a.id, accounts.length);
       accounts.push(a);
     }
   }
 
-  // Resolve usernames using page tokens for accounts that need it
-  const toResolve = accounts.filter(a => a._needsResolve);
-  if (toResolve.length > 0) {
-    console.log(`[IG Discovery] Resolving usernames for ${toResolve.length} accounts...`);
-    await Promise.allSettled(toResolve.map(async (acct) => {
-      // Try page token first (more likely to have instagram_basic access), then user token
-      const tokensToTry = [pageTokenMap.get(acct.id), token].filter(Boolean);
-      for (const tryToken of tokensToTry) {
-        try {
-          const { data } = await metaApi.get(`/${acct.id}`, {
-            params: { access_token: tryToken, fields: 'id,username,profile_picture_url' }
-          });
-          if (data.username) {
-            console.log(`[IG Discovery] Resolved: ${acct.username} -> @${data.username}`);
-            acct.username = data.username;
-            if (data.profile_picture_url) acct.profile_pic = data.profile_picture_url;
-            break; // success, stop trying
-          }
-        } catch (err) {
-          console.warn(`[IG Discovery] Could not resolve ${acct.id}: ${err.response?.data?.error?.message || err.message}`);
-        }
-      }
-    }));
-  }
-
-  // Clean up internal flags before returning, include pageId for video fallback
-  const result = accounts.map(({ _source, _needsResolve, ...rest }) => ({
+  // Clean up internal flags, include pageId for video fallback
+  const result = accounts.map(({ _source, ...rest }) => ({
     ...rest,
     ...(pageIdMap.get(rest.id) && { pageId: pageIdMap.get(rest.id) }),
   }));
