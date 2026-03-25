@@ -135,7 +135,7 @@ router.get('/pages/:id/videos', async (req, res, next) => {
 // Instagram media (videos) for a connected IG account
 router.get('/instagram/:id/media', async (req, res, next) => {
   try {
-    const data = await metaClient.getIgMedia(req.token, req.params.id, { pageId: req.query.pageId, after: req.query.after });
+    const data = await metaClient.getIgMedia(req.token, req.params.id, { pageId: req.query.pageId, adAccountId: req.query.adAccountId, after: req.query.after });
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;

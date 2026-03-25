@@ -530,7 +530,8 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
     }
     if (videoSource === 'ig_account') {
       const igAcct = igAccounts.find(a => a.id === videoSourceIg);
-      const base = `/meta/instagram/${videoSourceIg}/media${igAcct?.pageId ? `?pageId=${igAcct.pageId}` : ''}`;
+      const params = [igAcct?.pageId ? `pageId=${igAcct.pageId}` : '', adAccountId ? `adAccountId=${adAccountId}` : ''].filter(Boolean).join('&');
+      const base = `/meta/instagram/${videoSourceIg}/media${params ? `?${params}` : ''}`;
       return after ? `${base}${sep(base)}after=${after}` : base;
     }
     return `/meta/adaccounts/${adAccountId}/videos`;

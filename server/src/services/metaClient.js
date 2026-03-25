@@ -561,11 +561,30 @@ export const getVideoViewsMap = async (token, adAccountId, { datePreset = 'last_
       if (familyViews[fam]) viewsMap[vid] = familyViews[fam];
     }
 
-    console.log(`[getVideoViewsMap] ${adAccountId}: ${Object.keys(viewsMap).length} videos, ${Object.keys(familyViews).length} families`);
+    // ── Step 7: Build secondary lookup by video length ──
+    // Page videos and IG videos have different IDs than ad copies but share the
+    // same duration. This map lets consumers match any video to its ad family's
+    // aggregated views using rounded length as key.
+    const byLength = {}; // rounded_length_tenths → { views, title }
+    for (const [fkey, views] of Object.entries(familyViews)) {
+      if (!views) continue;
+      const parts = fkey.split('|');
+      const lenStr = parts.pop();
+      const title = parts.join('|');
+      const lenKey = String(Math.round(parseFloat(lenStr) * 10)); // 0.1s precision
+      if (lenKey === '0' || lenKey === 'NaN') continue;
+      if (views > (byLength[lenKey]?.views || 0)) {
+        byLength[lenKey] = { views, title };
+      }
+    }
+    viewsMap._byLength = byLength;
+
+    console.log(`[getVideoViewsMap] ${adAccountId}: ${Object.keys(viewsMap).length} videos, ${Object.keys(familyViews).length} families, ${Object.keys(byLength).length} length keys`);
   } catch (err) {
     console.error('[getVideoViewsMap] error:', err.response?.data?.error?.message || err.message);
   }
 
+  if (!viewsMap._byLength) viewsMap._byLength = {};
   _videoViewsCache.set(cacheKey, { map: viewsMap, ts: Date.now() });
   return viewsMap;
 };
@@ -1510,8 +1529,12 @@ export const getPageVideos = async (token, pageId, adAccountId, { after } = {}) 
   const page = pages?.find(p => p.id === pageId);
   const pageToken = page?.access_token || token;
 
-  // Build ad insights views map in parallel (if ad account available)
+  // Build ad insights views map AND ad videos in parallel (if ad account available)
   const viewsMapPromise = adAccountId ? getVideoViewsMap(token, adAccountId) : Promise.resolve({});
+  const adVidsPromise = adAccountId ? getAdVideos(token, adAccountId).catch(() => []) : Promise.resolve([]);
+
+  // Strip Meta auto-crop prefix from ad video titles
+  const cleanTitle = (t) => (t || '').replace(/^Auto_Cropped_AR_.*?(?:DCO_|V\d+_)/i, '').trim() || t || '';
 
   try {
     const params = {
@@ -1521,37 +1544,101 @@ export const getPageVideos = async (token, pageId, adAccountId, { after } = {}) 
     };
     if (after) params.after = after;
 
-    const [{ data }, viewsMap] = await Promise.all([
+    const [{ data }, viewsMap, adVids] = await Promise.all([
       metaApi.get(`/${pageId}/videos`, { params }),
-      viewsMapPromise
+      viewsMapPromise,
+      adVidsPromise
     ]);
-    const pageVideos = (data.data || []).filter(v => !v.status || v.status.video_status === 'ready')
-      .map(v => ({
+
+    // Build ad video lookup by rounded length (in 0.1s) for cross-matching
+    // Key: length_tenths → { views, title, updated_time, ... } (best match by views)
+    const adByLength = {};
+    for (const av of (adVids || [])) {
+      const lenKey = Math.round((av.length || 0) * 10);
+      if (lenKey > 0 && av.three_second_views > (adByLength[lenKey]?.three_second_views || 0)) {
+        adByLength[lenKey] = av;
+      }
+    }
+    // Also build a set of ad video lengths for dedup
+    const adLengths = new Set(Object.keys(adByLength).map(Number));
+
+    const byLength = viewsMap._byLength || {};
+    const rawPageVideos = (data.data || []).filter(v => !v.status || v.status.video_status === 'ready');
+    const pageVideos = rawPageVideos.map(v => {
+      let views = viewsMap[v.id] || 0;
+      let lastUsed = v.updated_time;
+      // If page video has no ad views, try two fallback strategies:
+      // 1. viewsMap._byLength: aggregated family views keyed by video duration (0.1s precision)
+      // 2. adByLength: direct ad video match by duration
+      // Page videos and ad copies of the same content always share the same duration.
+      if (!views && v.length) {
+        const lenKey = String(Math.round((v.length || 0) * 10));
+        // Strategy 1: family views by length from getVideoViewsMap
+        if (byLength[lenKey]?.views) {
+          views = byLength[lenKey].views;
+        }
+        // Strategy 2: direct ad video match
+        if (!views) {
+          const match = adByLength[Number(lenKey)];
+          if (match?.three_second_views > 0) views = match.three_second_views;
+        }
+        // Inherit "last used" from ad video if available and more recent
+        const adMatch = adByLength[Number(lenKey)];
+        if (adMatch?.updated_time && (!lastUsed || adMatch.updated_time > lastUsed)) {
+          lastUsed = adMatch.updated_time;
+        }
+      }
+      return {
         ...v,
-        // Use ad insight views (aggregated paid+organic from Marketing API) if available, else organic views
-        three_second_views: viewsMap[v.id] || v.views || 0
-      }));
+        title: cleanTitle(v.title) || v.title,
+        three_second_views: views || v.views || 0,
+        updated_time: lastUsed
+      };
+    });
     const nextCursor = data.paging?.cursors?.after || null;
     const hasMore = !!data.paging?.next;
 
-    // Only merge ad account videos on first page (no cursor)
-    if (!after && adAccountId) {
-      try {
-        const adVids = await getAdVideos(token, adAccountId);
-        const pageVideoIds = new Set(pageVideos.map(v => v.id));
-        const extra = (adVids || []).filter(v => !pageVideoIds.has(v.id));
-        return { videos: [...pageVideos, ...extra], nextCursor: hasMore ? nextCursor : null };
-      } catch { /* ignore */ }
+    // Merge ad account videos not already in page list (dedup by ID AND by length)
+    if (!after && adVids?.length) {
+      const pageVideoIds = new Set(pageVideos.map(v => v.id));
+      const pageLengths = new Set(rawPageVideos.map(v => Math.round((v.length || 0) * 10)).filter(l => l > 0));
+      const extra = adVids
+        .filter(v => !pageVideoIds.has(v.id))
+        // Skip ad copies of page videos (same length = same content, already shown)
+        .filter(v => {
+          const lenKey = Math.round((v.length || 0) * 10);
+          return lenKey === 0 || !pageLengths.has(lenKey);
+        })
+        .map(v => ({ ...v, title: cleanTitle(v.title) }));
+      // Sort by updated_time (last used) descending — matches Meta's default sort
+      const merged = [...pageVideos, ...extra].sort((a, b) =>
+        (b.updated_time || b.created_time || '').localeCompare(a.updated_time || a.created_time || ''));
+      return { videos: merged, nextCursor: hasMore ? nextCursor : null };
     }
 
     return { videos: pageVideos, nextCursor: hasMore ? nextCursor : null };
   } catch (err) {
     console.error('getPageVideos error:', err.response?.data?.error?.message || err.message);
     if (!after && adAccountId) {
-      try { return { videos: await getAdVideos(token, adAccountId), nextCursor: null }; } catch { /* */ }
+      try {
+        const adVids = await getAdVideos(token, adAccountId);
+        return { videos: (adVids || []).map(v => ({ ...v, title: cleanTitle(v.title) })), nextCursor: null };
+      } catch { /* */ }
     }
     return { videos: [], nextCursor: null };
   }
+};
+
+// Resolve 3-second views for a video using viewsMap with _byLength fallback.
+// viewsMap maps ad video IDs; _byLength maps by video duration for page/IG videos
+// whose IDs differ from their ad account copies.
+const resolveViews = (viewsMap, videoId, length, organicViews = 0) => {
+  if (viewsMap[videoId]) return viewsMap[videoId];
+  if (length) {
+    const lenKey = String(Math.round((length || 0) * 10));
+    if (viewsMap._byLength?.[lenKey]?.views) return viewsMap._byLength[lenKey].views;
+  }
+  return organicViews || 0;
 };
 
 export const getIgMedia = async (token, igAccountId, { pageId, adAccountId, after } = {}) => {
@@ -1592,7 +1679,7 @@ export const getIgMedia = async (token, igAccountId, { pageId, adAccountId, afte
         picture: v.thumbnail_url,
         created_time: v.timestamp,
         updated_time: v.timestamp,
-        three_second_views: viewsMap[v.id] || 0,
+        three_second_views: resolveViews(viewsMap, v.id, v.length),
         source_instagram_media_id: v.id,
         is_ig: true,
       }));
@@ -1609,14 +1696,15 @@ export const getIgMedia = async (token, igAccountId, { pageId, adAccountId, afte
           });
           const pageVids = (pvData.data || []).map(pv => ({
             ...pv,
-            three_second_views: viewsMap[pv.id] || pv.views || 0,
+            three_second_views: resolveViews(viewsMap, pv.id, pv.length, pv.views),
             is_ig: !!pv.source_instagram_media_id
           }));
           // Merge: page videos first (they have views + duration), dedupe by source_instagram_media_id
           const igIds = new Set(normalized.map(n => n.id));
           const extra = pageVids.filter(pv => !igIds.has(pv.id) && !igIds.has(pv.source_instagram_media_id));
           console.log(`[getIgMedia] Merged: ${normalized.length} IG + ${extra.length} page videos`);
-          return { videos: [...normalized, ...extra], nextCursor: data.paging?.next ? nextCursor : null };
+          const merged = [...normalized, ...extra].sort((a, b) => (b.three_second_views || 0) - (a.three_second_views || 0));
+          return { videos: merged, nextCursor: data.paging?.next ? nextCursor : null };
         } catch { /* page merge failed, return IG-only */ }
       }
 
@@ -1642,7 +1730,7 @@ export const getIgMedia = async (token, igAccountId, { pageId, adAccountId, afte
       const { data } = await metaApi.get(`/${pageId}/videos`, { params });
       const videos = (data.data || []).map(v => ({
         ...v,
-        three_second_views: viewsMap[v.id] || v.views || 0,
+        three_second_views: resolveViews(viewsMap, v.id, v.length, v.views),
         is_ig: !!v.source_instagram_media_id
       }));
       const nextCursor = data.paging?.cursors?.after || null;
