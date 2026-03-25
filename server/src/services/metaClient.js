@@ -366,27 +366,228 @@ export const deleteAdImage = async (token, adAccountId, imageHash) => {
 
 // ─── Ad Videos ───────────────────────────────────────────────────────
 
-// Helper: extract 3-second video views from nested video_insights structure
-const extract3sViews = (video) => {
-  const insights = video.video_insights?.data;
-  if (!insights?.length) return 0;
-  const actions = insights[0]?.video_3_sec_watched_actions;
-  if (!actions?.length) return 0;
-  return actions.reduce((sum, a) => sum + (parseInt(a.value, 10) || 0), 0);
+// ─── Video 3-Second Views from Ad Insights (Marketing API) ──────────
+// Builds a map of video_id → aggregated 3-second video views across ALL ads.
+// Uses video_play_actions (action_type: video_view) from ad-level insights.
+// Default date_preset is last_30d to match Meta's native Custom Audience video picker.
+
+const _videoViewsCache = new Map(); // key → { map, ts }
+const VIEWS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+export const getVideoViewsMap = async (token, adAccountId, { datePreset = 'last_30d' } = {}) => {
+  const cacheKey = `${adAccountId}:${datePreset}`;
+  const cached = _videoViewsCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < VIEWS_CACHE_TTL) return cached.map;
+
+  const viewsMap = {}; // video_id → total 3s views
+
+  try {
+    // ── Step 1: Get all ads with creative{id,video_id} ──
+    const ads = await fetchAll(`/${adAccountId}/ads`, token, {
+      fields: 'id,creative{id,video_id}',
+      limit: 500
+    }, { maxPages: 5 });
+
+    // Separate ads with direct video_id from those needing creative lookup
+    const adToCreativeId = {};
+    const adToVideoIds = {}; // ad_id → Set of video IDs
+    const needLookup = new Set();
+    for (const ad of ads) {
+      const c = ad.creative || {};
+      adToCreativeId[ad.id] = c.id;
+      if (c.video_id) {
+        adToVideoIds[ad.id] = new Set([c.video_id]);
+      } else if (c.id) {
+        needLookup.add(c.id);
+      }
+    }
+
+    // ── Step 2: Batch-fetch creatives for asset_feed_spec + object_story_spec ──
+    // Dynamic creatives store video IDs in asset_feed_spec.videos[].video_id
+    // Boosted posts reference source via object_story_spec.video_data.video_id
+    const creativeToVideoIds = {};
+    const sourceVideoMap = {}; // variant_video_id → source_video_id (from object_story_spec)
+    const lookupList = [...needLookup];
+    for (let i = 0; i < lookupList.length; i += 50) {
+      const batch = lookupList.slice(i, i + 50);
+      try {
+        const { data } = await metaApi.get('/', {
+          params: { ids: batch.join(','), fields: 'id,video_id,asset_feed_spec,object_story_spec', access_token: token }
+        });
+        for (const [cid, info] of Object.entries(data)) {
+          const videos = new Set();
+          if (info.video_id) videos.add(String(info.video_id));
+          // Dynamic creative video assets
+          for (const va of (info.asset_feed_spec?.videos || [])) {
+            if (va.video_id) videos.add(String(va.video_id));
+          }
+          // Source video from boosted post
+          const sv = info.object_story_spec?.video_data?.video_id;
+          if (sv) {
+            videos.add(String(sv));
+            // Map all other videos in this creative to the source
+            for (const vid of videos) {
+              if (vid !== String(sv)) sourceVideoMap[vid] = String(sv);
+            }
+          }
+          if (videos.size) creativeToVideoIds[cid] = videos;
+        }
+      } catch { /* batch lookup failed, skip */ }
+    }
+
+    // Merge creative lookups into ad mapping
+    for (const [adId, cid] of Object.entries(adToCreativeId)) {
+      if (!adToVideoIds[adId] && cid && creativeToVideoIds[cid]) {
+        adToVideoIds[adId] = creativeToVideoIds[cid];
+      }
+    }
+
+    // Also resolve source videos for ads with direct video_id
+    // by checking their creatives' object_story_spec
+    const directCreativeIds = [];
+    for (const ad of ads) {
+      const c = ad.creative || {};
+      if (c.video_id && c.id && !needLookup.has(c.id)) {
+        directCreativeIds.push(c.id);
+      }
+    }
+    for (let i = 0; i < directCreativeIds.length; i += 50) {
+      const batch = directCreativeIds.slice(i, i + 50);
+      try {
+        const { data } = await metaApi.get('/', {
+          params: { ids: batch.join(','), fields: 'id,video_id,object_story_spec', access_token: token }
+        });
+        for (const [, info] of Object.entries(data)) {
+          const sv = info.object_story_spec?.video_data?.video_id;
+          if (sv && info.video_id && String(sv) !== String(info.video_id)) {
+            sourceVideoMap[String(info.video_id)] = String(sv);
+          }
+        }
+      } catch { /* skip */ }
+    }
+
+    // ── Step 3: Build video families by title + length ──
+    // Gather ALL unique video IDs from the mapping
+    const allVideoIds = new Set();
+    for (const vids of Object.values(adToVideoIds)) {
+      for (const vid of vids) allVideoIds.add(vid);
+    }
+    // Also add source videos from object_story_spec
+    for (const sv of Object.values(sourceVideoMap)) allVideoIds.add(sv);
+    // Normalize title: strip Meta's auto-crop prefix for family matching
+    // Format: "Auto_Cropped_AR_4_X_5_DCO_filename" or "Auto_Cropped_AR_IG_9_X_16_V3_filename"
+    const normalizeTitle = (t) => (t.replace(/^Auto_Cropped_AR_.*?(?:DCO_|V\d+_)/i, '') || t).trim();
+
+    // Include ALL ad account videos — they may be variants of creative videos
+    // Pre-populate family mapping from advideos (already returns title+length)
+    const vidToFamily = {}; // video_id → family_key
+    const familyPrimary = {}; // family_key → primary video_id
+    try {
+      const adVideos = await fetchAll(`/${adAccountId}/advideos`, token, {
+        fields: 'id,title,length', limit: 500
+      }, { maxPages: 2 });
+      for (const v of adVideos) {
+        allVideoIds.add(v.id);
+        const title = normalizeTitle(v.title || '');
+        const length = Math.round(v.length || 0);
+        const fkey = `${title}|${length}`;
+        vidToFamily[v.id] = fkey;
+        if (!familyPrimary[fkey]) familyPrimary[fkey] = v.id;
+      }
+    } catch { /* skip */ }
+
+    // Batch-fetch title + length for remaining video IDs not yet resolved
+    const unresolvedVids = [...allVideoIds].filter(vid => !vidToFamily[vid]);
+    for (let i = 0; i < unresolvedVids.length; i += 25) {
+      const batch = unresolvedVids.slice(i, i + 25);
+      try {
+        const { data } = await metaApi.get('/', {
+          params: { ids: batch.join(','), fields: 'id,title,length', access_token: token }
+        });
+        for (const [vid, info] of Object.entries(data)) {
+          const title = normalizeTitle(info.title || '');
+          const length = Math.round(info.length || 0);
+          const fkey = `${title}|${length}`;
+          vidToFamily[vid] = fkey;
+          if (!familyPrimary[fkey]) familyPrimary[fkey] = vid;
+        }
+      } catch {
+        for (const vid of batch) {
+          if (!vidToFamily[vid]) { vidToFamily[vid] = vid; familyPrimary[vid] = vid; }
+        }
+      }
+    }
+
+    // Merge families using sourceVideoMap (variants → source)
+    // If variant A maps to source B, they should share the same family
+    for (const [variant, source] of Object.entries(sourceVideoMap)) {
+      const sf = vidToFamily[source];
+      if (sf) vidToFamily[variant] = sf;
+    }
+
+    // ── Step 4: Get ad-level insights ──
+    const insights = await fetchAll(`/${adAccountId}/insights`, token, {
+      level: 'ad',
+      fields: 'ad_id,video_play_actions',
+      date_preset: datePreset,
+      limit: 500
+    }, { maxPages: 5 });
+
+    // ── Step 5: Aggregate views per video family (deduplicated) ──
+    const familyViews = {}; // family_key → total views
+    for (const row of insights) {
+      const vids = adToVideoIds[row.ad_id];
+      if (!vids) continue;
+      const vpa = row.video_play_actions || [];
+      for (const action of vpa) {
+        if (action.action_type === 'video_view') {
+          const views = parseInt(action.value, 10) || 0;
+          // Deduplicate: count once per family per ad
+          const seenFamilies = new Set();
+          for (const vid of vids) {
+            const fam = vidToFamily[vid] || vid;
+            if (!seenFamilies.has(fam)) {
+              seenFamilies.add(fam);
+              familyViews[fam] = (familyViews[fam] || 0) + views;
+            }
+          }
+        }
+      }
+    }
+
+    // ── Step 6: Map family totals back to individual video IDs ──
+    for (const vid of allVideoIds) {
+      const fam = vidToFamily[vid] || vid;
+      if (familyViews[fam]) viewsMap[vid] = familyViews[fam];
+    }
+
+    console.log(`[getVideoViewsMap] ${adAccountId}: ${Object.keys(viewsMap).length} videos, ${Object.keys(familyViews).length} families`);
+  } catch (err) {
+    console.error('[getVideoViewsMap] error:', err.response?.data?.error?.message || err.message);
+  }
+
+  _videoViewsCache.set(cacheKey, { map: viewsMap, ts: Date.now() });
+  return viewsMap;
 };
 
 export const getAdVideos = async (token, adAccountId) => {
   try {
-    const { data } = await metaApi.get(`/${adAccountId}/advideos`, {
-      params: {
-        access_token: token,
-        fields: 'id,title,description,source,picture,length,status,created_time,updated_time,source_instagram_media_id,video_insights{video_3_sec_watched_actions}'
-      }
-    });
-    return (data.data || []).map(v => ({ ...v, three_second_views: extract3sViews(v) }));
+    // Get ad videos and ad insight views in parallel
+    const [{ data }, viewsMap] = await Promise.all([
+      metaApi.get(`/${adAccountId}/advideos`, {
+        params: {
+          access_token: token,
+          fields: 'id,title,description,source,picture,length,status,created_time,updated_time,source_instagram_media_id'
+        }
+      }),
+      getVideoViewsMap(token, adAccountId)
+    ]);
+    return (data.data || []).map(v => ({
+      ...v,
+      three_second_views: viewsMap[v.id] || 0
+    }));
   } catch (err) {
-    // Fallback: try without video_insights but keep source_instagram_media_id
-    console.error('getAdVideos insights error (trying without insights):', err.response?.data?.error?.message || err.message);
+    console.error('getAdVideos error:', err.response?.data?.error?.message || err.message);
     try {
       const { data } = await metaApi.get(`/${adAccountId}/advideos`, {
         params: {
@@ -396,7 +597,6 @@ export const getAdVideos = async (token, adAccountId) => {
       });
       return data.data || [];
     } catch (err2) {
-      // Final fallback: basic fields only
       console.error('getAdVideos fallback error:', err2.response?.data?.error?.message || err2.message);
       const { data } = await metaApi.get(`/${adAccountId}/advideos`, {
         params: {
@@ -1310,6 +1510,9 @@ export const getPageVideos = async (token, pageId, adAccountId, { after } = {}) 
   const page = pages?.find(p => p.id === pageId);
   const pageToken = page?.access_token || token;
 
+  // Build ad insights views map in parallel (if ad account available)
+  const viewsMapPromise = adAccountId ? getVideoViewsMap(token, adAccountId) : Promise.resolve({});
+
   try {
     const params = {
       access_token: pageToken,
@@ -1318,9 +1521,16 @@ export const getPageVideos = async (token, pageId, adAccountId, { after } = {}) 
     };
     if (after) params.after = after;
 
-    const { data } = await metaApi.get(`/${pageId}/videos`, { params });
+    const [{ data }, viewsMap] = await Promise.all([
+      metaApi.get(`/${pageId}/videos`, { params }),
+      viewsMapPromise
+    ]);
     const pageVideos = (data.data || []).filter(v => !v.status || v.status.video_status === 'ready')
-      .map(v => ({ ...v, three_second_views: v.views || 0 }));
+      .map(v => ({
+        ...v,
+        // Use ad insight views (aggregated paid+organic from Marketing API) if available, else organic views
+        three_second_views: viewsMap[v.id] || v.views || 0
+      }));
     const nextCursor = data.paging?.cursors?.after || null;
     const hasMore = !!data.paging?.next;
 
@@ -1344,7 +1554,7 @@ export const getPageVideos = async (token, pageId, adAccountId, { after } = {}) 
   }
 };
 
-export const getIgMedia = async (token, igAccountId, { pageId, after } = {}) => {
+export const getIgMedia = async (token, igAccountId, { pageId, adAccountId, after } = {}) => {
   // Try direct IG media endpoint (requires instagram_basic permission)
   // Use page token if available — page tokens carry instagram_basic scope
   let igToken = token;
@@ -1356,29 +1566,24 @@ export const getIgMedia = async (token, igAccountId, { pageId, after } = {}) => 
     } catch { /* use user token */ }
   }
 
+  // Build ad insights views map in parallel (if ad account available)
+  const viewsMapPromise = adAccountId ? getVideoViewsMap(token, adAccountId) : Promise.resolve({});
+
   if (!after) {
     try {
-      const { data } = await metaApi.get(`/${igAccountId}/media`, {
-        params: {
-          access_token: igToken,
-          fields: 'id,media_type,media_url,thumbnail_url,caption,timestamp,permalink',
-          limit: 50
-        }
-      });
+      const [{ data }, viewsMap] = await Promise.all([
+        metaApi.get(`/${igAccountId}/media`, {
+          params: {
+            access_token: igToken,
+            fields: 'id,media_type,media_url,thumbnail_url,caption,timestamp,permalink',
+            limit: 50
+          }
+        }),
+        viewsMapPromise
+      ]);
       const videos = (data.data || []).filter(m => m.media_type === 'VIDEO');
       const nextCursor = data.paging?.cursors?.after || null;
       console.log(`[getIgMedia] Direct IG media: ${data.data?.length || 0} total, ${videos.length} videos`);
-
-      // Fetch reach for each video (video_views/plays are deprecated for reels)
-      await Promise.allSettled(videos.map(async (v) => {
-        try {
-          const { data: insightData } = await metaApi.get(`/${v.id}/insights`, {
-            params: { access_token: igToken, metric: 'reach' }
-          });
-          const val = insightData.data?.[0]?.values?.[0]?.value;
-          if (val != null) v._reach = val;
-        } catch { /* insights not available */ }
-      }));
 
       // Normalize IG video fields to match FB video format used by the UI
       const normalized = videos.map(v => ({
@@ -1387,7 +1592,7 @@ export const getIgMedia = async (token, igAccountId, { pageId, after } = {}) => 
         picture: v.thumbnail_url,
         created_time: v.timestamp,
         updated_time: v.timestamp,
-        three_second_views: v._reach || 0,
+        three_second_views: viewsMap[v.id] || 0,
         source_instagram_media_id: v.id,
         is_ig: true,
       }));
@@ -1402,7 +1607,11 @@ export const getIgMedia = async (token, igAccountId, { pageId, after } = {}) => 
           const { data: pvData } = await metaApi.get(`/${pageId}/videos`, {
             params: { access_token: pt, fields: 'id,title,description,source,picture,length,created_time,updated_time,views,source_instagram_media_id', limit: 50 }
           });
-          const pageVids = (pvData.data || []).map(pv => ({ ...pv, three_second_views: pv.views || 0, is_ig: !!pv.source_instagram_media_id }));
+          const pageVids = (pvData.data || []).map(pv => ({
+            ...pv,
+            three_second_views: viewsMap[pv.id] || pv.views || 0,
+            is_ig: !!pv.source_instagram_media_id
+          }));
           // Merge: page videos first (they have views + duration), dedupe by source_instagram_media_id
           const igIds = new Set(normalized.map(n => n.id));
           const extra = pageVids.filter(pv => !igIds.has(pv.id) && !igIds.has(pv.source_instagram_media_id));
@@ -1419,6 +1628,7 @@ export const getIgMedia = async (token, igAccountId, { pageId, after } = {}) => 
 
   // Fallback: fetch videos from the linked FB Page (works without instagram_business_basic)
   if (pageId) {
+    const viewsMap = await viewsMapPromise;
     const pages = await getPages(token);
     const page = pages?.find(p => p.id === pageId);
     const pageToken = page?.access_token || token;
@@ -1430,7 +1640,11 @@ export const getIgMedia = async (token, igAccountId, { pageId, after } = {}) => 
       };
       if (after) params.after = after;
       const { data } = await metaApi.get(`/${pageId}/videos`, { params });
-      const videos = (data.data || []).map(v => ({ ...v, three_second_views: v.views || 0, is_ig: !!v.source_instagram_media_id }));
+      const videos = (data.data || []).map(v => ({
+        ...v,
+        three_second_views: viewsMap[v.id] || v.views || 0,
+        is_ig: !!v.source_instagram_media_id
+      }));
       const nextCursor = data.paging?.cursors?.after || null;
       console.log(`[getIgMedia] Page fallback: ${videos.length} videos from page ${pageId}`);
       return { videos, nextCursor: data.paging?.next ? nextCursor : null };

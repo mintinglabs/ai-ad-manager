@@ -448,7 +448,8 @@ function getConnectedInstagramAccounts(_, c) {
 }
 
 function getIgMedia({ ig_account_id, page_id }, c) {
-  return meta.getIgMedia(ctx(c).token, ig_account_id, { pageId: page_id });
+  const { token, adAccountId } = ctx(c);
+  return meta.getIgMedia(token, ig_account_id, { pageId: page_id, adAccountId });
 }
 
 // ─── Ad Library ─────────────────────────────────────────────────────────────
