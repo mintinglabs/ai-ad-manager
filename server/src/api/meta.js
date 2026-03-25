@@ -274,6 +274,28 @@ router.post('/trigger-permissions', async (req, res) => {
     }
   }
 
+  // 4. pages_read_engagement — GET /{page}?fields=engagement
+  if (pageId) {
+    try {
+      const { data } = await metaClient.metaApi.get(`/${pageId}`, {
+        params: { access_token: req.token, fields: 'id,name,engagement' }
+      });
+      results.pages_read_engagement = { ok: true, name: data.name };
+    } catch (err) {
+      results.pages_read_engagement = { ok: false, error: err.response?.data?.error?.message || err.message };
+    }
+  }
+
+  // 5. pages_show_list — GET /me/accounts
+  try {
+    const { data } = await metaClient.metaApi.get('/me/accounts', {
+      params: { access_token: req.token, limit: 1 }
+    });
+    results.pages_show_list = { ok: true, pages: data.data?.length ?? 0 };
+  } catch (err) {
+    results.pages_show_list = { ok: false, error: err.response?.data?.error?.message || err.message };
+  }
+
   res.json(results);
 });
 

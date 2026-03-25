@@ -33,7 +33,7 @@ const MODULES = [
   },
 ];
 
-const PERMISSIONS = ['ads_read', 'ads_management', 'business_management', 'instagram_basic', 'instagram_manage_insights'];
+const PERMISSIONS = ['ads_read', 'ads_management', 'business_management', 'read_insights', 'instagram_basic', 'instagram_manage_insights', 'pages_read_engagement', 'pages_show_list'];
 
 export const HomeScreen = ({ onSend, selectedAccount }) => (
   <div className="flex flex-col items-center h-full px-6 pb-8 pt-6 overflow-y-auto">
