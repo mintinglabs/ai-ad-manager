@@ -447,6 +447,10 @@ function getConnectedInstagramAccounts(_, c) {
   return meta.getConnectedInstagramAccounts(ctx(c).token, ctx(c).adAccountId);
 }
 
+function getIgMedia({ ig_account_id, page_id }, c) {
+  return meta.getIgMedia(ctx(c).token, ig_account_id, { pageId: page_id });
+}
+
 // ─── Ad Library ─────────────────────────────────────────────────────────────
 function searchAdLibrary(args, c) {
   return meta.searchAdLibrary(ctx(c).token, args);
@@ -869,7 +873,9 @@ const adTools = [
     obj({ audience_id: str('Saved audience ID') }, ['audience_id'])),
 
   // ── Instagram ─────────────────────────────────────────────────────────
-  T('get_connected_instagram_accounts', 'List Instagram accounts connected to the ad account. Needed for IG-specific ad placements.', getConnectedInstagramAccounts),
+  T('get_connected_instagram_accounts', 'List Instagram accounts connected to the ad account. Needed for IG-specific ad placements and video audiences.', getConnectedInstagramAccounts),
+  T('get_ig_media', 'List videos from an Instagram professional account. Use for creating IG video engagement audiences. Returns video IDs, captions, timestamps, and permalinks.', getIgMedia,
+    obj({ ig_account_id: str('Instagram account ID'), page_id: str('Facebook Page ID linked to this IG account (for token access)') }, ['ig_account_id'])),
 
   // ── Ad Library ────────────────────────────────────────────────────────
   T('search_ad_library', 'Search the Meta Ad Library for competitor ads. Returns page_name, headlines, body text, ad_snapshot_url. Format results as ```adlib JSON for rich card rendering.', searchAdLibrary,
@@ -1117,15 +1123,20 @@ Video sources: Facebook Page videos, Instagram videos, Campaign video ads, or di
 **IMPORTANT: Use interactive options — NOT walls of text.** Present choices as clickable options cards.
 
 **Steps:**
-1. **Get pages** — call \`get_pages\` immediately. Then present as options. Use the PAGE NAME as the title, never the numeric ID:
+1. **Choose video source** — call \`get_pages\` AND \`get_connected_instagram_accounts\` in parallel. Then present ALL sources as options:
 \`\`\`options
-{"title":"Which Page's videos?","options":[
-  {"id":"PAGE_ID_1","title":"TopGlow Medical","description":"Facebook Page"},
-  {"id":"PAGE_ID_2","title":"My Brand HK","description":"Facebook Page"}
+{"title":"Choose video source","options":[
+  {"id":"fb:PAGE_ID_1","title":"TopGlow Medical","description":"Facebook Page"},
+  {"id":"fb:PAGE_ID_2","title":"My Brand HK","description":"Facebook Page"},
+  {"id":"ig:IG_ID_1","title":"@businessfocus.io","description":"Instagram"},
+  {"id":"ig:IG_ID_2","title":"@topglow.hk","description":"Instagram"}
 ]}
 \`\`\`
 
-2. **Show videos** — after user picks a page, call \`get_page_videos\`. Use VIDEO TITLE as the title:
+2. **Show videos** — based on source type:
+   - Facebook Page → call \`get_page_videos\` with page_id
+   - Instagram → call \`get_ig_media\` with ig_account_id (and page_id if available from the IG account's pageId field)
+   Use VIDEO TITLE (or caption) as the title:
 \`\`\`options
 {"title":"Select videos","options":[
   {"id":"all","title":"All Videos","description":"Any video on this page"},
@@ -1150,13 +1161,14 @@ Video sources: Facebook Page videos, Instagram videos, Campaign video ads, or di
 4. Auto-default retention=365 days. Confirm summary, then call \`create_custom_audience\`.
 
 **Key rules:**
-- ALWAYS call \`get_pages\` and \`get_page_videos\` to show real data — never ask users to provide IDs manually
+- ALWAYS call \`get_pages\` + \`get_connected_instagram_accounts\` to show real sources, then \`get_page_videos\` or \`get_ig_media\` for videos — never ask users to provide IDs manually
 - Use \`\`\`options blocks for EVERY choice — do NOT present choices as bullet-point text
 - If user provides video IDs directly, skip to step 3
 
 **You MUST build the full rule for engagement audiences:**
+For Facebook Page videos, use \`"type":"page"\`. For Instagram videos, use \`"type":"ig_business"\`.
 \`\`\`json
-{"inclusions":{"operator":"or","rules":[{"event_sources":[{"id":"PAGE_ID","type":"page"}],"retention_seconds":SECONDS,"filter":{"operator":"and","filters":[{"field":"event","operator":"eq","value":"video_watched"},{"field":"video.video_id","operator":"is_any","value":["VIDEO_ID_1","VIDEO_ID_2"]}]}}]}}
+{"inclusions":{"operator":"or","rules":[{"event_sources":[{"id":"PAGE_OR_IG_ID","type":"page or ig_business"}],"retention_seconds":SECONDS,"filter":{"operator":"and","filters":[{"field":"event","operator":"eq","value":"video_watched"},{"field":"video.video_id","operator":"is_any","value":["VIDEO_ID_1","VIDEO_ID_2"]}]}}]}}
 \`\`\`
 
 **Engagement event values:**
