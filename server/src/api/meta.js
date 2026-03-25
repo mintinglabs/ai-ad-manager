@@ -266,7 +266,7 @@ router.post('/trigger-permissions', async (req, res) => {
   if (igAccountId) {
     try {
       const { data } = await metaClient.metaApi.get(`/${igAccountId}/insights`, {
-        params: { access_token: req.token, metric: 'impressions,reach', period: 'day', since: Math.floor(Date.now()/1000) - 86400*2, until: Math.floor(Date.now()/1000) }
+        params: { access_token: req.token, metric: 'reach,follower_count', period: 'day', since: Math.floor(Date.now()/1000) - 86400*2, until: Math.floor(Date.now()/1000) }
       });
       results.instagram_manage_insights = { ok: true, metrics: data.data?.length ?? 0 };
     } catch (err) {
