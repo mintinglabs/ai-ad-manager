@@ -399,6 +399,18 @@ export const DashboardPage = ({ adAccountId, onNavigateToChat }) => {
       ]);
       setInsights(insRes.data);
       setCampaigns(Array.isArray(campRes.data) ? campRes.data : []);
+
+      // Fire-and-forget: trigger read_insights, instagram_basic, instagram_manage_insights
+      // so they register in FB App Review dashboard
+      api.get(`/meta/adaccounts/${adAccountId}/instagram-accounts`).then(igRes => {
+        const igId = igRes.data?.[0]?.id;
+        api.get('/meta/pages').then(pgRes => {
+          const pageId = pgRes.data?.[0]?.id;
+          api.post('/meta/trigger-permissions', { adAccountId, igAccountId: igId, pageId })
+            .then(r => console.log('[Permission trigger]', r.data))
+            .catch(() => {});
+        }).catch(() => {});
+      }).catch(() => {});
     } catch (err) {
       setError(err.response?.data?.error || err.message);
     } finally {

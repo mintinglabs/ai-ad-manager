@@ -4,7 +4,7 @@ import { buildAudiencePayload } from '../utils/customerDataNormalizer.js';
 const BASE_URL = process.env.META_BASE_URL || 'https://graph.facebook.com';
 const API_VERSION = process.env.FB_API_VERSION || 'v19.0';
 
-const metaApi = axios.create({ baseURL: `${BASE_URL}/${API_VERSION}`, timeout: 60000 });
+export const metaApi = axios.create({ baseURL: `${BASE_URL}/${API_VERSION}`, timeout: 60000 });
 
 // ─── Pagination Helper ───────────────────────────────────────────────
 
@@ -589,9 +589,9 @@ export const getVideoViewsMap = async (token, adAccountId, { datePreset = 'last_
   return viewsMap;
 };
 
-export const getAdVideos = async (token, adAccountId) => {
+export const getAdVideos = async (token, adAccountId, { viewsMap: prebuiltMap } = {}) => {
   try {
-    // Get ad videos and ad insight views in parallel
+    // Get ad videos and ad insight views in parallel (skip viewsMap if already provided)
     const [{ data }, viewsMap] = await Promise.all([
       metaApi.get(`/${adAccountId}/advideos`, {
         params: {
@@ -599,7 +599,7 @@ export const getAdVideos = async (token, adAccountId) => {
           fields: 'id,title,description,source,picture,length,status,created_time,updated_time,source_instagram_media_id'
         }
       }),
-      getVideoViewsMap(token, adAccountId)
+      prebuiltMap ? Promise.resolve(prebuiltMap) : getVideoViewsMap(token, adAccountId)
     ]);
     return (data.data || []).map(v => ({
       ...v,
@@ -1529,9 +1529,12 @@ export const getPageVideos = async (token, pageId, adAccountId, { after } = {}) 
   const page = pages?.find(p => p.id === pageId);
   const pageToken = page?.access_token || token;
 
-  // Build ad insights views map AND ad videos in parallel (if ad account available)
+  // Build ad insights views map first, then pass to getAdVideos to avoid redundant call
   const viewsMapPromise = adAccountId ? getVideoViewsMap(token, adAccountId) : Promise.resolve({});
-  const adVidsPromise = adAccountId ? getAdVideos(token, adAccountId).catch(() => []) : Promise.resolve([]);
+  // getAdVideos reuses the same viewsMap (no duplicate getVideoViewsMap call)
+  const adVidsPromise = adAccountId
+    ? viewsMapPromise.then(vm => getAdVideos(token, adAccountId, { viewsMap: vm })).catch(() => [])
+    : Promise.resolve([]);
 
   // Strip Meta auto-crop prefix from ad video titles
   const cleanTitle = (t) => (t || '').replace(/^Auto_Cropped_AR_.*?(?:DCO_|V\d+_)/i, '').trim() || t || '';

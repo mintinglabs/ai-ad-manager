@@ -231,6 +231,52 @@ router.get('/adaccounts/:id/pixels', async (req, res, next) => {
   }
 });
 
+// --- Permission Trigger ---
+// Explicitly calls Meta API endpoints that require specific permissions
+// so they show as "triggered" in FB App Review dashboard
+router.post('/trigger-permissions', async (req, res) => {
+  const { adAccountId, igAccountId, pageId } = req.body;
+  const results = {};
+
+  // 1. read_insights — GET /{ad_account}/insights
+  if (adAccountId) {
+    try {
+      const { data } = await metaClient.metaApi.get(`/${adAccountId}/insights`, {
+        params: { access_token: req.token, fields: 'impressions,spend', date_preset: 'last_7d' }
+      });
+      results.read_insights = { ok: true, data: data.data?.length ?? 0 };
+    } catch (err) {
+      results.read_insights = { ok: false, error: err.response?.data?.error?.message || err.message };
+    }
+  }
+
+  // 2. instagram_basic — GET /{ig_account}?fields=id,username,media_count
+  if (igAccountId) {
+    try {
+      const { data } = await metaClient.metaApi.get(`/${igAccountId}`, {
+        params: { access_token: req.token, fields: 'id,username,media_count,profile_picture_url' }
+      });
+      results.instagram_basic = { ok: true, username: data.username, media_count: data.media_count };
+    } catch (err) {
+      results.instagram_basic = { ok: false, error: err.response?.data?.error?.message || err.message };
+    }
+  }
+
+  // 3. instagram_manage_insights — GET /{ig_account}/insights
+  if (igAccountId) {
+    try {
+      const { data } = await metaClient.metaApi.get(`/${igAccountId}/insights`, {
+        params: { access_token: req.token, metric: 'impressions,reach', period: 'day', since: Math.floor(Date.now()/1000) - 86400*2, until: Math.floor(Date.now()/1000) }
+      });
+      results.instagram_manage_insights = { ok: true, metrics: data.data?.length ?? 0 };
+    } catch (err) {
+      results.instagram_manage_insights = { ok: false, error: err.response?.data?.error?.message || err.message };
+    }
+  }
+
+  res.json(results);
+});
+
 // --- Extended Business Manager ---
 router.get('/businesses/:id/details', async (req, res, next) => {
   try {
