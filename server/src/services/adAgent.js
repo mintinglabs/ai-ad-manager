@@ -1266,7 +1266,7 @@ const sessionService = new InMemorySessionService();
 
 const agent = new LlmAgent({
   name: 'ad_manager',
-  model: 'gemini-2.5-flash',
+  model: 'gemini-2.5-pro',
   instruction: buildInstruction(),
   tools: adTools,
 });
