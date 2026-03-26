@@ -2,7 +2,7 @@
 name: tracking-conversions
 description: Set up pixels, send server-side conversion events via CAPI, and create custom conversions
 layer: operational
-depends_on: [campaign-advisor]
+depends_on: [campaign-manager]
 safety:
   - Always use test_event_code first before sending production events
   - Verify events appear in Events Manager Test Events tab before going live

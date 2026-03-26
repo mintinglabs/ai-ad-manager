@@ -2,7 +2,7 @@
 name: lead-ads
 description: Create lead generation forms, retrieve and export lead submissions, and connect forms to ads
 layer: operational
-depends_on: [campaign-advisor]
+depends_on: [campaign-manager]
 safety:
   - Lead forms require a valid privacy_policy_url or creation will fail
   - Always preview form structure before creating

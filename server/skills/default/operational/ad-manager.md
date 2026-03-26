@@ -2,7 +2,7 @@
 name: ad-manager
 description: Create, update, delete, copy, and preview Facebook ads with read-first safety guardrails
 layer: operational
-depends_on: [campaign-advisor, audience-strategy]
+depends_on: [campaign-manager, targeting-audiences]
 safety:
   - Always show current ad state before proposing changes
   - Warn before activating ads without creative review or preview

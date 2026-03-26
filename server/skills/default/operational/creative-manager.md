@@ -2,7 +2,7 @@
 name: creative-manager
 description: Create and manage ad creatives, upload images and videos, preview placements, and generate ad copy
 layer: operational
-depends_on: [campaign-advisor]
+depends_on: [campaign-manager]
 safety:
   - Video must be status "ready" before using in a creative
   - Preview creative before linking to an active ad
@@ -423,6 +423,54 @@ CTA: SHOP_NOW
 ```
 
 ---
+
+### Creating a Lead Ad Creative
+
+To create a creative that opens a lead form instead of a landing page, use `lead_gen_form_id` in the CTA value:
+
+**object_story_spec for Lead Ad (image):**
+```json
+{
+  "page_id": "PAGE_ID",
+  "link_data": {
+    "image_hash": "IMAGE_HASH",
+    "link": "https://www.facebook.com",
+    "message": "Primary text",
+    "name": "Headline",
+    "call_to_action": {
+      "type": "SIGN_UP",
+      "value": { "lead_gen_form_id": "FORM_ID" }
+    }
+  }
+}
+```
+
+**object_story_spec for Lead Ad (carousel):**
+```json
+{
+  "page_id": "PAGE_ID",
+  "link_data": {
+    "link": "https://www.facebook.com",
+    "message": "Primary text",
+    "child_attachments": [
+      { "image_hash": "HASH1", "name": "Card 1 headline", "link": "https://www.facebook.com" },
+      { "image_hash": "HASH2", "name": "Card 2 headline", "link": "https://www.facebook.com" }
+    ],
+    "call_to_action": {
+      "type": "SIGN_UP",
+      "value": { "lead_gen_form_id": "FORM_ID" }
+    }
+  }
+}
+```
+
+**Key rules:**
+- The `link` field MUST be `https://www.facebook.com` (Meta requires this for lead ads -- the form opens as an overlay)
+- CTA type should be `SIGN_UP`, `LEARN_MORE`, or `SUBSCRIBE` for lead generation
+- Get the `lead_gen_form_id` from the `lead-ads` skill (create form first, then use its ID here)
+- Campaign objective MUST be `OUTCOME_LEADS`
+
+Also cross-reference: after creating the lead ad creative, recommend loading `tracking-conversions` to set up lead event tracking.
 
 ### Boost Existing Post Flow
 

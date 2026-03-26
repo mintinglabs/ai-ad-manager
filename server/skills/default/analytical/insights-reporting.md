@@ -179,6 +179,7 @@ After every analysis, identify which strategic skill the user should load next b
 
 **Strategic Handoff:**
 - Critical: ROAS < 1x -> recommend loading `campaign-manager` to pause or restructure immediately
+- Critical: If ROAS < 1x, also recommend loading `targeting-audiences` to check for audience overlap and targeting inefficiency before pausing campaigns.
 - Warning: frequency > 4 -> recommend loading `creative-manager` for urgent creative rotation
 - Warning: audience overlap detected -> recommend loading `targeting-audiences` to deduplicate audiences
 - Quick win: high ROAS but low budget -> recommend loading `campaign-manager` to scale budget
@@ -296,6 +297,7 @@ After every analysis, identify which strategic skill the user should load next b
 | High ROAS, low budget | Opportunity | `campaign-manager` -- scale budget |
 | Budget unevenly distributed | Warning | `campaign-manager` -- rebalance |
 | No automation rules | Info | `automation-rules` -- set up guardrails |
+| ROAS < 1x with audience issues | Critical | `targeting-audiences` -- review audience overlap and refine targeting before pausing |
 | Placement CPA variance > 50% | Warning | `adset-manager` -- placement optimization |
 
 ---

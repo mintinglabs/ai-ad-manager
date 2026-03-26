@@ -2,7 +2,7 @@
 name: product-catalogs
 description: Manage product catalogs, feeds, product sets, and batch operations for dynamic product ads
 layer: operational
-depends_on: [campaign-advisor]
+depends_on: [campaign-manager]
 safety:
   - Validate feed URL before scheduling automatic ingestion
   - Max 5000 products per batch operation

@@ -2,7 +2,7 @@
 name: adset-manager
 description: Create, update, delete, and copy ad sets with targeting, budgets, bidding, and scheduling
 layer: operational
-depends_on: [campaign-advisor, audience-strategy]
+depends_on: [campaign-manager, targeting-audiences]
 safety:
   - Budget increases max 20% per operation
   - Warn if daily budget is below $5 (500 cents)
