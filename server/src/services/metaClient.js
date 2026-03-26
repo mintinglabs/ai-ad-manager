@@ -1779,40 +1779,7 @@ export const getIgMedia = async (token, igAccountId, { pageId, adAccountId, afte
         };
       });
 
-      // Merge page-only videos (not crossposted) that have ad views
-      if (resolvedPageId) {
-        try {
-          const pages = await getPages(token);
-          const linkedPage = pages?.find(p => p.id === resolvedPageId);
-          const pt = linkedPage?.access_token || token;
-          const { data: pvData } = await metaApi.get(`/${resolvedPageId}/videos`, {
-            params: { access_token: pt, fields: 'id,title,description,source,picture,length,created_time,updated_time,views,source_instagram_media_id', limit: 50 }
-          });
-          const igTimestamps = new Set(videos.map(v => v.timestamp?.slice(0, 16)));
-          const extra = (pvData.data || [])
-            .filter(pv => !igTimestamps.has(pv.created_time?.slice(0, 16)))
-            .map(pv => {
-              let adViews = viewsMap[pv.id] || 0;
-              if (!adViews && pv.length) {
-                const lenKey = Math.round((pv.length || 0) * 10);
-                adViews = adByLength[lenKey]?.views || 0;
-              }
-              return {
-                ...pv,
-                three_second_views: adViews || pv.views || 0,
-                is_ig: false,
-                sources: ['page']
-              };
-            });
-          if (extra.length) {
-            const merged = [...normalized, ...extra];
-            merged.sort((a, b) => (b.three_second_views || 0) - (a.three_second_views || 0));
-            console.log(`[getIgMedia] Merged: ${normalized.length} IG + ${extra.length} page-only videos`);
-            return { videos: merged, nextCursor: data.paging?.next ? nextCursor : null };
-          }
-        } catch { /* skip */ }
-      }
-
+      // Only return actual IG videos — page-only videos belong in the FB Page source
       normalized.sort((a, b) => (b.three_second_views || 0) - (a.three_second_views || 0));
       return { videos: normalized, nextCursor: data.paging?.next ? nextCursor : null };
     } catch (err) {
@@ -1833,14 +1800,17 @@ export const getIgMedia = async (token, igAccountId, { pageId, adAccountId, afte
       };
       if (after) params.after = after;
       const { data } = await metaApi.get(`/${resolvedPageId}/videos`, { params });
-      const videos = (data.data || []).map(v => ({
-        ...v,
-        three_second_views: viewsMap[v.id] || v.views || 0,
-        is_ig: !!v.source_instagram_media_id,
-        sources: v.source_instagram_media_id ? ['page', 'ig'] : ['page']
-      }));
+      // Only return IG-crossposted videos — FB-only videos belong in the Page source
+      const videos = (data.data || [])
+        .filter(v => !!v.source_instagram_media_id)
+        .map(v => ({
+          ...v,
+          three_second_views: viewsMap[v.id] || v.views || 0,
+          is_ig: true,
+          sources: ['ig', 'page']
+        }));
       videos.sort((a, b) => (b.three_second_views || 0) - (a.three_second_views || 0));
-      console.log(`[getIgMedia] Page fallback: ${videos.length} videos from page ${resolvedPageId}`);
+      console.log(`[getIgMedia] Page fallback: ${videos.length} IG-crossposted videos from page ${resolvedPageId}`);
       return { videos, nextCursor: data.paging?.next ? nextCursor : null };
     } catch (err2) {
       console.log(`[getIgMedia] Page fallback failed: ${err2.response?.data?.error?.message || err2.message}`);
