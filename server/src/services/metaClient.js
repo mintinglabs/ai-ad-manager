@@ -1635,23 +1635,21 @@ export const getPageVideos = async (token, pageId, adAccountId, { after } = {}) 
 };
 
 export const getIgMedia = async (token, igAccountId, { pageId, adAccountId, after } = {}) => {
+  // Fetch pages once — reuse throughout this function
+  let allPages = [];
+  try { allPages = await getPages(token) || []; } catch { /* skip */ }
+
   // Use page token if available — page tokens carry instagram_basic scope
   let igToken = token;
   let resolvedPageId = pageId;
   if (pageId) {
-    try {
-      const pages = await getPages(token);
-      const page = pages?.find(p => p.id === pageId);
-      if (page?.access_token) igToken = page.access_token;
-    } catch { /* use user token */ }
+    const page = allPages.find(p => p.id === pageId);
+    if (page?.access_token) igToken = page.access_token;
   }
   // If no pageId provided, find the page linked to this IG account
   if (!resolvedPageId) {
-    try {
-      const pages = await getPages(token);
-      const linked = pages?.find(p => p.instagram_business_account?.id === igAccountId);
-      if (linked) { resolvedPageId = linked.id; igToken = linked.access_token || token; }
-    } catch { /* skip */ }
+    const linked = allPages.find(p => p.instagram_business_account?.id === igAccountId);
+    if (linked) { resolvedPageId = linked.id; igToken = linked.access_token || token; }
   }
 
   // Auto-resolve the correct ad account for this page's business
@@ -1662,10 +1660,9 @@ export const getIgMedia = async (token, igAccountId, { pageId, adAccountId, afte
     ? getVideoViewsMap(token, resolvedAdAccount, { datePreset: 'maximum' })
     : Promise.resolve({});
 
-  // Trigger read_insights by calling GET /{page_id}/insights (requires page token + read_insights permission)
+  // Trigger read_insights — GET /{page_id}/insights (requires page token + read_insights permission)
   if (resolvedPageId) {
-    const pages = await getPages(token).catch(() => []);
-    const pg = pages?.find(p => p.id === resolvedPageId);
+    const pg = allPages.find(p => p.id === resolvedPageId);
     const pt = pg?.access_token || token;
     metaApi.get(`/${resolvedPageId}/insights`, {
       params: { access_token: pt, metric: 'page_views_total', period: 'day', date_preset: 'last_7d' }
@@ -1733,8 +1730,7 @@ export const getIgMedia = async (token, igAccountId, { pageId, adAccountId, afte
       let pageVideoViews = {}; // crosspost matching by timestamp
       if (resolvedPageId) {
         try {
-          const pages = await getPages(token);
-          const linkedPage = pages?.find(p => p.id === resolvedPageId);
+          const linkedPage = allPages.find(p => p.id === resolvedPageId);
           const pt = linkedPage?.access_token || token;
           const { data: pvData } = await metaApi.get(`/${resolvedPageId}/videos`, {
             params: { access_token: pt, fields: 'id,title,description,source,picture,length,created_time,updated_time,views,source_instagram_media_id', limit: 50 }
@@ -1765,12 +1761,13 @@ export const getIgMedia = async (token, igAccountId, { pageId, adAccountId, afte
         const crosspost = v.timestamp ? pageVideoViews[v.timestamp.slice(0, 16)] : null;
         const adViews = crosspost?.views || 0;
         const nativeViews = igViews[v.id] || 0;
+        console.log(`[getIgMedia] Video ${v.id}: nativeViews=${nativeViews}, adViews=${adViews}, crosspost=${!!crosspost}`);
         return {
           ...v,
           title: v.caption?.slice(0, 80) || 'Untitled',
           picture: v.thumbnail_url,
           created_time: v.timestamp,
-          updated_time: v.timestamp,
+          updated_time: crosspost?.updated_time || v.timestamp,
           length: crosspost?.length,
           three_second_views: Math.max(adViews, nativeViews),
           source_instagram_media_id: v.id,
@@ -1778,6 +1775,7 @@ export const getIgMedia = async (token, igAccountId, { pageId, adAccountId, afte
           sources: crosspost ? ['ig', 'page'] : ['ig']
         };
       });
+      console.log(`[getIgMedia] Returning ${normalized.length} IG videos, sources:`, normalized.map(v => ({ id: v.id, views: v.three_second_views, sources: v.sources })));
 
       // Only return actual IG videos — page-only videos belong in the FB Page source
       normalized.sort((a, b) => (b.three_second_views || 0) - (a.three_second_views || 0));

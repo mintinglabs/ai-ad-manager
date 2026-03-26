@@ -509,6 +509,7 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
   // Normalize video data from different sources into a consistent format
   const normalizeVideos = (raw, source) => {
     if (source === 'ig_account') {
+      console.log('[normalizeVideos] IG raw data sample:', raw.slice(0, 3).map(m => ({ id: m.id, three_second_views: m.three_second_views, sources: m.sources, is_ig: m.is_ig })));
       return raw.map(m => ({
         ...m,
         title: m.title || (m.description ? m.description.slice(0, 80) : (m.caption ? m.caption.slice(0, 80) : 'Untitled')),
@@ -1208,7 +1209,7 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
                                 <svg width="14" height="14" viewBox="0 0 24 24" className="text-blue-500"><circle cx="12" cy="12" r="11" fill="currentColor"/><path d="M13.5 8H15V6h-2.5C11.12 6 10 7.12 10 8.5V10H8.5v2H10v6h2v-6h2l.5-2H12V8.5c0-.28.22-.5.5-.5h1z" fill="white"/></svg>
                               )}
                               {(v.sources?.includes('ig') || (!v.sources && v.is_ig)) && (
-                                <svg width="14" height="14" viewBox="0 0 24 24" className="text-pink-500"><defs><linearGradient id="ig" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stopColor="#feda75"/><stop offset="25%" stopColor="#fa7e1e"/><stop offset="50%" stopColor="#d62976"/><stop offset="75%" stopColor="#962fbf"/><stop offset="100%" stopColor="#4f5bd5"/></linearGradient></defs><rect x="1" y="1" width="22" height="22" rx="6" fill="url(#ig)"/><rect x="3.5" y="3.5" width="17" height="17" rx="4.5" fill="none" stroke="white" strokeWidth="1.5"/><circle cx="12" cy="12" r="3.5" fill="none" stroke="white" strokeWidth="1.5"/><circle cx="17" cy="7" r="1.2" fill="white"/></svg>
+                                <svg width="14" height="14" viewBox="0 0 24 24" className="text-pink-500"><defs><linearGradient id={`ig-${v.id}`} x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stopColor="#feda75"/><stop offset="25%" stopColor="#fa7e1e"/><stop offset="50%" stopColor="#d62976"/><stop offset="75%" stopColor="#962fbf"/><stop offset="100%" stopColor="#4f5bd5"/></linearGradient></defs><rect x="1" y="1" width="22" height="22" rx="6" fill={`url(#ig-${v.id})`}/><rect x="3.5" y="3.5" width="17" height="17" rx="4.5" fill="none" stroke="white" strokeWidth="1.5"/><circle cx="12" cy="12" r="3.5" fill="none" stroke="white" strokeWidth="1.5"/><circle cx="17" cy="7" r="1.2" fill="white"/></svg>
                               )}
                             </div>
                           </div>
