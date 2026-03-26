@@ -375,6 +375,7 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
   const [videoIdInput, setVideoIdInput] = useState('');
   const [videos, setVideos] = useState([]);
   const [videosLoading, setVideosLoading] = useState(false);
+  const [videosError, setVideosError] = useState(null); // error message for video fetch failures
   const [selectedVideoIds, setSelectedVideoIds] = useState([]);
   const [videoSearchQuery, setVideoSearchQuery] = useState('');
   const [engagementType, setEngagementType] = useState('');
@@ -545,30 +546,41 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
   };
 
   // Fetch videos when video source changes — use correct endpoint per source
-  useEffect(() => {
+  const videoFetchRef = useRef(0); // prevent stale responses from overwriting newer data
+  const fetchVideos = () => {
     if (tab !== 'video' || !adAccountId) return;
-    if (videoSource === 'video_id') { setVideos([]); return; }
-    if (videoSource === 'campaign') { setVideos([]); setVideosLoading(false); return; }
+    if (videoSource === 'video_id') { setVideos([]); setVideosError(null); return; }
+    if (videoSource === 'campaign') { setVideos([]); setVideosLoading(false); setVideosError(null); return; }
+    if (videoSource === 'fb_page' && !videoSourcePage) { setVideos([]); setVideosLoading(false); setVideosError(null); return; }
+    if (videoSource === 'ig_account' && !videoSourceIg) { setVideos([]); setVideosLoading(false); setVideosError(null); return; }
 
-    // FB Page / IG account: need a selection first
-    if (videoSource === 'fb_page' && !videoSourcePage) { setVideos([]); setVideosLoading(false); return; }
-    if (videoSource === 'ig_account' && !videoSourceIg) { setVideos([]); setVideosLoading(false); return; }
+    const fetchId = ++videoFetchRef.current;
     setVideosLoading(true);
     setVideos([]);
+    setVideosError(null);
     setSelectedVideoIds([]);
     setVideoPage(0);
     setVideoNextCursor(null);
 
     api.get(getVideoEndpoint()).then(r => {
+      if (fetchId !== videoFetchRef.current) return; // stale response — discard
       const res = r.data || {};
-      // Handle both new { videos, nextCursor } format and legacy array format
       const raw = Array.isArray(res) ? res : (res.videos || []);
       const cursor = Array.isArray(res) ? null : (res.nextCursor || null);
       setVideos(normalizeVideos(raw, videoSource));
       setVideoNextCursor(cursor);
       setVideosLoading(false);
-    }).catch(err => { console.error('Video fetch error:', err); setVideosLoading(false); });
-  }, [tab, videoSource, videoSourcePage, videoSourceIg, adAccountId, pages.length, igAccounts.length]);
+    }).catch(err => {
+      if (fetchId !== videoFetchRef.current) return;
+      console.error('Video fetch error:', err);
+      const msg = err.code === 'ECONNABORTED' || err.message?.includes('timeout')
+        ? 'Request timed out — the server is still fetching data from Meta. Please try again.'
+        : err.response?.data?.error || err.message || 'Failed to load videos';
+      setVideosError(msg);
+      setVideosLoading(false);
+    });
+  };
+  useEffect(fetchVideos, [tab, videoSource, videoSourcePage, videoSourceIg, adAccountId, pages.length, igAccounts.length]);
 
   // Load more videos when user paginates past current data — advance page AFTER data arrives
   const loadMoreVideos = () => {
@@ -1096,6 +1108,14 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
                       <RefreshCw size={16} className="animate-spin text-blue-400" />
                       <span>Loading videos & fetching view metrics...</span>
                       <span className="text-[10px] text-slate-300">This may take a moment for accounts with many videos</span>
+                    </div>
+                  ) : videosError ? (
+                    <div className="flex flex-col items-center gap-2 py-6 text-center">
+                      <p className="text-xs text-red-500">{typeof videosError === 'string' ? videosError : 'Failed to load videos'}</p>
+                      <button onClick={fetchVideos}
+                        className="px-3 py-1.5 rounded-md text-[11px] font-medium border border-blue-200 text-blue-600 hover:bg-blue-50 flex items-center gap-1.5">
+                        <RefreshCw size={12} /> Retry
+                      </button>
                     </div>
                   ) : videos.length === 0 ? (
                     <p className="text-xs text-slate-400 italic py-4 text-center">No videos found</p>
