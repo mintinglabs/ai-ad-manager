@@ -1,6 +1,9 @@
 ---
 name: campaign-manager
-description: Manage Facebook ad campaigns — create, update, pause, delete, copy campaigns and view campaign hierarchy (ad sets and ads within campaigns). Use this skill whenever the user wants to create a new campaign, change campaign status, adjust budgets, delete campaigns, duplicate campaigns, or view what's inside a campaign. Also triggers for questions about campaign objectives, bid strategies, or campaign structure.
+description: Plan and configure Facebook ad campaigns — guided 11-step creation flow with interactive options at every decision point
+layer: strategic
+depends_on: [insights-reporting]
+leads_to: [ad-manager, creative-manager]
 ---
 
 # Campaign Manager
@@ -88,56 +91,7 @@ GET /api/campaigns/:id/ads
 
 Returns all ads belonging to the campaign (across all ad sets).
 
-## Campaign Objectives
-
-| Objective | Use case |
-|---|---|
-| `OUTCOME_AWARENESS` | Brand awareness, reach |
-| `OUTCOME_ENGAGEMENT` | Post engagement, page likes, event responses |
-| `OUTCOME_LEADS` | Lead generation forms |
-| `OUTCOME_SALES` | Conversions, catalog sales |
-| `OUTCOME_TRAFFIC` | Drive traffic to a website or app |
-| `OUTCOME_APP_PROMOTION` | App installs, app engagement |
-
-## Bid Strategies
-
-| Strategy | Behavior |
-|---|---|
-| `LOWEST_COST_WITHOUT_CAP` | Spend full budget for maximum results. No bid limit. Default strategy. |
-| `LOWEST_COST_WITH_BID_CAP` | Get most results while keeping bid under a specified cap |
-| `COST_CAP` | Get most results while keeping average cost per result under a target |
-| `LOWEST_COST_WITH_MIN_ROAS` | Optimize for minimum return on ad spend |
-
-## Campaign Statuses
-
-| Status | Meaning |
-|---|---|
-| `ACTIVE` | Campaign is running |
-| `PAUSED` | Campaign is paused; can be resumed by setting status to `ACTIVE` |
-| `DELETED` | Soft-deleted; hidden from default views but retrievable |
-| `ARCHIVED` | Archived; read-only, preserved for reporting |
-
-## Budget Types
-
-- **daily_budget** — Maximum spend per day, in cents. Facebook distributes spend across the day.
-- **lifetime_budget** — Total spend over the campaign's lifetime, in cents. Requires `stop_time`. Facebook paces spend across the date range.
-- **spend_cap** — Hard cap on total campaign spend, in cents. Works alongside daily or lifetime budget as an additional safeguard.
-
-Daily and lifetime budgets are mutually exclusive. A campaign must have exactly one of them.
-
-## Campaign Hierarchy
-
-Campaigns contain ad sets, which contain ads:
-
-```
-Campaign
- └── Ad Set (targeting, budget, schedule)
-      └── Ad (creative, copy, CTA)
-```
-
-To inspect a campaign's full structure, call the adsets endpoint, then for each ad set call the ads endpoint.
-
-## Campaign Creation Workflow
+## Strategy Workflow
 
 Full 11-step guided flow for creating a campaign from scratch. NEVER call a create tool until you have ALL required information. Do NOT attempt to create and fix errors one by one. Walk through each step using option cards. Keep each step to ONE options/metrics block + max 1 sentence of context. No paragraphs between steps.
 
@@ -158,7 +112,14 @@ Show immediately with no preamble:
 
 ### Step 2 — Page
 
-Call `get_pages` and present as ```options (use page NAME as title, not ID).
+Call `get_pages` and present as options (use page NAME as title, NEVER raw IDs):
+
+```options
+{"title":"Which Page will run this campaign?","options":[
+  {"id":"PAGE_ID_1","title":"Your Business Page Name","description":"Facebook Page"},
+  {"id":"PAGE_ID_2","title":"Your Other Page Name","description":"Facebook Page"}
+]}
+```
 
 ### Step 3 — Ad Format
 
@@ -220,7 +181,7 @@ Generate 3 ad copy variations using ```copyvariations block. Match tone to the c
 
 Each variation must include: primary text (under 125 chars), headline (under 40 chars), and CTA.
 
-Then show CTA selection:
+Then present CTA selection:
 
 ```options
 {"title":"Choose your call-to-action","options":[
@@ -239,11 +200,21 @@ Ask for the landing page URL.
 
 ### Step 6 — Audience & Targeting
 
-Ask for target country, age range, and gender. Then offer interest targeting: "Want to narrow by interests/behaviors? Tell me your niche and I'll search for relevant targeting options."
+Present targeting approach:
 
-If user wants interests: call `targeting_search` with their keywords, present top results as a checklist. If user wants broad: use broad targeting with targeting_optimization="none".
+```options
+{"title":"How do you want to target?","options":[
+  {"id":"BROAD","title":"Broad Targeting","description":"Let Meta find the best audience — recommended for most campaigns"},
+  {"id":"INTEREST","title":"Interest-Based","description":"Target by specific interests, behaviors, and demographics"},
+  {"id":"CUSTOM","title":"Custom Audience","description":"Retarget website visitors, video viewers, or customer lists"},
+  {"id":"LOOKALIKE","title":"Lookalike Audience","description":"Reach new people similar to your best customers"},
+  {"id":"SAVED","title":"Saved Audience","description":"Use a previously saved targeting preset"}
+]}
+```
 
-After targeting is set, call `get_reach_estimate` and show as ```metrics:
+If Interest-Based: ask for target country, age range, and gender. Call `targeting_search` with their keywords and present results as options.
+
+After targeting is set, call `get_reach_estimate` and show:
 
 ```metrics
 {"metrics":[
@@ -269,7 +240,15 @@ If user selects any Instagram placement, call `get_connected_instagram_accounts`
 
 ### Step 8 — Budget & Schedule
 
-Show budget options based on objective:
+Present budget options based on objective. Recommended starting budgets by objective:
+
+| Objective | Recommended Starting Budget | Why |
+|---|---|---|
+| Sales / Leads | $20-30/day | Needs enough data for conversion optimization |
+| Traffic | $10-20/day | Lower cost per result, less data needed |
+| Awareness | $10-15/day | Optimizes for reach, efficient at lower budgets |
+| Engagement | $10-15/day | Low cost per engagement |
+| App Promotion | $20-30/day | Needs data for install optimization |
 
 ```options
 {"title":"Daily budget","options":[
@@ -280,7 +259,7 @@ Show budget options based on objective:
 ]}
 ```
 
-Then ask about schedule:
+Then schedule:
 
 ```options
 {"title":"Campaign schedule","options":[
@@ -293,13 +272,30 @@ If scheduled, ask for start date and end date. Call `get_minimum_budgets` to val
 
 ### Step 9 — Pixel & Tracking
 
-For SALES, LEADS, or TRAFFIC objectives: call `get_pixels` and show available pixels as ```options. If no pixel exists, warn: "No tracking pixel found. Without a pixel, Meta can't optimize for conversions. Want me to create one?"
+For SALES, LEADS, or TRAFFIC objectives: call `get_pixels` and present available pixels:
 
-Offer UTM parameters: "Want to add UTM tracking? I can set up utm_source=facebook&utm_medium=cpc&utm_campaign=[campaign_name] automatically."
+```options
+{"title":"Select your tracking pixel","options":[
+  {"id":"PIXEL_ID_1","title":"Your Pixel Name","description":"Website pixel — tracks conversions"},
+  {"id":"NONE","title":"Skip Pixel","description":"Not recommended — Meta can't optimize for conversions"}
+]}
+```
+
+If no pixel exists, warn: "No tracking pixel found. Without a pixel, Meta can't optimize for conversions. Want me to create one?"
+
+Offer UTM parameters:
+
+```options
+{"title":"Add UTM tracking?","options":[
+  {"id":"AUTO","title":"Auto-generate UTMs","description":"utm_source=facebook&utm_medium=cpc&utm_campaign=[name]"},
+  {"id":"CUSTOM","title":"Custom UTMs","description":"Set your own UTM parameters"},
+  {"id":"NONE","title":"Skip UTMs","description":"No URL tracking parameters"}
+]}
+```
 
 ### Step 10 — Review & Confirm
 
-Show ALL settings as a ```steps block:
+Show ALL settings as a summary:
 
 ```steps
 {"title":"Campaign Review — Ready to Launch","steps":[
@@ -344,7 +340,20 @@ If any FAIL items, do NOT activate — help the user fix them first. If all pass
 
 Then ask: **"Pre-flight check passed. Ready to go live?"**
 
-After activation, show ```quickreplies: ["Check campaign status", "Create A/B test", "Save as template", "Create another campaign"]
+After activation:
+
+```quickreplies
+["Check campaign status", "Create A/B test", "Save as template", "Create another campaign"]
+```
+
+## Operational Handoff
+
+After the campaign plan is finalized (Step 10 approved), execution proceeds through operational skills:
+
+- **`ad-manager`** — handles the actual API calls to create campaign, ad set, and ad entities (Step 11 execution)
+- **`creative-manager`** — handles creative upload, ad creative creation, and preview generation (Steps 4-5 execution)
+
+When the user confirms the plan, proceed directly to Step 11 execution. If the user wants to modify creatives after launch, load `creative-manager`. If the user wants to adjust ad sets, budgets, or statuses post-launch, load `ad-manager`.
 
 ### Required Fields
 
@@ -366,3 +375,54 @@ If the user provides ALL campaign details in one message, skip directly to Step 
 - Targeting: Broad, ages 18-65
 - Placements: Advantage+ (automatic)
 - Bid strategy: LOWEST_COST_WITHOUT_CAP
+
+## Quick Reference
+
+### Campaign Objectives
+
+| Objective | API Value | Use Case | Recommended Budget |
+|---|---|---|---|
+| Sales | `OUTCOME_SALES` | Purchases, catalog sales | $20-30/day |
+| Leads | `OUTCOME_LEADS` | Lead forms, Messenger | $20-30/day |
+| Traffic | `OUTCOME_TRAFFIC` | Website or app visits | $10-20/day |
+| Awareness | `OUTCOME_AWARENESS` | Brand awareness, reach | $10-15/day |
+| Engagement | `OUTCOME_ENGAGEMENT` | Post engagement, page likes | $10-15/day |
+| App Promotion | `OUTCOME_APP_PROMOTION` | App installs | $20-30/day |
+
+### Bid Strategies
+
+| Strategy | API Value | Behavior |
+|---|---|---|
+| Lowest Cost | `LOWEST_COST_WITHOUT_CAP` | Spend full budget for max results. Default. |
+| Bid Cap | `LOWEST_COST_WITH_BID_CAP` | Keep bid under a specified cap |
+| Cost Cap | `COST_CAP` | Keep average cost per result under a target |
+| Min ROAS | `LOWEST_COST_WITH_MIN_ROAS` | Optimize for minimum return on ad spend |
+
+### Campaign Statuses
+
+| Status | Meaning |
+|---|---|
+| `ACTIVE` | Campaign is running |
+| `PAUSED` | Campaign is paused; can be resumed |
+| `DELETED` | Soft-deleted; hidden but retrievable |
+| `ARCHIVED` | Read-only, preserved for reporting |
+
+### Budget Types
+
+| Type | Notes |
+|---|---|
+| `daily_budget` | Max spend per day, in cents. Distributed across the day. |
+| `lifetime_budget` | Total spend over lifetime, in cents. Requires `stop_time`. |
+| `spend_cap` | Hard cap on total campaign spend, in cents. Additional safeguard. |
+
+Daily and lifetime budgets are mutually exclusive. A campaign must have exactly one of them.
+
+### Campaign Hierarchy
+
+```
+Campaign
+ └── Ad Set (targeting, budget, schedule)
+      └── Ad (creative, copy, CTA)
+```
+
+To inspect a campaign's full structure, call the adsets endpoint, then for each ad set call the ads endpoint.

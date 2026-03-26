@@ -1,35 +1,47 @@
 ---
 name: ad-manager
-description: Manage individual Facebook ads — create, update, delete, copy ads, preview how they look, and retrieve leads. Use this skill whenever the user wants to create a new ad, change ad status, link ads to creatives, preview ad appearance on different placements, get lead form submissions, or copy existing ads. Triggers for ad creation, ad preview, lead retrieval, and ad-level operations.
+description: Create, update, delete, copy, and preview Facebook ads with read-first safety guardrails
+layer: operational
+depends_on: [campaign-advisor, audience-strategy]
+safety:
+  - Always show current ad state before proposing changes
+  - Warn before activating ads without creative review or preview
+  - Deletions require explicit "delete" confirmation; suggest PAUSED or ARCHIVED first
+  - Status changes display current vs proposed state
+  - Bulk operations max 10 ads per batch with per-batch confirmation
 ---
 
 # Ad Manager
 
 ## API Endpoints
 
-### List ads
+### Read
 
 ```
 GET /api/ads?adAccountId=act_XXX
 ```
-
 Returns all ads for the ad account, including performance insights.
-
-### Get a single ad
 
 ```
 GET /api/ads/:id
 ```
-
 Returns full details for a specific ad, including its creative, status, and tracking configuration.
 
-### Create an ad
+```
+GET /api/ads/:id/leads
+```
+Returns lead form submissions collected by this ad.
+
+```
+GET /api/ads/:id/previews?ad_format=DESKTOP_FEED_STANDARD
+```
+Returns an HTML preview of the ad for the specified placement.
+
+### Create
 
 ```
 POST /api/ads
 ```
-
-Body:
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -37,27 +49,25 @@ Body:
 | name | string | yes | Ad name |
 | adset_id | string | yes | The ad set this ad belongs to |
 | creative | object | yes | Must contain `creative_id` referencing an existing creative |
-| status | string | no | See statuses below. Default: `PAUSED` |
+| status | string | no | Default: `PAUSED` |
 | tracking_specs | array | no | Conversion tracking configuration |
-| conversion_domain | string | no | Domain for conversion events (e.g., `example.com`) |
+| conversion_domain | string | no | Domain for conversion events |
 
-Example creative field:
-
-```json
-{
-  "creative": {
-    "creative_id": "123456789"
-  }
-}
+```
+POST /api/ads/:id/copies
 ```
 
-### Update an ad
+| Field | Type | Notes |
+|---|---|---|
+| deep_copy | boolean | `true` duplicates ad with its creative. Default: `false` |
+| rename_strategy | string | How to name the copy |
+| status_option | string | Status for the new ad (e.g., `PAUSED`) |
+
+### Update
 
 ```
 PATCH /api/ads/:id
 ```
-
-Body (all fields optional):
 
 | Field | Type | Notes |
 |---|---|---|
@@ -67,132 +77,189 @@ Body (all fields optional):
 | tracking_specs | array | Update conversion tracking |
 | conversion_domain | string | Update conversion domain |
 
-Use this to pause, resume, rename, or swap the creative on an existing ad.
+### Delete
 
-### Delete an ad
+```
+DELETE /api/ads/:id
+```
+Permanently deletes the ad.
+
+## Execution Workflow
+
+Every write operation MUST follow this four-step pattern.
+
+### Creating an Ad
+
+**Step 1 READ** -- Fetch the target ad set and its existing ads to confirm context.
+
+```
+GET /api/adsets/:id
+GET /api/adsets/:id/ads
+```
+
+Show current state:
+
+```metrics
+Ad Set: "Summer Promo - US 25-45"
+Status: ACTIVE
+Existing Ads: 3
+Creative to attach: "Summer Banner v2" (creative_id: 120200...)
+```
+
+**Step 2 CONFIRM** -- Show what will be created.
+
+```steps
+Action: CREATE new ad
+Ad Set: "Summer Promo - US 25-45"
+Name: "Summer Banner v2 - Ad A"
+Creative: 120200... ("Summer Banner v2")
+Status: PAUSED (will not deliver until activated)
+Tracking: pixel_id 123456, domain example.com
+```
+
+Ask: **"Should I proceed?"**
+
+**Step 3 EXECUTE** -- Only after user confirms.
+
+```
+POST /api/ads
+```
+
+**Step 4 VERIFY** -- Confirm the ad was created.
+
+```
+GET /api/ads/:new_id
+```
+
+```metrics
+Ad Created Successfully
+ID: 120200...
+Name: "Summer Banner v2 - Ad A"
+Status: PAUSED
+Creative: 120200...
+```
+
+```quickreplies
+["Preview this ad", "Activate this ad", "Create another ad", "View all ads in this ad set"]
+```
+
+### Updating an Ad (Status, Creative, Name)
+
+**Step 1 READ** -- Fetch current ad state.
+
+```
+GET /api/ads/:id
+```
+
+```metrics
+Ad: "Summer Banner v2 - Ad A"
+ID: 120200...
+Current Status: PAUSED
+Current Creative: 120200... ("Summer Banner v2")
+```
+
+**Step 2 CONFIRM** -- Show before/after.
+
+```steps
+Action: UPDATE ad 120200...
+Change: status PAUSED → ACTIVE
+```
+
+If activating, check: Has the creative been previewed? If not, warn:
+"This ad has not been previewed yet. I recommend previewing before activating."
+
+Ask: **"Should I proceed?"**
+
+**Step 3 EXECUTE** -- Only after user confirms.
+
+```
+PATCH /api/ads/:id
+```
+
+**Step 4 VERIFY** -- Confirm the change.
+
+```
+GET /api/ads/:id
+```
+
+```metrics
+Ad Updated
+Name: "Summer Banner v2 - Ad A"
+Status: ACTIVE ✓
+```
+
+```quickreplies
+["Preview this ad", "Pause this ad", "View ad performance", "Edit creative"]
+```
+
+### Deleting an Ad
+
+**Step 1 READ** -- Fetch current ad state.
+
+```
+GET /api/ads/:id
+```
+
+```metrics
+Ad: "Summer Banner v2 - Ad A"
+Status: ACTIVE
+Spend to date: $142.50
+Impressions: 12,340
+```
+
+**Step 2 CONFIRM** -- Suggest alternatives first.
+
+```steps
+⚠ DESTRUCTIVE ACTION
+You are about to permanently delete ad 120200...
+Current status: ACTIVE (still delivering!)
+
+Alternative options:
+- PAUSED: stops delivery, can reactivate later
+- ARCHIVED: read-only, preserved for reporting
+- DELETE: permanent, cannot be undone
+```
+
+Ask: **"Type 'delete' to confirm permanent deletion, or choose PAUSED/ARCHIVED instead."**
+
+**Step 3 EXECUTE** -- Only after user explicitly types "delete".
 
 ```
 DELETE /api/ads/:id
 ```
 
-Permanently deletes the ad. To soft-delete, use PATCH to set status to `DELETED` or `ARCHIVED` instead.
+**Step 4 VERIFY** -- Confirm deletion.
 
-### Copy an ad
-
-```
-POST /api/ads/:id/copies
+```metrics
+Ad 120200... permanently deleted.
 ```
 
-Body:
-
-| Field | Type | Notes |
-|---|---|---|
-| deep_copy | boolean | `true` duplicates the ad with its creative. `false` copies only the ad shell. Default: `false` |
-| rename_strategy | string | How to name the copy (e.g., append " - Copy") |
-| status_option | string | Status for the new ad (e.g., `PAUSED`) |
-
-### Get leads for an ad
-
-```
-GET /api/ads/:id/leads
+```quickreplies
+["View remaining ads", "Create a new ad", "View ad set"]
 ```
 
-Returns lead form submissions collected by this ad. Only applicable to ads running with a lead generation objective and an attached lead form.
+### Ad Preview Before Going Live
 
-### Preview an ad
-
-```
-GET /api/ads/:id/previews?ad_format=DESKTOP_FEED_STANDARD
-```
-
-Returns an HTML preview of the ad as it would appear on the specified placement. Pass the desired format as a query parameter.
-
-## Ad Statuses
-
-| Status | Meaning |
-|---|---|
-| `ACTIVE` | Ad is running (delivery depends on parent campaign and ad set status) |
-| `PAUSED` | Ad is paused; can be resumed by setting status to `ACTIVE` |
-| `DELETED` | Soft-deleted; hidden from default views but retrievable |
-| `ARCHIVED` | Archived; read-only, preserved for reporting |
-
-An ad only delivers when its parent campaign AND ad set are also `ACTIVE`.
-
-## Creative Linking
-
-Ads do not contain creative content directly. Instead, each ad references a creative object by its `creative_id`. To change an ad's appearance:
-
-1. Create or select a creative (see creative-manager skill).
-2. PATCH the ad with `{ "creative": { "creative_id": "NEW_ID" } }`.
-
-A single creative can be shared across multiple ads.
-
-## Preview Formats
-
-Use the `ad_format` query parameter to preview how the ad looks on different placements:
-
-| Format | Placement |
-|---|---|
-| `DESKTOP_FEED_STANDARD` | Facebook desktop News Feed |
-| `MOBILE_FEED_STANDARD` | Facebook mobile News Feed |
-| `INSTAGRAM_STANDARD` | Instagram feed |
-| `INSTAGRAM_STORY` | Instagram Stories |
-| `INSTAGRAM_REELS` | Instagram Reels |
-| `RIGHT_COLUMN_STANDARD` | Facebook right column |
-| `AUDIENCE_NETWORK_INSTREAM_VIDEO` | Audience Network in-stream video |
-| `MARKETPLACE_MOBILE` | Facebook Marketplace on mobile |
-
-Multiple formats can be useful for reviewing creative appearance across placements before activating an ad.
-
-## Lead Retrieval
-
-The `/leads` endpoint returns submissions from lead forms attached to the ad. Each lead includes:
-
-- Form field values (name, email, phone, etc.)
-- Submission timestamp
-- Lead ID
-
-Leads are only available for ads using the `OUTCOME_LEADS` campaign objective with an attached lead form on the ad set.
-
-## Ad Hierarchy
-
-Ads sit at the bottom of the Facebook campaign hierarchy:
+Before activating any ad, offer a preview. Call:
 
 ```
-Campaign
- └── Ad Set (targeting, budget, schedule)
-      └── Ad (creative reference, tracking, status)
+GET /api/ads/:id/previews?ad_format=MOBILE_FEED_STANDARD
 ```
 
-Each ad must belong to exactly one ad set, specified by `adset_id` at creation time.
-
-## Additional Workflows
-
-### Policy Issue Detection
-
-When you see Meta API errors mentioning "policy", "disapproved", "restricted", or ad review issues:
-1. Identify the specific policy violation
-2. Explain what policy was violated in plain language
-3. Suggest specific text/creative changes to fix it
-4. Offer to create a compliant version for approval
-
-Common policy issues: misleading claims, personal attributes, restricted content, discriminatory targeting, before/after images, excessive text in images.
+Show the preview and ask: "Does this look correct? Should I activate?"
 
 ### Boost Existing Post Flow
 
-When the user wants to promote an existing Facebook Page post:
-1. Call `get_pages` to list their pages
-2. Call `get_page_posts` with the page_id to show recent posts
+1. Call `GET /api/pages` to list pages.
+2. Call `GET /api/pages/:id/posts` to show recent posts.
 3. Show posts as a table: | Post | Date | Likes | Comments | Shares |
-4. User picks a post -- use the post ID
-5. Create ad creative with `object_story_id` instead of `object_story_spec`:
-   `{ "object_story_id": "PAGE_ID_POST_ID" }` (format: "pageId_postId")
-6. This bypasses the need to create a new creative from scratch -- perfect for dev mode
-7. Proceed with campaign -> ad set -> ad creation using this creative
+4. User picks a post -- use the post ID.
+5. Create creative with `object_story_id` (format: `"pageId_postId"`) instead of `object_story_spec`.
+6. Follow the standard create ad workflow above with this creative.
 
 ### Ad Library / Competitor Research
 
-When showing Ad Library results, output them in a special code block so the UI renders them as visual cards:
+When showing Ad Library results, output in the `adlib` block format:
 
 ```adlib
 [
@@ -214,5 +281,68 @@ Rules for ad library results:
 - Truncate body text to ~150 chars
 - Set status to "Active" if no ad_delivery_stop_time, otherwise "Ended"
 - Extract headline from ad_creative_link_titles, body from ad_creative_bodies
-- After the cards, add a brief **Insights** section analyzing the competitor creative patterns
-- If the API returns an authorization error, explain that the user needs to authorize Ad Library API access at facebook.com/ads/library/api
+- After the cards, add a brief **Insights** section analyzing competitor creative patterns
+
+### Policy Issue Detection
+
+When Meta API errors mention "policy", "disapproved", or "restricted":
+1. Identify the specific policy violation
+2. Explain what policy was violated in plain language
+3. Suggest specific text/creative changes to fix it
+4. Offer to create a compliant version
+
+Common policy issues: misleading claims, personal attributes, restricted content, discriminatory targeting, before/after images, excessive text in images.
+
+## Safety Guardrails
+
+- **Status changes**: Always show current vs proposed state in a `steps` block before changing
+- **Activation without preview**: Warn "This ad has not been previewed. Preview first?" before activating any ad that has not been previewed in this session
+- **Deletions**: Always suggest PAUSED or ARCHIVED first; require explicit "delete" confirmation for permanent deletion
+- **Bulk operations**: Max 10 ads per batch; show summary and confirm each batch
+- **Active ad modifications**: Warn if modifying an ad that is currently ACTIVE and delivering
+
+## Quick Reference
+
+### Ad Statuses
+
+| Status | Meaning |
+|---|---|
+| `ACTIVE` | Ad is running (delivery depends on parent campaign and ad set status) |
+| `PAUSED` | Ad is paused; can be resumed |
+| `DELETED` | Soft-deleted; hidden from default views but retrievable |
+| `ARCHIVED` | Archived; read-only, preserved for reporting |
+
+An ad only delivers when its parent campaign AND ad set are also `ACTIVE`.
+
+### Preview Formats
+
+| Format | Placement |
+|---|---|
+| `DESKTOP_FEED_STANDARD` | Facebook desktop News Feed |
+| `MOBILE_FEED_STANDARD` | Facebook mobile News Feed |
+| `INSTAGRAM_STANDARD` | Instagram feed |
+| `INSTAGRAM_STORY` | Instagram Stories |
+| `INSTAGRAM_REELS` | Instagram Reels |
+| `RIGHT_COLUMN_STANDARD` | Facebook right column |
+| `AUDIENCE_NETWORK_INSTREAM_VIDEO` | Audience Network in-stream video |
+| `MARKETPLACE_MOBILE` | Facebook Marketplace on mobile |
+
+### Creative Linking
+
+Ads reference creatives by `creative_id`. To change an ad's appearance:
+1. Create or select a creative (see creative-manager skill).
+2. PATCH the ad with `{ "creative": { "creative_id": "NEW_ID" } }`.
+
+A single creative can be shared across multiple ads.
+
+### Ad Hierarchy
+
+```
+Campaign
+ └── Ad Set (targeting, budget, schedule)
+      └── Ad (creative reference, tracking, status)
+```
+
+### Lead Retrieval
+
+The `/leads` endpoint returns submissions from lead forms attached to the ad. Each lead includes form field values, submission timestamp, and lead ID. Only available for ads using `OUTCOME_LEADS` objective with an attached lead form.

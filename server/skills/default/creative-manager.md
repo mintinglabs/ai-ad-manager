@@ -1,35 +1,42 @@
 ---
 name: creative-manager
-description: Manage Facebook ad creatives and media assets — create ad creatives with images/videos/copy, upload images and videos, manage the creative library, and preview creatives. Use this skill when the user wants to create ad copy, upload creative assets, manage their image/video library, set up call-to-action buttons, configure object_story_spec, or preview how creatives will look. Triggers for creative creation, asset upload, image library, video upload, and CTA configuration.
+description: Create and manage ad creatives, upload images and videos, preview placements, and generate ad copy
+layer: operational
+depends_on: [campaign-advisor]
+safety:
+  - Video must be status "ready" before using in a creative
+  - Preview creative before linking to an active ad
+  - Deletions require explicit confirmation; warn that linked ads will stop delivering
+  - Image and video specs must match target placement requirements
+  - Never use clickbait, misleading claims, or personal attributes in ad copy
 ---
 
 # Creative Manager
 
-## API Endpoints — Creatives
+## API Endpoints -- Creatives
 
-### List creatives
+### Read
 
 ```
 GET /api/creatives?adAccountId=act_XXX
 ```
-
 Returns all creatives for the ad account.
-
-### Get a single creative
 
 ```
 GET /api/creatives/:id
 ```
+Returns full details including object_story_spec, CTA, and asset references.
 
-Returns full details for a specific creative, including its object_story_spec, CTA, and asset references.
+```
+GET /api/creatives/:id/previews?ad_format=FORMAT
+```
+Returns an HTML preview of the creative for the specified placement.
 
-### Create a creative
+### Create
 
 ```
 POST /api/creatives
 ```
-
-Body:
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -37,276 +44,264 @@ Body:
 | name | string | yes | Creative name |
 | body | string | no | Primary text (post copy) |
 | title | string | no | Headline text |
-| image_hash | string | no | Hash of an uploaded image (from image upload endpoint) |
-| video_id | string | no | ID of an uploaded video |
-| object_story_spec | object | no | Full story spec for page post ads. See structure below |
-| object_url | string | no | Destination URL for the ad |
+| image_hash | string | no | Hash from image upload |
+| video_id | string | no | ID from video upload |
+| object_story_spec | object | no | Full story spec for page post ads |
+| object_url | string | no | Destination URL |
 | call_to_action_type | string | no | See CTA types below |
-| url_tags | string | no | URL parameters appended to all links (e.g., `utm_source=fb&utm_campaign=spring`) |
-| asset_feed_spec | object | no | For dynamic creative. See dynamic creative section below |
+| url_tags | string | no | UTM parameters appended to all links |
+| asset_feed_spec | object | no | For dynamic creative |
 
-### Update a creative
+### Update
 
 ```
 PATCH /api/creatives/:id
 ```
+Same fields as create (all optional). Note: Facebook limits which fields can be updated. Some changes require creating a new creative.
 
-Accepts the same fields as create (all optional). Note: Facebook limits which fields can be updated on existing creatives. Some changes may require creating a new creative instead.
-
-### Delete a creative
+### Delete
 
 ```
 DELETE /api/creatives/:id
 ```
-
 Permanently deletes the creative. Ads referencing this creative will stop delivering.
 
-### Preview a creative
+## API Endpoints -- Assets
 
-```
-GET /api/creatives/:id/previews?ad_format=FORMAT
-```
-
-Returns an HTML preview of the creative rendered for the specified placement format.
-
-## API Endpoints — Assets
-
-### List images
+### Images
 
 ```
 GET /api/assets/images?adAccountId=act_XXX
 ```
-
-Returns all images in the ad account's image library, including their hashes, URLs, and dimensions.
-
-### Upload an image
+Returns all images with hashes, URLs, and dimensions.
 
 ```
 POST /api/assets/images
 ```
 
-Body:
-
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | adAccountId | string | yes | Format: `act_XXX` |
 | bytes | string | yes | Base64-encoded image data |
-| name | string | no | Display name for the image |
+| name | string | no | Display name |
 
-Returns the `image_hash` needed to reference this image in a creative.
-
-### Delete an image
+Returns the `image_hash` needed in creatives.
 
 ```
 DELETE /api/assets/images
 ```
 
-Body:
+| Field | Type | Required |
+|---|---|---|
+| adAccountId | string | yes |
+| hash | string | yes |
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| adAccountId | string | yes | Format: `act_XXX` |
-| hash | string | yes | The image hash to delete |
-
-### List videos
+### Videos
 
 ```
 GET /api/assets/videos?adAccountId=act_XXX
 ```
-
-Returns all videos in the ad account's video library.
-
-### Upload a video
+Returns all videos in the ad account's library.
 
 ```
 POST /api/assets/videos
 ```
 
-Body:
-
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | adAccountId | string | yes | Format: `act_XXX` |
-| file_url | string | conditional | URL of the video file. Provide either `file_url` or `source` |
-| source | string | conditional | Direct video file upload. Provide either `file_url` or `source` |
+| file_url | string | conditional | URL of video. Provide `file_url` or `source` |
+| source | string | conditional | Direct upload. Provide `file_url` or `source` |
 | title | string | no | Video title |
 | description | string | no | Video description |
-
-### Check video upload status
 
 ```
 GET /api/assets/videos/:id/status
 ```
+Returns processing status: `processing`, `ready`, or `error`.
 
-Returns the processing status of an uploaded video. Videos are not usable in creatives until processing completes.
-
-| Status | Meaning |
-|---|---|
-| `processing` | Video is still being encoded |
-| `ready` | Video is ready to use in creatives |
-| `error` | Processing failed |
-
-Poll this endpoint after uploading a video until status is `ready` before referencing it in a creative.
-
-## API Endpoints — Previews
-
-### Preview an existing ad
+## API Endpoints -- Previews
 
 ```
 GET /api/previews/ad/:id?ad_format=FORMAT
 ```
-
-### Preview an existing creative
+Preview an existing ad.
 
 ```
 GET /api/previews/creative/:id?ad_format=FORMAT
 ```
-
-### Generate a preview from spec
+Preview an existing creative.
 
 ```
 POST /api/previews/generate
 ```
 
-Body:
+| Field | Type | Required |
+|---|---|---|
+| adAccountId | string | yes |
+| creative | object | yes |
+| ad_format | string | yes |
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| adAccountId | string | yes | Format: `act_XXX` |
-| creative | object | yes | Creative spec (same structure as POST /api/creatives) |
-| ad_format | string | yes | See preview formats below |
+Preview a creative before actually creating it.
 
-Use this to preview a creative before actually creating it.
+## Execution Workflow
 
-## Call-to-Action Types
+Every write operation MUST follow this four-step pattern.
 
-| CTA | Use case |
-|---|---|
-| `SHOP_NOW` | E-commerce, product pages |
-| `LEARN_MORE` | General purpose, informational |
-| `SIGN_UP` | Newsletter, account registration |
-| `BOOK_TRAVEL` | Travel and hospitality bookings |
-| `CONTACT_US` | Lead generation, inquiries |
-| `DOWNLOAD` | App downloads, file downloads |
-| `GET_OFFER` | Promotions, discount offers |
-| `GET_QUOTE` | Insurance, services |
-| `SUBSCRIBE` | Subscription services |
-| `WATCH_MORE` | Video content |
-| `APPLY_NOW` | Job applications, credit cards |
-| `ORDER_NOW` | Food delivery, quick purchases |
-| `SEND_MESSAGE` | Messenger conversations |
-| `WHATSAPP_MESSAGE` | WhatsApp conversations |
-| `CALL_NOW` | Phone call actions |
+### Creating a Creative
 
-## object_story_spec Structure
+**Step 1 READ** -- Fetch existing creatives and available assets.
 
-The `object_story_spec` defines the full content of a page post ad. Structure:
-
-```json
-{
-  "page_id": "PAGE_ID",
-  "link_data": {
-    "link": "https://example.com",
-    "message": "Primary text / post copy",
-    "name": "Headline",
-    "description": "Description below headline",
-    "image_hash": "IMAGE_HASH",
-    "call_to_action": {
-      "type": "LEARN_MORE",
-      "value": {
-        "link": "https://example.com"
-      }
-    }
-  }
-}
+```
+GET /api/creatives?adAccountId=act_XXX
+GET /api/assets/images?adAccountId=act_XXX
 ```
 
-For video ads, use `video_data` instead of `link_data`:
-
-```json
-{
-  "page_id": "PAGE_ID",
-  "video_data": {
-    "video_id": "VIDEO_ID",
-    "message": "Primary text",
-    "title": "Headline",
-    "image_url": "THUMBNAIL_URL",
-    "call_to_action": {
-      "type": "SHOP_NOW",
-      "value": {
-        "link": "https://example.com"
-      }
-    }
-  }
-}
+```metrics
+Ad Account: act_XXX
+Existing Creatives: 12
+Available Images: 8
+Available Videos: 3
 ```
 
-## asset_feed_spec for Dynamic Creative
+**Step 2 CONFIRM** -- Show the creative configuration and preview it.
 
-Dynamic creative automatically tests combinations of assets. The `asset_feed_spec` provides multiple options for Facebook to mix and match:
-
-```json
-{
-  "images": [
-    { "hash": "IMAGE_HASH_1" },
-    { "hash": "IMAGE_HASH_2" }
-  ],
-  "bodies": [
-    { "text": "Primary text option 1" },
-    { "text": "Primary text option 2" }
-  ],
-  "titles": [
-    { "text": "Headline option 1" },
-    { "text": "Headline option 2" }
-  ],
-  "descriptions": [
-    { "text": "Description option 1" }
-  ],
-  "call_to_action_types": ["SHOP_NOW", "LEARN_MORE"],
-  "link_urls": [
-    { "website_url": "https://example.com" }
-  ]
-}
+```steps
+Action: CREATE new creative
+Name: "Spring Sale - Image Ad v1"
+Page: 111222333 ("My Store")
+Type: Image (link_data)
+Image: abc123hash (1080x1080, uploaded today)
+Primary Text: "Spring savings are here! Up to 40% off."
+Headline: "Shop the Spring Sale"
+Description: "Limited time only"
+CTA: SHOP_NOW → https://example.com/spring
+URL Tags: utm_source=fb&utm_campaign=spring
 ```
 
-Dynamic creative requires the ad set to have `is_dynamic_creative` set to `true`.
+Generate a preview before creating:
 
-## Image Upload Flow
+```
+POST /api/previews/generate
+```
 
-1. Encode the image file as base64.
-2. POST to `/api/assets/images` with `adAccountId`, `bytes` (base64 string), and optional `name`.
-3. Store the returned `image_hash`.
-4. Use `image_hash` in a creative's `object_story_spec.link_data.image_hash` or in `asset_feed_spec.images`.
+Ask: **"Should I proceed?"**
 
-Supported formats: JPG, PNG. Recommended minimum resolution: 1080x1080 pixels.
+**Step 3 EXECUTE** -- Only after user confirms.
 
-## Video Upload and Status Polling
+```
+POST /api/creatives
+```
 
-1. POST to `/api/assets/videos` with `adAccountId` and either `file_url` (remote URL) or `source` (direct upload).
-2. Store the returned video `id`.
-3. Poll `GET /api/assets/videos/:id/status` until status is `ready`.
-4. Use the `video_id` in a creative's `object_story_spec.video_data.video_id`.
+**Step 4 VERIFY** -- Confirm creation and show preview.
 
-Videos must finish processing before they can be used in creatives. Attempting to create a creative with a still-processing video will fail.
+```
+GET /api/creatives/:new_id
+GET /api/creatives/:new_id/previews?ad_format=MOBILE_FEED_STANDARD
+```
 
-## Preview Formats
+```metrics
+Creative Created Successfully
+ID: 120200...
+Name: "Spring Sale - Image Ad v1"
+Type: Image
+CTA: SHOP_NOW
+```
 
-| Format | Placement |
-|---|---|
-| `DESKTOP_FEED_STANDARD` | Facebook desktop News Feed |
-| `MOBILE_FEED_STANDARD` | Facebook mobile News Feed |
-| `INSTAGRAM_STANDARD` | Instagram feed |
-| `INSTAGRAM_STORY` | Instagram Stories |
-| `INSTAGRAM_REELS` | Instagram Reels |
-| `RIGHT_COLUMN_STANDARD` | Facebook right column |
-| `AUDIENCE_NETWORK_INSTREAM_VIDEO` | Audience Network in-stream video |
-| `MARKETPLACE_MOBILE` | Facebook Marketplace on mobile |
+```quickreplies
+["Preview on Instagram", "Create ad with this creative", "Create another variation", "View all creatives"]
+```
 
-## Creative Workflow Guidance
+### Uploading a Video + Creating Creative
 
-### Image Upload Specs by Placement
+**Step 1 READ** -- Upload the video and poll status.
 
-Before uploading, always confirm the required specs for the target placement:
+```
+POST /api/assets/videos
+```
+
+Then poll until ready:
+
+```
+GET /api/assets/videos/:id/status
+```
+
+```metrics
+Video Upload: "product-demo.mp4"
+Video ID: 987654...
+Status: processing → ready ✓
+```
+
+If status is NOT "ready", inform user: "Your video is being processed by Meta. This usually takes 1-5 minutes."
+
+**SAFETY CHECK**: Never create a creative with a video that is still `processing`. Poll until `ready`.
+
+**Step 2 CONFIRM** -- Show the creative spec.
+
+```steps
+Action: CREATE video creative
+Video: 987654... (status: ready ✓)
+Primary Text: "See our new product in action"
+Headline: "Watch the Demo"
+CTA: SHOP_NOW → https://example.com
+Thumbnail: auto-generated
+```
+
+Ask: **"Should I proceed?"**
+
+**Step 3 EXECUTE** then **Step 4 VERIFY** as above.
+
+### Deleting a Creative
+
+**Step 1 READ** -- Check for linked ads.
+
+```
+GET /api/creatives/:id
+GET /api/ads?adAccountId=act_XXX
+```
+
+```metrics
+Creative: "Spring Sale - Image Ad v1"
+ID: 120200...
+Linked Ads: 2 (both ACTIVE)
+```
+
+**Step 2 CONFIRM** -- Warn about impact.
+
+```steps
+⚠ DESTRUCTIVE ACTION
+Deleting creative 120200... will cause 2 active ads to stop delivering.
+
+Alternative: Create a new creative and swap it on the ads first.
+```
+
+Ask: **"Type 'delete' to confirm, or should I swap the creative on linked ads first?"**
+
+**Step 3 EXECUTE** -- Only after explicit "delete" confirmation.
+
+**Step 4 VERIFY** -- Confirm deletion.
+
+### Boost Existing Post Flow
+
+1. Call `GET /api/pages` to list pages.
+2. Call `GET /api/pages/:id/posts` to show recent posts.
+3. Show posts as a table: | Post | Date | Likes | Comments | Shares |
+4. User picks a post.
+5. Create creative with `object_story_id` (format: `"pageId_postId"`) instead of `object_story_spec`.
+6. Follow standard create workflow above.
+
+## Safety Guardrails
+
+- **Video readiness**: NEVER create a creative referencing a video with status other than `ready`. Poll `GET /api/assets/videos/:id/status` until confirmed.
+- **Preview before activation**: Always offer to preview a creative before it goes live. Generate preview via `POST /api/previews/generate` before creating.
+- **Deletions**: Warn about linked ads that will stop delivering. Suggest swapping the creative on ads first. Require explicit "delete" confirmation.
+- **Ad copy policy**: Never generate clickbait, misleading claims, or personal attributes ("Are you struggling with...") -- these violate Meta advertising policy.
+- **Image/video specs**: Validate dimensions match target placement before uploading. Warn if specs do not match.
+- **Bulk operations**: Max 10 creatives per batch with per-batch confirmation.
+
+## Quick Reference
+
+### Image Specs by Placement
 
 | Placement | Dimensions | Aspect Ratio | Notes |
 |---|---|---|---|
@@ -316,13 +311,9 @@ Before uploading, always confirm the required specs for the target placement:
 | Carousel | 1080x1080 per card | 1:1 | 2-10 cards |
 | Marketplace | 1200x628 | 1.91:1 | Landscape |
 
-- Max file size: 30MB
-- Formats: JPG, PNG
-- Minimum resolution: 600x600
+Max file size: 30MB. Formats: JPG, PNG. Minimum: 600x600.
 
-After upload, always confirm: "Image uploaded successfully -- hash: [HASH]"
-
-### Video Upload Specs by Placement
+### Video Specs by Placement
 
 | Placement | Dimensions | Aspect Ratio | Max Duration |
 |---|---|---|---|
@@ -332,38 +323,11 @@ After upload, always confirm: "Image uploaded successfully -- hash: [HASH]"
 | In-Stream | 1280x720+ | 16:9 | 5-15s recommended |
 | Carousel (video) | 1080x1080 | 1:1 | 240 minutes per card |
 
-- Max file size: 4GB
-- Formats: MP4, MOV, AVI, FLV, MKV, WebM (MP4 with H.264 recommended)
-- Minimum duration: 1 second
-- Audio: AAC, 128kbps+ recommended
-- Thumbnails: auto-generated, or provide a custom thumbnail via image upload
-
-### Upload Methods
-
-**Method 1 -- Direct file attachment (MP4/MOV):**
-User drags and drops or attaches a video file. The file is automatically uploaded and the message will contain `[Uploaded video: filename, video_id: ID]`. Use the video_id directly.
-
-**Method 2 -- URL (YouTube, hosted, direct link):**
-Call `upload_ad_video` with `file_url` parameter. Meta can ingest YouTube URLs, Vimeo, direct MP4 links, and most hosted video URLs. YouTube links must be **public** and not age-restricted or Meta will reject them.
-
-After any upload, always show the hash or ID so the user can reference it in creatives.
-
-### Video Processing Polling Workflow
-
-Videos process asynchronously after upload. Follow this sequence:
-
-1. Upload the video via `upload_ad_video`
-2. Immediately call `get_ad_video_status` with the returned video_id
-3. If status is NOT "ready", inform the user: "Your video is being processed by Meta. This usually takes 1-5 minutes depending on file size."
-4. On the next user message, check `get_ad_video_status` again. Repeat until status = "ready"
-5. Only then proceed to use the video_id in the ad creative's `video_data`
-
-Never attempt to create a creative with a video that is still processing -- it will fail.
+Max file size: 4GB. Formats: MP4 (H.264 recommended), MOV, AVI, FLV, MKV, WebM. Min duration: 1 second. Audio: AAC, 128kbps+.
 
 ### object_story_spec Formats
 
 **Image ad:**
-
 ```json
 {
   "page_id": "PAGE_ID",
@@ -382,7 +346,6 @@ Never attempt to create a creative with a video that is still processing -- it w
 ```
 
 **Carousel ad:**
-
 ```json
 {
   "page_id": "PAGE_ID",
@@ -398,7 +361,6 @@ Never attempt to create a creative with a video that is still processing -- it w
 ```
 
 **Video ad:**
-
 ```json
 {
   "page_id": "PAGE_ID",
@@ -426,42 +388,70 @@ Never attempt to create a creative with a video that is still processing -- it w
 
 ### CTA Options
 
-SHOP_NOW, LEARN_MORE, SIGN_UP, BOOK_TRAVEL, CONTACT_US, DOWNLOAD, GET_OFFER, GET_QUOTE, SUBSCRIBE, WATCH_MORE, APPLY_NOW, ORDER_NOW, SEE_MENU, SEND_MESSAGE, WHATSAPP_MESSAGE, CALL_NOW
+| CTA | Best for |
+|---|---|
+| `SHOP_NOW` | E-commerce, product pages |
+| `LEARN_MORE` | General, informational |
+| `SIGN_UP` | Newsletter, registration |
+| `BOOK_TRAVEL` | Travel, hospitality |
+| `CONTACT_US` | Lead generation |
+| `DOWNLOAD` | App/file downloads |
+| `GET_OFFER` | Promotions, discounts |
+| `GET_QUOTE` | Insurance, services |
+| `SUBSCRIBE` | Subscription services |
+| `WATCH_MORE` | Video content |
+| `APPLY_NOW` | Jobs, credit cards |
+| `ORDER_NOW` | Food delivery, purchases |
+| `SEND_MESSAGE` | Messenger conversations |
+| `WHATSAPP_MESSAGE` | WhatsApp conversations |
+| `CALL_NOW` | Phone call actions |
 
-Match the CTA to the campaign objective: conversions use SHOP_NOW, leads use SIGN_UP, traffic uses LEARN_MORE.
+Match CTA to objective: conversions = SHOP_NOW, leads = SIGN_UP, traffic = LEARN_MORE.
+
+### Dynamic Creative (asset_feed_spec)
+
+```json
+{
+  "images": [{ "hash": "HASH_1" }, { "hash": "HASH_2" }],
+  "bodies": [{ "text": "Option 1" }, { "text": "Option 2" }],
+  "titles": [{ "text": "Headline 1" }, { "text": "Headline 2" }],
+  "descriptions": [{ "text": "Desc 1" }],
+  "call_to_action_types": ["SHOP_NOW", "LEARN_MORE"],
+  "link_urls": [{ "website_url": "https://example.com" }]
+}
+```
+
+Requires ad set `is_dynamic_creative` set to `true`.
+
+### Preview Formats
+
+| Format | Placement |
+|---|---|
+| `DESKTOP_FEED_STANDARD` | Facebook desktop News Feed |
+| `MOBILE_FEED_STANDARD` | Facebook mobile News Feed |
+| `INSTAGRAM_STANDARD` | Instagram feed |
+| `INSTAGRAM_STORY` | Instagram Stories |
+| `INSTAGRAM_REELS` | Instagram Reels |
+| `RIGHT_COLUMN_STANDARD` | Facebook right column |
+| `AUDIENCE_NETWORK_INSTREAM_VIDEO` | Audience Network in-stream video |
+| `MARKETPLACE_MOBILE` | Facebook Marketplace on mobile |
 
 ### Ad Copy Generation Guidelines
 
-When generating ad copy for uploaded creatives:
-
-- **Match tone to the visual**: fashion gets aspirational/lifestyle copy, tech gets feature-driven copy, food gets sensory language, B2B gets professional tone
-- Always generate **2-3 copy variations** for A/B testing
-- Keep primary text under **125 chars** for best performance (avoids truncation)
-- Headlines under **40 chars** -- punchy and benefit-driven
-- For **multiple images**: write **unique copy per image**, not duplicates. Each should highlight a different angle or product feature
-- Suggest A/B testing strategies: same creative with different copy, or same copy with different creatives
-- If the user specifies a brand voice or tone, follow it strictly
-- Never use clickbait, misleading claims, or personal attributes ("Are you struggling with...") -- these violate Meta advertising policy
+When generating ad copy:
+- Match tone to the visual: fashion = aspirational, tech = feature-driven, food = sensory, B2B = professional
+- Generate 2-3 variations for A/B testing
+- Keep primary text under 125 chars for best performance
+- Headlines under 40 chars, punchy and benefit-driven
+- For multiple images, write unique copy per image highlighting different angles
+- Never use clickbait, misleading claims, or personal attributes -- these violate Meta policy
 
 ### Creating Ads from Uploaded Assets
 
 When user messages contain `[Uploaded image: filename, image_hash: HASH]`:
-
-1. Acknowledge the uploads (e.g., "Got **6 images** uploaded to your ad account")
-2. Ask about: campaign objective, target audience, landing page URL, budget (if not already stated)
-3. Call `get_pages` to get the Page ID (required for object_story_spec)
-4. For each image, generate **2-3 ad copy variations** (primary text + headline + CTA)
-5. Show the Ad Creation Review Card with all settings before executing
-6. If multiple images: ask if they want **separate ads** (one per image) or a **carousel**
-
-### Boost Existing Post Flow
-
-When the user wants to promote an existing Facebook Page post:
-
-1. Call `get_pages` to list their pages
-2. Call `get_page_posts` with the page_id to show recent posts
-3. Show posts as a table: Post | Date | Likes | Comments | Shares
-4. User picks a post -- use the post ID
-5. Create ad creative with `object_story_id` instead of `object_story_spec`: `{ "object_story_id": "PAGE_ID_POST_ID" }` (format: "pageId_postId")
-6. This bypasses the need to create a new creative from scratch
-7. Proceed with campaign, ad set, and ad creation using this creative
+1. Acknowledge uploads
+2. Ask about objective, audience, landing page URL, budget if not stated
+3. Call `GET /api/pages` to get Page ID
+4. Generate 2-3 ad copy variations per image
+5. Show full creative spec in a `steps` block before executing
+6. For multiple images, ask: separate ads or carousel?

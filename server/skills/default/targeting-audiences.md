@@ -1,11 +1,14 @@
 ---
 name: targeting-audiences
-description: Search and configure Facebook ad targeting — find interests, behaviors, demographics, estimate audience reach, validate targeting specs, manage custom audiences, lookalike audiences, and saved audiences. Use this skill whenever the user wants to define who sees their ads, search for targeting interests, estimate audience size, create custom or lookalike audiences, upload customer lists, or save reusable targeting presets. Triggers for audience targeting, interest search, demographic targeting, reach estimation, and audience management.
+description: Plan audience targeting strategies — custom audiences, lookalikes, saved audiences, and interest targeting with interactive source selection
+layer: strategic
+depends_on: [insights-reporting]
+leads_to: [ad-manager, campaign-manager]
 ---
 
 # Targeting & Audiences
 
-## Targeting API Endpoints
+## API Endpoints
 
 ### Search Targeting Options
 
@@ -129,8 +132,6 @@ DELETE /api/targeting/saved-audiences/:id
 
 Delete a saved audience by ID.
 
-## Audience API Endpoints
-
 ### Custom Audiences
 
 ```
@@ -210,136 +211,92 @@ Body:
 }
 ```
 
-## Reference
+## Strategy Workflow
 
-### Targeting Spec Structure
-
-```json
-{
-  "geo_locations": {
-    "countries": ["US", "CA"],
-    "regions": [{ "key": "4081" }],
-    "cities": [{ "key": "2420605", "radius": 25, "distance_unit": "mile" }]
-  },
-  "age_min": 18,
-  "age_max": 65,
-  "genders": [0, 1, 2],
-  "flexible_spec": [
-    {
-      "interests": [{ "id": "6003139266461", "name": "Fitness" }],
-      "behaviors": [{ "id": "6002714895372", "name": "Engaged Shoppers" }]
-    }
-  ],
-  "exclusions": {
-    "interests": [{ "id": "...", "name": "..." }]
-  },
-  "custom_audiences": [{ "id": "23851234567890" }],
-  "excluded_custom_audiences": [{ "id": "23851234567891" }],
-  "locales": [6, 24]
-}
-```
-
-- `genders`: `0` = all, `1` = male, `2` = female.
-- `flexible_spec` entries within the same object are OR-ed; separate objects are AND-ed.
-
-### Audience Subtypes
-
-| Subtype     | Description                                      |
-| ----------- | ------------------------------------------------ |
-| `CUSTOM`    | General custom audience (default)                |
-| `WEBSITE`   | Website visitors via Meta Pixel                  |
-| `APP`       | App activity audience                            |
-| `VIDEO`     | Users who engaged with video content             |
-| `LOOKALIKE` | Lookalike audience (created via lookalike endpoint) |
-
-### Lookalike Ratio
-
-The `ratio` field in `lookalike_spec` controls audience size:
-
-- Range: `0.01` to `0.20` (1% to 20% of the country population).
-- Lower ratios (0.01-0.03) = higher similarity to the source audience.
-- Higher ratios (0.10-0.20) = larger reach but less similarity.
-- `type` can be `"similarity"` (optimize for closeness) or `"reach"` (optimize for size).
-
-### Hashed PII Format for Customer Lists
-
-When adding or removing users from a custom audience, provide pre-hashed SHA-256 values:
-
-```json
-{
-  "schema": ["EMAIL", "PHONE", "FN", "LN"],
-  "data": [
-    ["a1b2c3...(sha256 of email)", "d4e5f6...(sha256 of phone)", "...", "..."]
-  ]
-}
-```
-
-- Hash each field individually with SHA-256 before sending.
-- Normalize before hashing: lowercase emails, remove spaces, use E.164 phone format.
-- Supported fields: `EMAIL`, `PHONE`, `FN` (first name), `LN` (last name), `ZIP`, `CT` (city), `ST` (state), `COUNTRY`, `DOBY` (birth year), `DOBM` (birth month), `DOBD` (birth day), `GEN` (gender), `MADID` (mobile advertiser ID).
-
-### Reach Estimate Interpretation
-
-The reach estimate response includes:
-
-- `users_lower_bound` — Conservative estimate of audience size.
-- `users_upper_bound` — Optimistic estimate of audience size.
-- Use these to gauge whether targeting is too narrow (< 1,000) or too broad (> 100M) for effective delivery.
-
-## Workflow Guidance
-
-### Chat-Based Audience Creation Flow
-
-Users can create custom audiences simply by chatting. The flow should be interactive with clickable options — NOT walls of text.
+Interactive audience planning flow. ALWAYS use ```options cards for every choice. NEVER list options as plain text bullets. Max 1-2 sentences between cards. Option titles MUST be human-readable names — NEVER raw IDs.
 
 **Golden Rules:**
 
-1. ALWAYS use ```options blocks for presenting choices — NEVER list options as plain text bullets
-2. ALWAYS call API tools first to get real data (pages, videos, IG accounts) before presenting options — NEVER ask users to provide IDs manually
-3. Use `get_page_videos` to list actual videos when creating video audiences — show video titles and IDs as clickable options
-4. Gather info efficiently — use smart defaults (retention=30d website, 365d engagement). Auto-generate names if not provided.
-5. When user provides enough info upfront, skip to confirmation — don't re-ask what you already know.
-6. NEVER write more than 2 sentences before or after an ```options block. Let the UI cards do the talking. No explanatory paragraphs.
-7. Option card titles MUST be human-readable names — NEVER put raw numeric Meta IDs in the "title" field. Use the page name, IG username, video title, etc. The numeric ID goes in the "id" field only.
+1. ALWAYS call API tools first to get real data (pages, videos, IG accounts) before presenting options — NEVER ask users to provide IDs manually
+2. Gather info efficiently — use smart defaults (retention=30d website, 365d engagement). Auto-generate names if not provided.
+3. When user provides enough info upfront, skip to confirmation.
+4. `special_ad_categories` is a CAMPAIGN-level field. NEVER ask about it when creating audiences.
 
-- `special_ad_categories` is a CAMPAIGN-level field. NEVER ask about it when creating audiences.
+### Entry Point — Audience Type Selection
 
-**Flow:**
+Show immediately when user mentions audience, retargeting, custom audience, or lookalike:
 
-1. **Detect intent** — user mentions audience, retargeting, custom audience, lookalike, etc.
-2. **Show audience type as ```options** — IMMEDIATELY present types (Website, Video Viewers, Instagram, Page, Lookalike, Customer List) as clickable options. No preamble.
-3. **Gather info with ```options** — every choice (pixel, page, video, engagement type) must be an options card. Max 1 sentence between cards.
-4. **Confirm with ```steps** — show summary of what will be created as a steps card, then ask exactly: **"Should I proceed?"** (this triggers Confirm/Cancel buttons in the UI)
-5. **After creation** — show a ```metrics card with audience name, type, ID, estimated size, retention period. Then say: "Your audience is ready! You can view and manage it in the Audiences module." Then ```quickreplies: ["[audiences] View in Audiences", "Create ad set with this audience", "Create lookalike from this"]
-
-**Keep users in our UI:** After creating an audience, do NOT send users to Meta Ads Manager or Business Suite. Show a ```metrics card with audience details, direct them to the **Audiences module** in our app, and include **"[audiences] View in Audiences"** as the FIRST quick reply. Do NOT link to business.facebook.com or any external Meta URL.
+```options
+{"title":"What type of audience do you want to create?","options":[
+  {"id":"WEBSITE","title":"Website Visitors","description":"Retarget people who visited your site via Meta Pixel"},
+  {"id":"VIDEO","title":"Video Viewers","description":"People who watched your Facebook or Instagram videos"},
+  {"id":"CUSTOM","title":"Customer List","description":"Upload your own customer data (emails, phones)"},
+  {"id":"INSTAGRAM","title":"Instagram Engagers","description":"People who interacted with your Instagram profile"},
+  {"id":"PAGE","title":"Facebook Page Engagers","description":"People who interacted with your Facebook Page"},
+  {"id":"LOOKALIKE","title":"Lookalike Audience","description":"Find new people similar to your best customers"},
+  {"id":"SAVED","title":"Saved Audience","description":"Reusable interest/demographic targeting preset"}
+]}
+```
 
 ---
 
 ### WEBSITE Audience (Pixel-Based Retargeting)
 
-1. Call `get_pixels` to list available pixels
-2. If multiple pixels, show a table and ask which one
-3. Ask: which event? Options: all visitors, specific pages, time spent, purchase, add to cart, lead, view content
-4. For URL filtering, ask the condition type: "contains", "doesn't contain", or "equals"
-5. Ask about retention days (default 30, max 180)
-6. Ask if they want to include more people (additional inclusion rules) or exclude people (exclusion rules)
-7. Call `create_custom_audience` with: name, description, subtype="WEBSITE", pixel_id=PIXEL_ID, retention_days=30
-8. For specific pages, also pass rule: `{"url":{"i_contains":"/product"}}` (or `{"not_i_contains":"..."}` or `{"eq":"..."}`)
-9. The system auto-builds the correct Meta v19 event_sources format — you just pass pixel_id and optionally a simple URL rule
-10. Do NOT build event_sources/inclusions yourself for WEBSITE — the system handles it
+**Step 1 — Select Pixel:** Call `get_pixels` and present as options:
+
+```options
+{"title":"Which pixel tracks your website?","options":[
+  {"id":"PIXEL_ID_1","title":"Your Pixel Name","description":"Active — tracking events"},
+  {"id":"PIXEL_ID_2","title":"Another Pixel","description":"Active — tracking events"}
+]}
+```
+
+**Step 2 — Event type:**
+
+```options
+{"title":"Who should be in this audience?","options":[
+  {"id":"all_visitors","title":"All Website Visitors","description":"Anyone who visited any page"},
+  {"id":"specific_pages","title":"Specific Page Visitors","description":"People who visited certain URLs"},
+  {"id":"time_spent","title":"Top Time Spent","description":"Top 5%, 10%, or 25% by time on site"},
+  {"id":"purchase","title":"Purchasers","description":"People who completed a purchase"},
+  {"id":"add_to_cart","title":"Add to Cart","description":"People who added items to cart"},
+  {"id":"lead","title":"Lead Submissions","description":"People who submitted a lead form"},
+  {"id":"view_content","title":"Content Viewers","description":"People who viewed product/content pages"}
+]}
+```
+
+**Step 3 — URL filter (if specific pages):**
+
+```options
+{"title":"How should URLs be matched?","options":[
+  {"id":"contains","title":"URL Contains","description":"Match pages with a keyword in the URL (e.g., /product)"},
+  {"id":"not_contains","title":"URL Does Not Contain","description":"Exclude pages with a keyword"},
+  {"id":"equals","title":"URL Equals","description":"Match an exact page URL"}
+]}
+```
+
+**Step 4 — Retention:**
+
+```options
+{"title":"How far back should we look?","options":[
+  {"id":"7","title":"7 days","description":"Very recent visitors only"},
+  {"id":"14","title":"14 days","description":"Recent visitors"},
+  {"id":"30","title":"30 days (Recommended)","description":"Standard retargeting window"},
+  {"id":"60","title":"60 days","description":"Extended window"},
+  {"id":"90","title":"90 days","description":"Broad retargeting"},
+  {"id":"180","title":"180 days (Maximum)","description":"Longest allowed for website audiences"}
+]}
+```
+
+Confirm summary with ```steps, then call `create_custom_audience` with: name, description, subtype="WEBSITE", pixel_id=PIXEL_ID, retention_days. The system auto-builds the correct Meta v19 event_sources format — you just pass pixel_id and optionally a simple URL rule. Do NOT build event_sources/inclusions yourself for WEBSITE.
 
 ---
 
-### ENGAGEMENT Audience (Video Viewers)
+### VIDEO Audience (Engagement)
 
 Video sources: Facebook Page videos, Instagram videos, Campaign video ads, or direct Video IDs.
 
-IMPORTANT: Use interactive options — NOT walls of text. Present choices as clickable options cards.
-
-**Steps:**
-
-1. **Choose video source** — call `get_pages` AND `get_connected_instagram_accounts` in parallel. Then present ALL sources as options:
+**Step 1 — Choose video source:** Call `get_pages` AND `get_connected_instagram_accounts` in parallel. Present ALL sources:
 
 ```options
 {"title":"Choose video source","options":[
@@ -350,10 +307,11 @@ IMPORTANT: Use interactive options — NOT walls of text. Present choices as cli
 ]}
 ```
 
-2. **Show videos** — based on source type:
-   - Facebook Page: call `get_page_videos` with page_id
-   - Instagram: call `get_ig_media` with ig_account_id (and page_id if available from the IG account's pageId field)
-   Use VIDEO TITLE (or caption) as the title:
+**Step 2 — Show videos:** Based on source type:
+- Facebook Page: call `get_page_videos` with page_id
+- Instagram: call `get_ig_media` with ig_account_id (and page_id if available from the IG account's pageId field)
+
+Present with VIDEO TITLE (or caption) as the title:
 
 ```options
 {"title":"Select videos","options":[
@@ -363,29 +321,23 @@ IMPORTANT: Use interactive options — NOT walls of text. Present choices as cli
 ]}
 ```
 
-3. **Engagement type** — present as options:
+**Step 3 — Engagement level:**
 
 ```options
 {"title":"What level of engagement?","options":[
-  {"id":"3s","title":"3 seconds viewed","description":"Broadest audience - anyone who watched at least 3 seconds"},
+  {"id":"3s","title":"3 seconds viewed","description":"Broadest audience — anyone who watched at least 3 seconds"},
   {"id":"10s","title":"10 seconds viewed","description":"More engaged viewers"},
   {"id":"thruplay","title":"ThruPlay / 15 seconds","description":"Completed or watched at least 15 seconds"},
   {"id":"25pct","title":"25% viewed","description":"Watched at least a quarter of the video"},
   {"id":"50pct","title":"50% viewed","description":"Watched at least half"},
   {"id":"75pct","title":"75% viewed","description":"Highly engaged viewers"},
-  {"id":"95pct","title":"95% viewed","description":"Nearly completed - most engaged"}
+  {"id":"95pct","title":"95% viewed","description":"Nearly completed — most engaged"}
 ]}
 ```
 
-4. Auto-default retention=365 days. Confirm summary, then call `create_custom_audience`.
+Auto-default retention=365 days. Confirm summary, then call `create_custom_audience`.
 
-**Key rules:**
-
-- ALWAYS call `get_pages` + `get_connected_instagram_accounts` to show real sources, then `get_page_videos` or `get_ig_media` for videos — never ask users to provide IDs manually
-- Use ```options blocks for EVERY choice — do NOT present choices as bullet-point text
-- If user provides video IDs directly, skip to step 3
-
-**Rule JSON format for engagement audiences:**
+**Rule JSON format:**
 
 For Facebook Page videos, use `"type":"page"`. For Instagram videos, use `"type":"ig_business"`.
 
@@ -424,30 +376,54 @@ For Facebook Page videos, use `"type":"page"`. For Instagram videos, use `"type"
 
 ### CUSTOM Audience (Customer List)
 
-- Just needs name, description, subtype="CUSTOM"
-- `customer_file_source` auto-defaults to "USER_PROVIDED_ONLY"
-- Then use `add_users_to_audience` to upload hashed data
+**Step 1 — Data type:**
+
+```options
+{"title":"What customer data do you have?","options":[
+  {"id":"EMAIL","title":"Email Addresses","description":"Upload a list of customer emails"},
+  {"id":"PHONE","title":"Phone Numbers","description":"Upload a list of phone numbers"},
+  {"id":"MIXED","title":"Multiple Fields","description":"Emails + phones + names for better match rates"}
+]}
+```
+
+**Step 2 — Source:**
+
+```options
+{"title":"Where did this data come from?","options":[
+  {"id":"USER_PROVIDED_ONLY","title":"Collected Directly","description":"Data you collected from your customers (CRM, signups)"},
+  {"id":"PARTNER_PROVIDED_ONLY","title":"From Partners","description":"Data provided by business partners"},
+  {"id":"BOTH","title":"Mixed Sources","description":"Combination of direct and partner data"}
+]}
+```
+
+Create with name, description, subtype="CUSTOM", then use `add_users_to_audience` to upload hashed data. Normalize before hashing: lowercase emails, remove spaces, use E.164 phone format.
 
 ---
 
 ### INSTAGRAM Engagement Audience
 
-Use options cards for every choice.
-
-1. Call `get_connected_instagram_accounts` then present as ```options block (use @username as title, NOT numeric ID)
-2. Present engagement types as ```options:
+**Step 1 — Select account:** Call `get_connected_instagram_accounts` and present (use @username as title):
 
 ```options
-{"title":"What type of IG engagement?","options":[
-  {"id":"all","title":"All engagement","description":"Anyone who interacted with your profile or content"},
-  {"id":"visit","title":"Profile visitors","description":"People who visited your profile"},
-  {"id":"post","title":"Post/ad engagement","description":"Reactions, comments, shares, saves"},
-  {"id":"message","title":"Sent a message","description":"People who DM'd your account"},
-  {"id":"saved","title":"Saved a post","description":"People who saved your posts or ads"}
+{"title":"Which Instagram account?","options":[
+  {"id":"IG_ID_1","title":"@yourbusiness","description":"10.5K followers"},
+  {"id":"IG_ID_2","title":"@yourbrand","description":"25K followers"}
 ]}
 ```
 
-3. Auto-default retention=365. Confirm and create.
+**Step 2 — Engagement type:**
+
+```options
+{"title":"What type of IG engagement?","options":[
+  {"id":"all","title":"All Engagement","description":"Anyone who interacted with your profile or content"},
+  {"id":"visit","title":"Profile Visitors","description":"People who visited your profile"},
+  {"id":"post","title":"Post/Ad Engagement","description":"Reactions, comments, shares, saves"},
+  {"id":"message","title":"Sent a Message","description":"People who DM'd your account"},
+  {"id":"saved","title":"Saved a Post","description":"People who saved your posts or ads"}
+]}
+```
+
+Auto-default retention=365. Confirm and create.
 
 **Rule JSON format:**
 
@@ -492,22 +468,28 @@ Use options cards for every choice.
 
 ### FACEBOOK PAGE Engagement Audience
 
-Use options cards for every choice.
-
-1. Call `get_pages` then present as ```options block (use page NAME as title, NOT numeric ID)
-2. Present engagement types as ```options:
+**Step 1 — Select page:** Call `get_pages` and present (use page NAME as title):
 
 ```options
-{"title":"What type of Page engagement?","options":[
-  {"id":"engaged","title":"Any engagement","description":"Reactions, shares, comments, link clicks on posts/ads"},
-  {"id":"liked","title":"Page likes/follows","description":"People who currently like or follow your Page"},
-  {"id":"visited","title":"Page visitors","description":"Anyone who visited your Page"},
-  {"id":"cta","title":"CTA button clicks","description":"People who clicked Call, Message, etc."},
-  {"id":"messaged","title":"Sent a message","description":"People who messaged your Page"}
+{"title":"Which Facebook Page?","options":[
+  {"id":"PAGE_ID_1","title":"Your Business Page","description":"15K likes"},
+  {"id":"PAGE_ID_2","title":"Your Other Page","description":"8K likes"}
 ]}
 ```
 
-3. Auto-default retention=365. Confirm and create.
+**Step 2 — Engagement type:**
+
+```options
+{"title":"What type of Page engagement?","options":[
+  {"id":"engaged","title":"Any Engagement","description":"Reactions, shares, comments, link clicks on posts/ads"},
+  {"id":"liked","title":"Page Likes/Follows","description":"People who currently like or follow your Page"},
+  {"id":"visited","title":"Page Visitors","description":"Anyone who visited your Page"},
+  {"id":"cta","title":"CTA Button Clicks","description":"People who clicked Call, Message, etc."},
+  {"id":"messaged","title":"Sent a Message","description":"People who messaged your Page"}
+]}
+```
+
+Auto-default retention=365. Confirm and create.
 
 **Rule JSON format:**
 
@@ -543,66 +525,204 @@ Use options cards for every choice.
 
 ### LOOKALIKE Audience
 
-1. Call `get_custom_audiences` to list existing audiences as source options
-2. Ask: which source audience, target country, and size ratio (1-10%)?
-3. Call `create_lookalike_audience` with: name, origin_audience_id, lookalike_spec={"country":"XX","ratio":0.01}
-4. Ratio is decimal: 1% = 0.01, 5% = 0.05, 10% = 0.10
-5. Smaller ratio = more similar to source, larger = broader reach
+**Step 1 — Source audience:** Call `get_custom_audiences` and present existing audiences:
+
+```options
+{"title":"Which audience should the lookalike be based on?","options":[
+  {"id":"AUD_ID_1","title":"Website Purchasers - 30d","description":"Custom audience · 12,500 people"},
+  {"id":"AUD_ID_2","title":"Email Subscribers","description":"Customer list · 8,200 people"},
+  {"id":"AUD_ID_3","title":"Video Viewers 75%","description":"Engagement audience · 45,000 people"}
+]}
+```
+
+**Step 2 — Target country:** Ask user for the country.
+
+**Step 3 — Lookalike size:**
+
+```options
+{"title":"How similar should the lookalike be?","options":[
+  {"id":"0.01","title":"1% (Most Similar)","description":"Smallest, highest quality — best for conversions"},
+  {"id":"0.02","title":"2%","description":"Slightly broader, still high quality"},
+  {"id":"0.03","title":"3%","description":"Good balance of quality and reach"},
+  {"id":"0.05","title":"5%","description":"Broader reach, moderate similarity"},
+  {"id":"0.10","title":"10%","description":"Large audience, lower similarity"},
+  {"id":"0.20","title":"20% (Broadest)","description":"Maximum reach — best for awareness campaigns"}
+]}
+```
+
+Confirm and call `create_lookalike_audience`. Ratio is decimal: 1% = 0.01.
 
 ---
 
 ### SAVED Audience (Interest/Behavior Targeting)
 
-1. Ask: what demographics and interests to target?
-2. Use `targeting_search` to find interest/behavior IDs by keyword (e.g., search "fitness" to get interest IDs)
-3. Use `targeting_browse` to explore available targeting categories
-4. Call `create_saved_audience` with name and targeting spec:
+**Step 1 — Demographics:**
 
-```json
-{
-  "name": "My Saved Audience",
-  "targeting": {
-    "geo_locations": {"countries": ["SG"]},
-    "age_min": 25,
-    "age_max": 65,
-    "genders": [1, 2],
-    "flexible_spec": [
-      {"interests": [{"id": "6003139266461", "name": "Fitness"}]}
-    ]
-  }
-}
+```options
+{"title":"Target gender","options":[
+  {"id":"0","title":"All Genders","description":"No gender restriction"},
+  {"id":"1","title":"Male","description":"Male only"},
+  {"id":"2","title":"Female","description":"Female only"}
+]}
 ```
 
-5. Saved audiences are reusable targeting templates — great for frequently used targeting combos
+Ask for target country and age range.
+
+**Step 2 — Interest discovery:** Ask for their niche/industry, call `targeting_search` with keywords, present results:
+
+```options
+{"title":"Select interests to target","options":[
+  {"id":"6003139266461","title":"Fitness and wellness","description":"Interest · 450M people"},
+  {"id":"6003384248805","title":"Yoga","description":"Interest · 200M people"},
+  {"id":"6003659278981","title":"Running","description":"Interest · 300M people"}
+]}
+```
+
+Use `targeting_browse` to explore available targeting categories if needed.
+
+**Step 3 — Validate and estimate:** Call `get_reach_estimate` and show:
+
+```metrics
+{"metrics":[
+  {"label":"Estimated Audience Size","value":"2.5M - 5.0M"},
+  {"label":"Location","value":"United States"},
+  {"label":"Age","value":"25-45"},
+  {"label":"Interests","value":"Fitness, Yoga, Running"}
+]}
+```
+
+Confirm and call `create_saved_audience`.
 
 ---
 
-### LEAD AD Audience
+### Post-Creation Flow
 
-- Build rule with event_sources type "lead_gen_form": people who opened or submitted lead forms
-- retention_seconds max: 90 days (7776000)
+After creating ANY audience, show:
 
----
+```metrics
+{"metrics":[
+  {"label":"Audience Name","value":"[Name]"},
+  {"label":"Type","value":"[Type]"},
+  {"label":"Audience ID","value":"[ID]"},
+  {"label":"Estimated Size","value":"[Size]"},
+  {"label":"Retention","value":"[Days] days"}
+]}
+```
 
-### OFFLINE EVENTS Audience
+Then: "Your audience is ready! You can view and manage it in the Audiences module."
 
-- Build rule with event_sources type "offline_event_set"
-- retention_seconds max: 180 days (15552000)
+```quickreplies
+["[audiences] View in Audiences", "Create ad set with this audience", "Create lookalike from this", "Analyze audience performance"]
+```
 
----
+**Keep users in our UI:** After creating an audience, do NOT send users to Meta Ads Manager or Business Suite. Direct them to the **Audiences module** in our app. Do NOT link to business.facebook.com or any external Meta URL.
+
+## Analytical Handoff
+
+After creating audiences, recommend loading `insights-reporting` to analyze audience performance. Key questions to answer:
+
+- Which audience segments have the lowest CPA?
+- Which custom audiences are delivering the best ROAS?
+- Are lookalike audiences outperforming interest-based targeting?
+- Which retention windows produce the most conversions?
+
+When user selects "Analyze audience performance" from quickreplies, load `insights-reporting` with the audience context.
+
+## Operational Handoff
+
+After audience strategy is planned, execution proceeds through:
+
+- **`ad-manager`** — create ad sets using the planned audience targeting
+- **`campaign-manager`** — build a full campaign using the audience in Step 6
+
+## Quick Reference
+
+### Audience Subtypes
+
+| Subtype | Description |
+|---------|-------------|
+| `CUSTOM` | General custom audience (default) |
+| `WEBSITE` | Website visitors via Meta Pixel |
+| `APP` | App activity audience |
+| `VIDEO` | Users who engaged with video content |
+| `LOOKALIKE` | Lookalike audience (created via lookalike endpoint) |
 
 ### Retention Limits
 
-| Audience Type | Max Retention |
-|---------------|---------------|
-| Website | 180 days |
-| Lead Ad | 90 days |
-| Offline | 180 days |
-| Mobile App | 180 days |
-| Video | 365 days |
-| Instagram | 365 days |
-| Facebook Page | 365 days |
-| Facebook Event | 365 days |
-| Shopping | 365 days |
-| Catalogue | 365 days |
-| AR | 365 days |
+| Audience Type | Max Retention | Default |
+|---------------|---------------|---------|
+| Website | 180 days | 30 days |
+| Lead Ad | 90 days | 30 days |
+| Offline | 180 days | 30 days |
+| Mobile App | 180 days | 30 days |
+| Video | 365 days | 365 days |
+| Instagram | 365 days | 365 days |
+| Facebook Page | 365 days | 365 days |
+| Facebook Event | 365 days | 365 days |
+| Shopping | 365 days | 365 days |
+| Catalogue | 365 days | 365 days |
+| AR | 365 days | 365 days |
+
+### Lookalike Ratio Guide
+
+| Ratio | Size | Best For |
+|-------|------|----------|
+| 1% (0.01) | Smallest | Conversions, high-value actions |
+| 2-3% (0.02-0.03) | Small-Medium | Balanced quality and reach |
+| 5% (0.05) | Medium | Traffic, engagement |
+| 10% (0.10) | Large | Broad awareness |
+| 20% (0.20) | Maximum | Maximum reach campaigns |
+
+`type` can be `"similarity"` (optimize for closeness) or `"reach"` (optimize for size).
+
+### Targeting Spec Structure
+
+```json
+{
+  "geo_locations": {
+    "countries": ["US", "CA"],
+    "regions": [{ "key": "4081" }],
+    "cities": [{ "key": "2420605", "radius": 25, "distance_unit": "mile" }]
+  },
+  "age_min": 18,
+  "age_max": 65,
+  "genders": [0, 1, 2],
+  "flexible_spec": [
+    {
+      "interests": [{ "id": "6003139266461", "name": "Fitness" }],
+      "behaviors": [{ "id": "6002714895372", "name": "Engaged Shoppers" }]
+    }
+  ],
+  "exclusions": {
+    "interests": [{ "id": "...", "name": "..." }]
+  },
+  "custom_audiences": [{ "id": "23851234567890" }],
+  "excluded_custom_audiences": [{ "id": "23851234567891" }],
+  "locales": [6, 24]
+}
+```
+
+- `genders`: `0` = all, `1` = male, `2` = female.
+- `flexible_spec` entries within the same object are OR-ed; separate objects are AND-ed.
+
+### Reach Estimate Interpretation
+
+- `users_lower_bound` — Conservative estimate of audience size.
+- `users_upper_bound` — Optimistic estimate of audience size.
+- Too narrow: < 1,000 — broaden targeting.
+- Too broad: > 100M — add interests or narrow demographics.
+
+### Hashed PII Format for Customer Lists
+
+```json
+{
+  "schema": ["EMAIL", "PHONE", "FN", "LN"],
+  "data": [
+    ["a1b2c3...(sha256 of email)", "d4e5f6...(sha256 of phone)", "...", "..."]
+  ]
+}
+```
+
+- Hash each field individually with SHA-256 before sending.
+- Normalize before hashing: lowercase emails, remove spaces, use E.164 phone format.
+- Supported fields: `EMAIL`, `PHONE`, `FN` (first name), `LN` (last name), `ZIP`, `CT` (city), `ST` (state), `COUNTRY`, `DOBY` (birth year), `DOBM` (birth month), `DOBD` (birth day), `GEN` (gender), `MADID` (mobile advertiser ID).
