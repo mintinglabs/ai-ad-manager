@@ -246,7 +246,9 @@ router.post('/', async (req, res) => {
   } catch (err) {
     console.error('[chat] error:', err?.message, err?.stack);
     if (res.headersSent) {
-      sse(res, { type: 'error', message: err.message });
+      // Send as text so the user sees the actual error instead of a generic fallback
+      sse(res, { type: 'text', content: `Sorry, I ran into an error: ${err.message}` });
+      sse(res, { type: 'done', sessionId: 'error' });
       res.end();
     } else {
       res.status(500).json({ error: err.message });

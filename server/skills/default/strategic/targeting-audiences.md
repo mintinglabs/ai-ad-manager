@@ -1,10 +1,10 @@
 ---
-
-## name: targeting-audiences
+name: targeting-audiences
 description: Plan audience targeting strategies — custom audiences, lookalikes, saved audiences, and interest targeting with interactive source selection
 layer: strategic
 depends_on: [insights-reporting]
 leads_to: [ad-manager, campaign-manager]
+---
 
 # Targeting & Audiences
 
