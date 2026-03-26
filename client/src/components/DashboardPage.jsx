@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Sparkles, RefreshCw, Loader2, AlertCircle, ArrowRight, ArrowUpRight, CheckCircle2, AlertTriangle, XCircle, Eye, MousePointerClick, ShoppingCart, DollarSign, Target, Users, Megaphone, FileText, Search, Zap, BarChart3, Shield, Lightbulb, TrendingUp, Palette, Globe, ChevronLeft } from 'lucide-react';
+import { Sparkles, RefreshCw, Loader2, AlertCircle, ArrowUpRight, CheckCircle2, AlertTriangle, XCircle, ShoppingCart, DollarSign, Target, Users, Megaphone, FileText, Search, Zap, BarChart3, ChevronLeft } from 'lucide-react';
 import api from '../services/api.js';
 
 // ── Funnel stage classification ──────────────────────────────────────────────
@@ -90,69 +90,71 @@ const computeFunnelMetrics = (campaigns, insights) => {
   return { tofu, mofu, bofu, overallScore: Math.round((tofu.score + mofu.score + bofu.score) / 3), totalBudget };
 };
 
-// ── Strategist Role Cards (the main dashboard) ──────────────────────────────
-const STRATEGIST_ROLES = [
+// ── Action Cards (the main dashboard) ───────────────────────────────────────
+const ACTION_CARDS = [
   {
-    id: 'funnel',
-    title: 'Inceptional Funnel Auditor',
-    subtitle: 'Full-Funnel Strategy Analysis',
-    desc: 'Analyze your TOFU → MOFU → BOFU pipeline. Find gaps, optimize budget allocation, and build a full-funnel campaign blueprint.',
-    icon: BarChart3,
-    gradient: 'from-indigo-500 to-violet-600',
-    shadowColor: 'shadow-indigo-200/50',
-    hasDetailView: true,
-  },
-  {
-    id: 'budget',
-    title: 'Budget Optimizer',
-    subtitle: 'Smart Budget Allocation',
-    desc: 'Reallocate spend to top performers, pause underperforming campaigns, and find wasted budget across your account.',
-    icon: DollarSign,
-    gradient: 'from-emerald-500 to-teal-600',
-    shadowColor: 'shadow-emerald-200/50',
-    prompt: 'Act as my Budget Optimizer strategist. Analyze my entire ad account budget allocation. Show me: (1) which campaigns are overspending vs underperforming, (2) where budget is being wasted, (3) which campaigns deserve more budget based on ROAS and efficiency, (4) a specific reallocation plan with exact dollar amounts.',
-  },
-  {
-    id: 'creative',
-    title: 'Creative Director',
-    subtitle: 'Ad Creative & Copy Analysis',
-    desc: 'Identify creative fatigue, winning ad formats, copy patterns that convert, and fresh creative suggestions based on your data.',
-    icon: Palette,
-    gradient: 'from-pink-500 to-rose-600',
-    shadowColor: 'shadow-pink-200/50',
-    prompt: 'Act as my Creative Director strategist. Analyze all my ad creatives across campaigns. Show me: (1) which creatives have fatigue signals (high frequency, declining CTR), (2) top-performing creative formats and copy patterns, (3) A/B test ideas based on what\'s working, (4) fresh creative suggestions for each funnel stage.',
+    id: 'campaign',
+    title: 'Create Campaign',
+    subtitle: 'Launch a new ad in minutes',
+    desc: 'Step-by-step guided flow — choose your goal, destination, creative, audience, budget, and go live. Supports WhatsApp, Lead Forms, Website conversions, and more.',
+    icon: Zap,
+    gradient: 'from-blue-500 to-indigo-600',
+    shadowColor: 'shadow-blue-200/50',
+    cta: 'Start building →',
+    prompt: 'I want to create a new campaign.',
   },
   {
     id: 'audience',
-    title: 'Audience Architect',
-    subtitle: 'Targeting & Audience Intelligence',
-    desc: 'Map your audience segments, find overlap issues, discover untapped lookalikes, and optimize targeting precision.',
-    icon: Target,
-    gradient: 'from-blue-500 to-cyan-600',
-    shadowColor: 'shadow-blue-200/50',
-    prompt: 'Act as my Audience Architect strategist. Analyze all my audiences and targeting. Show me: (1) all custom audiences with sizes and overlap percentages, (2) which audiences are saturated (high frequency), (3) lookalike expansion opportunities, (4) targeting gaps I\'m missing, (5) a recommended audience strategy with specific segments.',
+    title: 'Build Audience',
+    subtitle: 'Target the right people',
+    desc: 'Create custom audiences from website visitors, video viewers, Instagram engagers, WhatsApp contacts, or customer lists. Build lookalikes from your best converters.',
+    icon: Users,
+    gradient: 'from-emerald-500 to-teal-600',
+    shadowColor: 'shadow-emerald-200/50',
+    cta: 'Build now →',
+    prompt: 'I want to build a new audience.',
   },
   {
-    id: 'competitor',
-    title: 'Competitor Scout',
-    subtitle: 'Ad Library & Market Intelligence',
-    desc: 'Research competitor ads, identify market trends, benchmark your performance, and discover new positioning angles.',
-    icon: Globe,
-    gradient: 'from-orange-500 to-amber-600',
-    shadowColor: 'shadow-orange-200/50',
-    prompt: 'Act as my Competitor Scout strategist. Search the Meta Ad Library for competitor activity in my industry. Show me: (1) what competitors are running and their creative styles, (2) trends in ad messaging and offers, (3) gaps in the market I can exploit, (4) positioning angles that differentiate my brand. Ask me about my main competitors if you need names.',
-  },
-  {
-    id: 'health',
-    title: 'Account Doctor',
-    subtitle: 'Full Account Health Audit',
-    desc: 'Diagnose pixel issues, CAPI setup, campaign structure problems, exclusion gaps, and scaling constraints.',
-    icon: Shield,
-    gradient: 'from-red-500 to-rose-600',
-    shadowColor: 'shadow-red-200/50',
-    prompt: 'Act as my Account Doctor strategist. Run a comprehensive health audit on my ad account. Check: (1) pixel and CAPI setup status, (2) campaign structure quality (naming, hierarchy, organization), (3) audience exclusion gaps (are converters excluded from prospecting?), (4) frequency and saturation issues, (5) attribution and conversion tracking accuracy. Give me a health score and prioritized fix list.',
+    id: 'performance',
+    title: 'Performance Analysis',
+    subtitle: 'See what\'s working',
+    desc: 'Analyse spend, results, and cost per outcome across all campaigns. Get goal-specific insights — conversations, leads, ROAS, or traffic — with actionable recommendations.',
+    icon: BarChart3,
+    gradient: 'from-violet-500 to-purple-600',
+    shadowColor: 'shadow-violet-200/50',
+    cta: 'Analyse now →',
+    prompt: 'Show me how my ads are performing.',
   },
 ];
+
+const ActionCard = ({ card, onClick }) => {
+  const Icon = card.icon;
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col bg-white border border-slate-200 rounded-2xl overflow-hidden text-left shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-200 group"
+    >
+      {/* Gradient banner */}
+      <div className={`bg-gradient-to-br ${card.gradient} px-6 pt-6 pb-8`}>
+        <div className={`w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shadow-inner mb-4`}>
+          <Icon size={24} className="text-white" />
+        </div>
+        <p className="text-lg font-extrabold text-white leading-tight">{card.title}</p>
+        <p className="text-[12px] text-white/70 mt-0.5">{card.subtitle}</p>
+      </div>
+      {/* Body */}
+      <div className="px-6 py-5 flex-1 flex flex-col justify-between">
+        <p className="text-[13px] text-slate-500 leading-relaxed mb-4">{card.desc}</p>
+        <div className="flex items-center justify-between">
+          <span className={`text-[13px] font-semibold bg-gradient-to-r ${card.gradient} bg-clip-text text-transparent`}>
+            {card.cta}
+          </span>
+          <ArrowUpRight size={15} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
+        </div>
+      </div>
+    </button>
+  );
+};
 
 const StrategistCard = ({ role, onClick }) => {
   const Icon = role.icon;
@@ -386,7 +388,7 @@ export const DashboardPage = ({ adAccountId, onNavigateToChat }) => {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeRole, setActiveRole] = useState(null); // null = grid, 'funnel' = detail
+  const [activeRole, setActiveRole] = useState(null);
 
   const fetchData = useCallback(async () => {
     if (!adAccountId) return;
@@ -431,14 +433,6 @@ export const DashboardPage = ({ adAccountId, onNavigateToChat }) => {
     );
   }
 
-  const handleRoleClick = (role) => {
-    if (role.hasDetailView) {
-      setActiveRole(role.id);
-    } else if (role.prompt) {
-      onNavigateToChat(role.prompt);
-    }
-  };
-
   return (
     <div className="flex-1 overflow-y-auto">
       {loading && !campaigns.length ? (
@@ -449,7 +443,7 @@ export const DashboardPage = ({ adAccountId, onNavigateToChat }) => {
           </div>
         </div>
       ) : error ? (
-        <div className="max-w-6xl mx-auto px-6 py-6">
+        <div className="max-w-4xl mx-auto px-6 py-6">
           <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
         </div>
       ) : activeRole === 'funnel' ? (
@@ -460,8 +454,7 @@ export const DashboardPage = ({ adAccountId, onNavigateToChat }) => {
           onBack={() => setActiveRole(null)}
         />
       ) : (
-        /* Strategist Roles Grid */
-        <div className="max-w-6xl mx-auto px-6 py-6">
+        <div className="max-w-4xl mx-auto px-6 py-8">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
@@ -469,8 +462,8 @@ export const DashboardPage = ({ adAccountId, onNavigateToChat }) => {
                 <Sparkles size={20} className="text-amber-400" />
               </div>
               <div>
-                <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">My Strategist</h1>
-                <p className="text-xs text-slate-500 mt-0.5">Choose a strategist to analyze your campaigns</p>
+                <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">What do you want to do?</h1>
+                <p className="text-xs text-slate-500 mt-0.5">Pick an action to get started</p>
               </div>
             </div>
             <button onClick={fetchData} disabled={loading}
@@ -480,18 +473,11 @@ export const DashboardPage = ({ adAccountId, onNavigateToChat }) => {
             </button>
           </div>
 
-          {/* Role Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {STRATEGIST_ROLES.map(role => (
-              <StrategistCard key={role.id} role={role} onClick={() => handleRoleClick(role)} />
+          {/* 3 Action Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {ACTION_CARDS.map(card => (
+              <ActionCard key={card.id} card={card} onClick={() => onNavigateToChat(card.prompt)} />
             ))}
-          </div>
-
-          {/* Hint */}
-          <div className="mt-8 text-center">
-            <p className="text-xs text-slate-400">
-              Each strategist analyzes your campaigns from a different angle. More roles coming soon.
-            </p>
           </div>
         </div>
       )}
