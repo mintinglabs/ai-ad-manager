@@ -561,30 +561,11 @@ export const getVideoViewsMap = async (token, adAccountId, { datePreset = 'maxim
       if (familyViews[fam]) viewsMap[vid] = familyViews[fam];
     }
 
-    // ── Step 7: Build secondary lookup by video length ──
-    // Page videos and IG videos have different IDs than ad copies but share the
-    // same duration. This map lets consumers match any video to its ad family's
-    // aggregated views using rounded length as key.
-    const byLength = {}; // rounded_length_tenths → { views, title }
-    for (const [fkey, views] of Object.entries(familyViews)) {
-      if (!views) continue;
-      const parts = fkey.split('|');
-      const lenStr = parts.pop();
-      const title = parts.join('|');
-      const lenKey = String(Math.round(parseFloat(lenStr) * 10)); // 0.1s precision
-      if (lenKey === '0' || lenKey === 'NaN') continue;
-      if (views > (byLength[lenKey]?.views || 0)) {
-        byLength[lenKey] = { views, title };
-      }
-    }
-    viewsMap._byLength = byLength;
-
-    console.log(`[getVideoViewsMap] ${adAccountId}: ${Object.keys(viewsMap).length} videos, ${Object.keys(familyViews).length} families, ${Object.keys(byLength).length} length keys`);
+    console.log(`[getVideoViewsMap] ${adAccountId}: ${Object.keys(viewsMap).length} videos, ${Object.keys(familyViews).length} families`);
   } catch (err) {
     console.error('[getVideoViewsMap] error:', err.response?.data?.error?.message || err.message);
   }
 
-  if (!viewsMap._byLength) viewsMap._byLength = {};
   _videoViewsCache.set(cacheKey, { map: viewsMap, ts: Date.now() });
   return viewsMap;
 };
@@ -1553,67 +1534,47 @@ export const getPageVideos = async (token, pageId, adAccountId, { after } = {}) 
       adVidsPromise
     ]);
 
-    // Build ad video lookup by rounded length (in 0.1s) for cross-matching
-    // Key: length_tenths → { views, title, updated_time, ... } (best match by views)
-    const adByLength = {};
-    for (const av of (adVids || [])) {
-      const lenKey = Math.round((av.length || 0) * 10);
-      if (lenKey > 0 && av.three_second_views > (adByLength[lenKey]?.three_second_views || 0)) {
-        adByLength[lenKey] = av;
-      }
-    }
-    // Also build a set of ad video lengths for dedup
-    const adLengths = new Set(Object.keys(adByLength).map(Number));
-
-    const byLength = viewsMap._byLength || {};
     const rawPageVideos = (data.data || []).filter(v => !v.status || v.status.video_status === 'ready');
+
+    // Batch-fetch native video insights (blue_reels_play_count) for accurate 3s views
+    const nativeViews = {}; // video_id → play count
+    const videoIds = rawPageVideos.map(v => v.id);
+    for (let i = 0; i < videoIds.length; i += 25) {
+      const batch = videoIds.slice(i, i + 25);
+      try {
+        const { data: batchData } = await metaApi.get('/', {
+          params: { ids: batch.join(','), fields: 'id,video_insights.metric(blue_reels_play_count)', access_token: pageToken }
+        });
+        for (const [vid, info] of Object.entries(batchData)) {
+          const metric = info.video_insights?.data?.[0];
+          if (metric?.values?.[0]?.value != null) {
+            nativeViews[vid] = parseInt(metric.values[0].value, 10) || 0;
+          }
+        }
+      } catch { /* video_insights not available for some videos, skip */ }
+    }
+
     const pageVideos = rawPageVideos.map(v => {
-      let views = viewsMap[v.id] || 0;
-      let lastUsed = v.updated_time;
-      // If page video has no ad views, try two fallback strategies:
-      // 1. viewsMap._byLength: aggregated family views keyed by video duration (0.1s precision)
-      // 2. adByLength: direct ad video match by duration
-      // Page videos and ad copies of the same content always share the same duration.
-      if (!views && v.length) {
-        const lenKey = String(Math.round((v.length || 0) * 10));
-        // Strategy 1: family views by length from getVideoViewsMap
-        if (byLength[lenKey]?.views) {
-          views = byLength[lenKey].views;
-        }
-        // Strategy 2: direct ad video match
-        if (!views) {
-          const match = adByLength[Number(lenKey)];
-          if (match?.three_second_views > 0) views = match.three_second_views;
-        }
-        // Inherit "last used" from ad video if available and more recent
-        const adMatch = adByLength[Number(lenKey)];
-        if (adMatch?.updated_time && (!lastUsed || adMatch.updated_time > lastUsed)) {
-          lastUsed = adMatch.updated_time;
-        }
-      }
+      // Priority: 1) exact ad match by video ID, 2) native video_insights, 3) views field
+      const adViews = viewsMap[v.id] || 0;
+      const native = nativeViews[v.id];
+      const views = adViews || native || v.views || 0;
       return {
         ...v,
         title: cleanTitle(v.title) || v.title,
-        three_second_views: views || v.views || 0,
-        updated_time: lastUsed
+        three_second_views: views,
+        updated_time: v.updated_time
       };
     });
     const nextCursor = data.paging?.cursors?.after || null;
     const hasMore = !!data.paging?.next;
 
-    // Merge ad account videos not already in page list (dedup by ID AND by length)
+    // Merge ad account videos not already in page list (dedup by exact ID only)
     if (!after && adVids?.length) {
       const pageVideoIds = new Set(pageVideos.map(v => v.id));
-      const pageLengths = new Set(rawPageVideos.map(v => Math.round((v.length || 0) * 10)).filter(l => l > 0));
       const extra = adVids
         .filter(v => !pageVideoIds.has(v.id))
-        // Skip ad copies of page videos (same length = same content, already shown)
-        .filter(v => {
-          const lenKey = Math.round((v.length || 0) * 10);
-          return lenKey === 0 || !pageLengths.has(lenKey);
-        })
         .map(v => ({ ...v, title: cleanTitle(v.title) }));
-      // Sort by updated_time (last used) descending — matches Meta's default sort
       const merged = [...pageVideos, ...extra].sort((a, b) =>
         (b.updated_time || b.created_time || '').localeCompare(a.updated_time || a.created_time || ''));
       return { videos: merged, nextCursor: hasMore ? nextCursor : null };
@@ -1632,15 +1593,9 @@ export const getPageVideos = async (token, pageId, adAccountId, { after } = {}) 
   }
 };
 
-// Resolve 3-second views for a video using viewsMap with _byLength fallback.
-// viewsMap maps ad video IDs; _byLength maps by video duration for page/IG videos
-// whose IDs differ from their ad account copies.
+// Resolve 3-second views for a video using viewsMap (exact video ID match only).
 const resolveViews = (viewsMap, videoId, length, organicViews = 0) => {
   if (viewsMap[videoId]) return viewsMap[videoId];
-  if (length) {
-    const lenKey = String(Math.round((length || 0) * 10));
-    if (viewsMap._byLength?.[lenKey]?.views) return viewsMap._byLength[lenKey].views;
-  }
   return organicViews || 0;
 };
 
