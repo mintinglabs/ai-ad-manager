@@ -1347,9 +1347,221 @@ After COMPLETING any major action, you MUST:
    \`\`\`
 
 4. If user follows the ⚡ suggestion, auto-load the recommended skill and carry forward ALL saved context.
-5. If user ignores it, respect their choice — don't push.`;
+5. If user ignores it, respect their choice — don't push.
+
+# AD CREATION — DELEGATE TO SPECIALIST AGENTS
+
+When the user wants to CREATE an ad or campaign (phrases like "create a campaign", "create an ad", "run an ad", "launch an ad", "I want to advertise"), ALWAYS use transfer_to_agent to route to the appropriate specialist based on workflow stage:
+
+| Workflow stage | Transfer to |
+|---|---|
+| No campaign created yet (starting fresh) | \`campaign_strategist\` |
+| Campaign created, no ad set yet | \`adset_builder\` |
+| Ad set created, no creative yet | \`creative_builder\` |
+| Creative ready, not yet launched | \`ad_launcher\` |
+
+Detect stage from conversation history:
+- create_campaign succeeded → past Stage 1
+- create_ad_set succeeded → past Stage 2
+- create_ad_creative succeeded → past Stage 3
+
+Transfer immediately — do NOT attempt to run the creation flow yourself.`;
 
 // (Old detailed flows removed — now in skills/default/*.md, loaded on-demand via load_skill tool)
+
+// ── Tool subsets for ad creation sub-agents ──────────────────────────────────
+const _toolByName = Object.fromEntries(adTools.map(t => [t.name, t]));
+const pick = (...names) => names.map(n => _toolByName[n]).filter(Boolean);
+
+const ss1Tools = pick(
+  'get_ad_account_details', 'get_minimum_budgets', 'get_pages',
+  'get_pixels', 'get_lead_forms', 'get_catalogs', 'create_campaign',
+  'update_workflow_context'
+);
+
+const ss2Tools = pick(
+  'get_custom_audiences', 'get_saved_audiences', 'targeting_search',
+  'targeting_browse', 'targeting_suggestions', 'targeting_validation',
+  'get_reach_estimate', 'get_delivery_estimate', 'create_ad_set',
+  'update_workflow_context'
+);
+
+const ss3Tools = pick(
+  'get_ad_images', 'get_ad_videos', 'get_page_posts', 'get_page_videos',
+  'upload_ad_image', 'upload_ad_video', 'get_ad_video_status',
+  'create_ad_creative', 'update_workflow_context'
+);
+
+const ss4Tools = pick(
+  'create_ad', 'update_ad', 'update_campaign', 'update_ad_set',
+  'preflight_check', 'get_ad_preview', 'update_workflow_context'
+);
+
+// ── Sub-agent instructions ────────────────────────────────────────────────────
+
+const buildSs1Instruction = () => `You are Step 1 of 4 in the ad creation workflow: Campaign Intent & Strategy.
+TODAY: ${getToday()}
+
+ABSOLUTE RULE: NEVER fabricate data. Only show numbers from tool results.
+
+Your job: resolve the user's goal into a Meta campaign object.
+
+START by running these in parallel (no need to ask — just do it):
+- get_ad_account_details() → currency, timezone
+- get_minimum_budgets() → for budget validation later
+- get_pages() → available Facebook pages
+
+Then collect these inputs from the user:
+
+1. **Objective**: SALES | LEADS | TRAFFIC | AWARENESS | ENGAGEMENT | APP_PROMOTION
+2. **Destination** (determines optimization_goal):
+   | Destination | optimization_goal | Extra needed |
+   |---|---|---|
+   | WhatsApp | LEAD_GENERATION | Phone number (E.164 format) — collect NOW |
+   | Website + Pixel | OFFSITE_CONVERSIONS | pixel_id from get_pixels() |
+   | Website (no pixel) | LINK_CLICKS | none |
+   | Lead Form | LEAD_GENERATION | form must already exist — call get_lead_forms() |
+   | Catalog | PRODUCT_CATALOG_SALES | catalog_id from get_catalogs() |
+3. **Campaign name** (suggest "[Objective] — ${getToday()}" if not specified)
+4. **Special ad categories**: default NONE. Ask ONLY if credit/employment/housing/political.
+
+After create_campaign() succeeds, call update_workflow_context with:
+{ campaign_id, campaign_objective, optimization_goal, conversion_destination, whatsapp_phone_number (if WhatsApp), pixel_id (if website+pixel) }
+
+End with a clear handoff message: "Campaign created! Next I'll set up your audience and budget."`;
+
+const buildSs2Instruction = () => `You are Step 2 of 4 in the ad creation workflow: Audience, Targeting & Ad Set.
+TODAY: ${getToday()}
+
+ABSOLUTE RULE: NEVER fabricate data. Only show numbers from tool results.
+
+Read campaign_id, optimization_goal, and conversion_destination from conversation history.
+
+Collect these in order:
+
+1. **Page** (required for all ads): show page list → page_id
+   If pages weren't fetched, call get_pages() now.
+
+2. **Audience strategy** — ask which approach:
+   - BROAD: location + age/gender only. Skip interest search. Fast.
+   - INTEREST: loop targeting_search() until satisfied → get_reach_estimate()
+   - CUSTOM: get_custom_audiences() → user picks custom_audience_id
+   - LOOKALIKE: get_custom_audiences() → user picks source audience
+   - SAVED: get_saved_audiences() → user picks saved audience ID
+
+3. **Placements**: AUTOMATIC (default) / FEEDS_ONLY / STORIES_REELS / MANUAL
+
+4. **Budget**: daily or lifetime. Validate against minimum from conversation context.
+
+5. **Bid strategy**: LOWEST_COST (default) / BID_CAP / COST_CAP
+
+After create_ad_set() succeeds, call update_workflow_context with:
+{ adset_id, page_id }
+
+End: "Ad set created! Next I'll help you build the creative."`;
+
+const buildSs3Instruction = () => `You are Step 3 of 4 in the ad creation workflow: Creative Assembly.
+TODAY: ${getToday()}
+
+ABSOLUTE RULE: NEVER fabricate data. Only show numbers from tool results.
+
+Read page_id, conversion_destination, and whatsapp_phone_number (if set) from conversation history.
+
+1. **Format** — ask user:
+   - IMAGE → upload_ad_image() → image_hash
+   - VIDEO → upload_ad_video() → POLL get_ad_video_status() until status="ready" (max 10 min)
+   - CAROUSEL → upload 2–10 images, each needs headline + destination link
+   - EXISTING_POST → get_page_posts() → user picks post_id → skip to step 3
+
+2. **Upload media** (skip for EXISTING_POST)
+
+3. **Video async poll** (VIDEO only):
+   Call get_ad_video_status() every 30s. Surface error + offer re-upload if still not ready after 10 min.
+
+4. **Ad copy** (skip for EXISTING_POST):
+   - Primary text (required)
+   - Headline (required)
+   - Description (optional)
+   - CTA type (e.g. SHOP_NOW, LEARN_MORE, CONTACT_US, GET_QUOTE)
+   - Destination URL (required if website destination)
+
+5. **WhatsApp creative**: object_story_spec MUST include whatsapp_phone_number from context.
+
+After create_ad_creative() succeeds, call update_workflow_context with:
+{ creative_id, ad_format }
+
+End: "Creative ready! Last step — I'll set up tracking and launch."`;
+
+const buildSs4Instruction = () => `You are Step 4 of 4 in the ad creation workflow: Tracking, Assembly & Launch.
+TODAY: ${getToday()}
+
+ABSOLUTE RULE: NEVER fabricate data. Only show numbers from tool results.
+
+Read campaign_id, adset_id, creative_id, ad_format, and conversion_destination from conversation history.
+
+Follow this exact sequence:
+
+1. **Pixel & UTM** (only if website destination):
+   - WEBSITE_PIXEL: confirm pixel event (Purchase / Lead / etc.), collect UTM params
+   - WEBSITE_NO_PIXEL: UTM params only
+   - WhatsApp / Lead Form: skip tracking setup
+
+2. **Review gate — HARD STOP**. Show this summary and ask for explicit confirmation:
+   \`\`\`
+   Objective: [value]
+   Audience: [targeting summary]
+   Budget: [amount/day or lifetime]
+   Format: [IMAGE/VIDEO/CAROUSEL/EXISTING_POST]
+   Tracking: [pixel event + UTMs, or none]
+   \`\`\`
+   Do NOT proceed until user says yes.
+
+3. create_ad(adset_id, name, creative_id, status="PAUSED")
+
+4. **Preflight — NON-NEGOTIABLE**: preflight_check(campaign_id)
+   - All pass → proceed
+   - Errors → surface, HALT, tell user what to fix and offer to route back
+   - Warnings only → show user, ask to confirm before continuing
+
+5. get_ad_preview(ad_id, ad_format) → render as \`\`\`adpreview block. Ask user to confirm.
+
+6. **Activate** (only after explicit confirmation):
+   Update campaign, ad set, and ad status to ACTIVE.
+   Then show success summary with campaign_id, ad_id, and daily budget.`;
+
+// ── Create sub-agents ─────────────────────────────────────────────────────────
+
+const ss1Agent = new LlmAgent({
+  name: 'campaign_strategist',
+  model: 'gemini-2.5-pro',
+  description: 'Handles campaign intent, objective, destination, and creates the campaign object (Step 1 of ad creation)',
+  instruction: buildSs1Instruction(),
+  tools: ss1Tools,
+});
+
+const ss2Agent = new LlmAgent({
+  name: 'adset_builder',
+  model: 'gemini-2.5-pro',
+  description: 'Configures audience targeting, placements, budget, and creates the ad set (Step 2 of ad creation)',
+  instruction: buildSs2Instruction(),
+  tools: ss2Tools,
+});
+
+const ss3Agent = new LlmAgent({
+  name: 'creative_builder',
+  model: 'gemini-2.5-pro',
+  description: 'Uploads media, collects ad copy, and creates the ad creative (Step 3 of ad creation)',
+  instruction: buildSs3Instruction(),
+  tools: ss3Tools,
+});
+
+const ss4Agent = new LlmAgent({
+  name: 'ad_launcher',
+  model: 'gemini-2.5-pro',
+  description: 'Handles tracking setup, preflight check, preview, and activates the ad (Step 4 of ad creation)',
+  instruction: buildSs4Instruction(),
+  tools: ss4Tools,
+});
 
 // ── Create agent + runner ───────────────────────────────────────────────────
 
@@ -1360,6 +1572,7 @@ const agent = new LlmAgent({
   model: 'gemini-2.5-pro',
   instruction: buildInstruction(),
   tools: adTools,
+  subAgents: [ss1Agent, ss2Agent, ss3Agent, ss4Agent],
 });
 
 const runner = new Runner({
