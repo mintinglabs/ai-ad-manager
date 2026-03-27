@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Square, Paperclip, CheckCircle2, XCircle, ArrowUpRight, BarChart3, Target, TrendingDown, Search, FileText, DollarSign, AlertTriangle, Zap, X, Upload, Image, Film, TrendingUp, ChevronRight, Shield, Sparkles, Download, Bookmark } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Send, Square, Paperclip, CheckCircle2, XCircle, ArrowUpRight, BarChart3, Target, TrendingDown, Search, FileText, DollarSign, AlertTriangle, Zap, X, Upload, Image, Film, TrendingUp, ChevronRight, Shield, Sparkles, Download, Bookmark, LayoutGrid } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -42,19 +42,77 @@ const downloadCardAsImage = async (cardEl, title) => {
   }
 };
 
+// ── Creation step banner ──────────────────────────────────────────────────────
+const STEP_LABELS = ['Campaign & Targeting', 'Creative', 'Review & Launch'];
+
+const CreationStepBanner = ({ step }) => {
+  if (!step) return null;
+  return (
+    <div className="flex items-center gap-2 px-4 py-2.5 bg-white border-b border-slate-100 shrink-0">
+      <span className="text-[11px] font-medium text-slate-400 shrink-0">Creating ad</span>
+      <div className="flex items-center gap-1 flex-1">
+        {STEP_LABELS.map((label, i) => {
+          const num = i + 1;
+          const done = num < step.current;
+          const active = num === step.current;
+          return (
+            <React.Fragment key={i}>
+              <div className={`flex items-center gap-1.5 ${active ? 'text-blue-600' : done ? 'text-emerald-600' : 'text-slate-300'}`}>
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border transition-colors
+                  ${active ? 'border-blue-500 bg-blue-50' : done ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+                  {done ? '✓' : num}
+                </div>
+                <span className="text-[11px] font-semibold hidden sm:block">{label}</span>
+              </div>
+              {i < STEP_LABELS.length - 1 && (
+                <div className={`flex-1 h-px min-w-[16px] transition-colors ${done ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 // ── Typing indicator ──────────────────────────────────────────────────────────
-const TypingIndicator = ({ thinkingText }) => (
+const ActivityLog = ({ entries }) => {
+  if (!entries?.length) return null;
+  return (
+    <div className="mb-1.5 space-y-0.5">
+      {entries.map((entry) => (
+        <div key={entry.id} className="flex items-center gap-2 text-[11px] py-0.5">
+          {entry.done
+            ? <CheckCircle2 size={11} className="text-emerald-500 shrink-0" />
+            : <div className="w-2.5 h-2.5 rounded-full border-2 border-blue-400 border-t-transparent animate-spin shrink-0" />
+          }
+          <span className={entry.done ? 'text-slate-400' : 'text-slate-600 font-medium'}>
+            {entry.label}
+          </span>
+          {entry.summary && (
+            <span className="ml-auto text-slate-400 tabular-nums">{entry.summary}</span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const TypingIndicator = ({ thinkingText, activityLog }) => (
   <div className="flex items-end gap-3 mb-6">
     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shrink-0">
       <Zap size={15} className="text-white" />
     </div>
-    <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-2.5 shadow-sm">
-      <div className="flex gap-1">
-        {[0, 150, 300].map((d) => (
-          <span key={d} className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
-        ))}
+    <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm min-w-[160px]">
+      <ActivityLog entries={activityLog} />
+      <div className="flex items-center gap-2.5">
+        <div className="flex gap-1">
+          {[0, 150, 300].map((d) => (
+            <span key={d} className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
+          ))}
+        </div>
+        {thinkingText && <span className="text-xs text-blue-600 italic">{thinkingText}</span>}
       </div>
-      {thinkingText && <span className="text-xs text-blue-600 italic">{thinkingText}</span>}
     </div>
   </div>
 );
@@ -1486,7 +1544,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
           />
         </div>
         <div className="px-4 pb-3 flex items-center justify-between">
-          <div className="relative">
+          <div className="relative flex items-center gap-2">
             <button onClick={() => setSkillsOpen(!skillsOpen)}
               className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors relative ${skillsOpen ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
               title="Experts">
@@ -1496,6 +1554,14 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
             {skillsOpen && (
               <SkillsDropdown skills={skills} activeSkill={activeSkill} onToggleSkill={onToggleSkill} onManageSkills={onManageSkills} onClose={() => setSkillsOpen(false)} />
             )}
+            <button
+              onClick={() => onSend('Show me my recent Facebook posts and ad library images so I can pick materials')}
+              disabled={isTyping}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-[11px] font-medium text-slate-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-colors disabled:opacity-40"
+            >
+              <LayoutGrid size={12} />
+              Select from Page
+            </button>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => fileRef.current?.click()} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
@@ -1526,7 +1592,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
-export const ChatInterface = ({ messages, isTyping, thinkingText, onSend, onStop, suggestedActions = [], adAccountId, onSaveItem, folders = [], activeSkill = null, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate }) => {
+export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, activityLog = [], onSend, onStop, suggestedActions = [], adAccountId, onSaveItem, folders = [], activeSkill = null, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate }) => {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState([]); // { id, file, preview, status, progress, result }
   const [isDragOver, setIsDragOver] = useState(false);
@@ -1813,12 +1879,13 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, onSend, onStop
       {/* Chat messages */}
       {!isEmptyState && (
         <>
+          <CreationStepBanner step={creationStep} />
           <div className="flex-1 overflow-y-auto">
             <div className="max-w-3xl mx-auto px-4 pt-6 pb-2">
               {messages.map((msg) => (
                 <MessageBubble key={msg.id} message={msg} isLatest={msg.id === lastId} onSend={handleSend} isTyping={isTyping} onSaveItem={onSaveItem} folders={folders} />
               ))}
-              {isTyping && <TypingIndicator thinkingText={thinkingText} />}
+              {isTyping && <TypingIndicator thinkingText={thinkingText} activityLog={activityLog} />}
               <div ref={endRef} />
             </div>
           </div>

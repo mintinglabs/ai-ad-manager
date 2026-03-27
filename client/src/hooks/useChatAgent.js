@@ -30,6 +30,8 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
   const [isTyping, setIsTyping] = useState(false);
   const [thinkingText, setThinkingText] = useState('');
   const [notification, setNotification] = useState(null);
+  const [creationStep, setCreationStep] = useState(null);
+  const [activityLog, setActivityLog] = useState([]);
   const sessionIdRef = useRef(externalSessionId || makeId());
   const abortRef = useRef(null);
 
@@ -41,6 +43,8 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
       setMessages(initialMessages || [getWelcomeMessage(accountName, language)]);
       setIsTyping(false);
       setThinkingText('');
+      setCreationStep(null);
+      setActivityLog([]);
     }
   }, [externalSessionId, initialMessages, accountName, language]);
 
@@ -61,6 +65,8 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
     setMessages(newMessages || [getWelcomeMessage(accountName, language)]);
     setIsTyping(false);
     setThinkingText('');
+    setCreationStep(null);
+    setActivityLog([]);
   }, [accountName, language]);
 
   const stopGeneration = useCallback(() => {
@@ -70,6 +76,8 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
     }
     setIsTyping(false);
     setThinkingText('');
+    setCreationStep(null);
+    setActivityLog([]);
   }, []);
 
   const resetChat = useCallback(() => {
@@ -79,6 +87,8 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
     setMessages([getWelcomeMessage(accountName, language)]);
     setIsTyping(false);
     setThinkingText('');
+    setCreationStep(null);
+    setActivityLog([]);
     return newId;
   }, [accountName, language]);
 
@@ -93,6 +103,7 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
     setMessages((prev) => [...prev, userMsg]);
     setIsTyping(true);
     setThinkingText('Thinking...');
+    setActivityLog([]);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -155,7 +166,36 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
                 );
               }
             } else if (event.type === 'tool_call') {
-              setThinkingText(`Calling ${event.name.replace(/_/g, ' ')}...`);
+              const entry = { id: `${event.name}-${Date.now()}`, name: event.name, label: event.label || event.name.replace(/_/g, ' '), done: false };
+              setActivityLog(prev => [...prev, entry]);
+              if (event.name === 'transfer_to_agent') {
+                const labels = {
+                  creative_builder: 'Moving to Creative step...',
+                  ad_launcher: 'Moving to Review & Launch...',
+                  ad_manager: 'Finishing up...',
+                };
+                setThinkingText(labels[event.target] || 'Continuing...');
+              } else {
+                setThinkingText(event.label || `Calling ${event.name.replace(/_/g, ' ')}...`);
+              }
+            } else if (event.type === 'tool_result') {
+              setActivityLog(prev => {
+                const updated = [...prev];
+                const idx = updated.map(e => e.name).lastIndexOf(event.name);
+                if (idx !== -1) updated[idx] = { ...updated[idx], done: true, summary: event.summary };
+                return updated;
+              });
+            } else if (event.type === 'context') {
+              const d = event.data || {};
+              if (d.ad_id && d.activation_status === 'ACTIVE') {
+                setCreationStep(null);
+              } else if (d.creative_id) {
+                setCreationStep({ current: 3, total: 3, label: 'Review & Launch' });
+              } else if (d.adset_id) {
+                setCreationStep({ current: 2, total: 3, label: 'Creative' });
+              } else if (d.campaign_id) {
+                setCreationStep({ current: 1, total: 3, label: 'Campaign & Targeting' });
+              }
             } else if (event.type === 'error') {
               throw new Error(event.message);
             }
@@ -211,6 +251,8 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
     messages,
     isTyping,
     thinkingText,
+    creationStep,
+    activityLog,
     sendMessage,
     stopGeneration,
     resetChat,

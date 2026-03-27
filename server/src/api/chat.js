@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { runner, sessionService } from '../services/adAgent.js';
+import { activeSessions } from '../lib/sessionBus.js';
 
 const router = Router();
 
@@ -95,6 +96,47 @@ router.post('/parse-doc', async (req, res) => {
 // In-memory map: chatSessionId → ADK sessionId
 const sessionMap = new Map();
 
+// Human-readable labels for tool calls shown in the activity log
+function toolCallLabel(name, args) {
+  const map = {
+    get_campaigns:           () => 'Getting campaigns',
+    get_ad_sets:             () => 'Getting ad sets',
+    get_ads:                 () => 'Getting ads',
+    get_insights:            () => 'Getting insights',
+    get_ad_account_details:  () => 'Getting account details',
+    get_minimum_budgets:     () => 'Checking minimum budgets',
+    get_pages:               () => 'Getting Facebook pages',
+    get_pixels:              () => 'Getting pixels',
+    get_lead_forms:          () => 'Getting lead forms',
+    get_custom_audiences:    () => 'Getting custom audiences',
+    get_saved_audiences:     () => 'Getting saved audiences',
+    get_ad_images:           () => 'Getting image library',
+    get_ad_videos:           () => 'Getting video library',
+    get_page_posts:          () => 'Getting page posts',
+    get_connected_instagram_accounts: () => 'Checking Instagram connection',
+    targeting_search:        () => `Searching interests: "${args.query || ''}"`,
+    get_reach_estimate:      () => 'Estimating audience size',
+    create_campaign:         () => `Creating campaign`,
+    create_ad_set:           () => 'Creating ad set',
+    create_ad_creative:      () => 'Creating ad creative',
+    create_ad:               () => 'Creating ad',
+    create_ads_bulk:         () => `Creating ${args.ads?.length || 'N'} ads in bulk`,
+    upload_ad_image:         () => `Uploading image "${args.name || ''}"`,
+    upload_ad_video:         () => `Uploading video "${args.title || ''}"`,
+    get_ad_video_status:     () => 'Checking video status',
+    preflight_check:         () => 'Running pre-flight check',
+    get_ad_preview:          () => 'Generating ad preview',
+    update_campaign:         () => 'Updating campaign',
+    update_ad_set:           () => 'Updating ad set',
+    update_ad:               () => 'Updating ad',
+    load_skill:              () => `Loading skill "${args.skill_name || ''}"`,
+    get_workflow_context:    () => 'Reading workflow state',
+    update_workflow_context: () => 'Saving progress',
+    transfer_to_agent:       () => `Moving to ${args.agent_name || 'next step'}`,
+  };
+  return (map[name] || (() => name.replace(/_/g, ' ')))();
+}
+
 // Helper: send an SSE event
 const sse = (res, obj) => {
   res.write(`data: ${JSON.stringify(obj)}\n\n`);
@@ -104,6 +146,7 @@ const sse = (res, obj) => {
 // Body: { message, sessionId?, adAccountId?, token }
 // Response: SSE stream of agent events
 router.post('/', async (req, res) => {
+  let adkSessionId = null;
   try {
     const { message, sessionId: clientSessionId, adAccountId, token, language = 'en' } = req.body;
     console.log(`[chat] message="${message?.slice(0, 60)}" adAccountId=${adAccountId} lang=${language} session=${clientSessionId?.slice(0, 8)}`);
@@ -132,7 +175,7 @@ router.post('/', async (req, res) => {
     });
 
     const userId = 'user';
-    let adkSessionId = clientSessionId ? sessionMap.get(clientSessionId) : null;
+    adkSessionId = clientSessionId ? sessionMap.get(clientSessionId) : null;
 
     // Create or reuse ADK session
     if (!adkSessionId) {
@@ -163,6 +206,9 @@ router.post('/', async (req, res) => {
       parts: [{ text: datePrefix + langPrefix + message }],
     };
 
+    // Register SSE emitter for this session so adAgent.js tools can emit tool_result events
+    activeSessions.set(adkSessionId, (data) => sse(res, data));
+
     // Run the agent and stream events (with retry on MALFORMED_FUNCTION_CALL)
     const MAX_RETRIES = 1;
     let fullText = '';
@@ -179,6 +225,7 @@ router.post('/', async (req, res) => {
         });
         adkSessionId = retrySession.id;
         if (clientSessionId) sessionMap.set(clientSessionId, adkSessionId);
+        activeSessions.set(adkSessionId, (data) => sse(res, data));
       }
 
       console.log(`[chat] running agent... (attempt ${attempt + 1})`);
@@ -219,11 +266,16 @@ router.post('/', async (req, res) => {
               sse(res, { type: 'text', content: part.text });
             }
             if (part.functionCall) {
-              sse(res, { type: 'tool_call', name: part.functionCall.name });
-              console.log(`[chat] tool call: ${part.functionCall.name}`);
+              const name = part.functionCall.name;
+              const args = part.functionCall.args || {};
+              const label = toolCallLabel(name, args);
+              const payload = { type: 'tool_call', name, label };
+              if (name === 'transfer_to_agent') payload.target = args.agent_name;
+              sse(res, payload);
+              console.log(`[chat] tool call: ${name}`);
               // Send workflow context updates to client
-              if (part.functionCall.name === 'update_workflow_context') {
-                const wfData = part.functionCall.args?.data;
+              if (name === 'update_workflow_context') {
+                const wfData = args.data;
                 if (wfData) sse(res, { type: 'context', data: wfData });
               }
             }
@@ -241,10 +293,12 @@ router.post('/', async (req, res) => {
       sse(res, { type: 'text', content: `I received your message but couldn't generate a response. Please try again. (adAccountId: ${adAccountId || 'none'})` });
     }
 
+    activeSessions.delete(adkSessionId);
     sse(res, { type: 'done', sessionId: adkSessionId });
     res.end();
   } catch (err) {
     console.error('[chat] error:', err?.message, err?.stack);
+    if (adkSessionId) activeSessions.delete(adkSessionId);
     if (res.headersSent) {
       // Send as text so the user sees the actual error instead of a generic fallback
       sse(res, { type: 'text', content: `Sorry, I ran into an error: ${err.message}` });

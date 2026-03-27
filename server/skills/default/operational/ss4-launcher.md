@@ -1,12 +1,12 @@
 ---
 name: ss4-launcher
-description: Tracking, Review, Preflight & Launch — Step 4 of 4. Pixel/UTM setup, review gate, create_ad, preflight_check, preview (mobile + desktop), activate, success summary.
+description: Review & Launch — Step 3 of 3. Review gate, create_ad, preflight_check (silent if clean), preview (mobile + desktop), activate, success summary.
 layer: operational
 depends_on: [ss3-creative]
 leads_to: []
 ---
 
-# SS4 — Ad Launcher
+# SS4 — Ad Launcher (Step 3 of 3)
 
 ## Common Rule (ALL sub-agents)
 
@@ -14,36 +14,7 @@ leads_to: []
 
 ---
 
-## Step 1 — Pixel & UTM (conditional)
-
-**Skip entirely for:** WhatsApp, Messenger, Instagram DM, Phone Calls, Lead Form.
-
-**For Website destinations only:**
-
-If `pixel_id` is in `context.state.workflow`, confirm which conversion event to track:
-```options
-{"title":"Which conversion event should Meta optimise for?","options":[
-  {"id":"PURCHASE","title":"Purchase","description":"Track completed transactions"},
-  {"id":"LEAD","title":"Lead","description":"Track form submissions or sign-ups"},
-  {"id":"COMPLETE_REGISTRATION","title":"Complete Registration"},
-  {"id":"ADD_TO_CART","title":"Add to Cart"},
-  {"id":"INITIATE_CHECKOUT","title":"Initiate Checkout"},
-  {"id":"VIEW_CONTENT","title":"View Content"}
-]}
-```
-
-Then UTM parameters:
-```options
-{"title":"Add UTM tracking?","options":[
-  {"id":"AUTO","title":"Auto-generate UTMs","description":"utm_source=facebook&utm_medium=cpc&utm_campaign=[name]"},
-  {"id":"CUSTOM","title":"Custom UTMs","description":"Set your own parameters"},
-  {"id":"NONE","title":"Skip UTMs","description":"No URL tracking"}
-]}
-```
-
----
-
-## Step 2 — Review Gate (HARD STOP — user must confirm before proceeding)
+## Step 1 — Review Gate (HARD STOP — user must confirm before proceeding)
 
 Show ALL settings as a structured summary — never proceed without explicit "yes":
 
@@ -57,7 +28,7 @@ Show ALL settings as a structured summary — never proceed without explicit "ye
   {"label":"Audience","description":"[Country] · Ages [min]–[max] · [Gender] · [Strategy]","priority":"high"},
   {"label":"Placements","description":"[Placement choice]","priority":"medium"},
   {"label":"Budget","description":"[AMOUNT + CURRENCY]/day · [Schedule]","priority":"high"},
-  {"label":"Tracking","description":"[Pixel event or 'Not required'] · [UTM status]","priority":"medium"}
+  {"label":"Tracking","description":"[Pixel event or 'Not required']","priority":"medium"}
 ]}
 ```
 
@@ -67,7 +38,9 @@ Do NOT call any create tool until user says yes.
 
 ---
 
-## Step 3 — Create Ad
+## Step 2 — Review & Launch (single flow after confirmation)
+
+### 2a — Create Ad
 
 ```
 create_ad(
@@ -78,34 +51,20 @@ create_ad(
 )
 ```
 
----
-
-## Step 4 — Preflight Check (NON-NEGOTIABLE)
+### 2b — Preflight Check (run immediately after create_ad, no user prompt)
 
 ```
 preflight_check(campaign_id: [from context.state.workflow])
 ```
 
-Present results as a checklist:
+**Preflight output rules:**
+- All pass → **do NOT render a preflight steps block** — proceed directly to preview (silent)
+- Any FAIL → **HALT**. Show failures as a `steps` block. Offer to route back to the relevant step.
+- Warnings only → show a brief inline note, ask to confirm before continuing.
 
-```steps
-{"title":"Pre-flight Checklist","steps":[
-  {"label":"Campaign objective set","description":"OUTCOME_SALES","priority":"high","status":"pass"},
-  {"label":"Ad set with targeting & budget","description":"Found 1 ad set","priority":"high","status":"pass"},
-  {"label":"Ad with creative","description":"Found 1 ad","priority":"high","status":"pass"},
-  {"label":"Pixel configured","description":"Pixel 987654321","priority":"high","status":"pass"}
-]}
-```
+### 2c — Preview (run immediately after clean preflight)
 
-- All pass → proceed to Step 5
-- Any FAIL → **HALT**. Tell user what to fix. Offer to route back to the relevant step (audience → SS2, creative → SS3).
-- Warnings only → show user, ask to confirm before continuing
-
----
-
-## Step 5 — Preview
-
-Call `get_ad_preview()` twice — once for each placement:
+Call `get_ad_preview()` twice in parallel:
 
 ```
 get_ad_preview(ad_id: [new ad_id], ad_format: "MOBILE_FEED_STANDARD")
@@ -121,11 +80,11 @@ Output both as an `adpreview` block:
 ]
 ```
 
-Ask: **"Pre-flight check passed. Ready to go live?"**
+Below the preview, ask: **"✅ Pre-flight passed. Ready to go live?"**
 
 ---
 
-## Step 6 — Activate (only after explicit confirmation)
+## Step 3 — Activate (only after explicit "yes")
 
 Update all 3 entities to ACTIVE in sequence:
 
@@ -137,7 +96,7 @@ update_ad(ad_id: "[from workflow]", status: "ACTIVE")
 
 ---
 
-## Step 7 — Handoff to ad_manager
+## Step 4 — Handoff to ad_manager
 
 After activation succeeds:
 1. Call `update_workflow_context({ data: { ad_id: "[id]", activation_status: "ACTIVE" } })`
@@ -163,4 +122,91 @@ When `ad_manager` receives the transfer back from `ad_launcher`, show:
 Then:
 ```quickreplies
 ["Check campaign status in 24h", "Create A/B test", "Save as template", "Build an audience", "Set up automation rule"]
+```
+
+---
+
+# BULK LAUNCH MODE
+
+## Trigger
+get_workflow_context() returns creative_ids as an array with length ≥ 2.
+Standard single-ad flow for creative_ids length ≤ 1 or when only creative_id (singular) is present.
+
+## BL-1 — Review card (one card for all N ads)
+
+```steps
+{"title":"Bulk Launch — [N] Ads Ready","steps":[
+  {"label":"Campaign","description":"[Name] · [Objective] · PAUSED","priority":"high"},
+  {"label":"Ad Set","description":"[Audience summary] · [Budget]/day","priority":"high"},
+  {"label":"Creatives","description":"[N] creatives ready: [comma list of filenames]","priority":"high"},
+  {"label":"Format","description":"[IMAGE / VIDEO / mixed]","priority":"high"},
+  {"label":"Status","description":"Will launch ACTIVE after confirmation","priority":"high"}
+]}
+```
+
+Ask: **"Should I create all [N] ads and launch the campaign?"**
+Do NOT call any tool until user confirms.
+
+## BL-2 — On "yes" → create_ads_bulk
+
+```
+create_ads_bulk({ ads: creative_ids.map((id, i) => ({
+  adset_id: [adset_id from workflow],
+  name: "[Campaign Name] — Ad [i+1]",
+  creative_id: id,
+  status: "PAUSED"
+}))})
+```
+
+Show compact result after the call:
+| # | Creative | Status |
+|---|---|---|
+| 1 | [filename] | ✅ Created |
+| 2 | [filename] | ❌ Failed — [error] |
+
+If any failed, ask: "Continue without failed ads, or abort?"
+
+## BL-3 — Preflight (silent if clean)
+
+preflight_check(campaign_id: [from workflow])
+- All pass → do NOT render a preflight block — proceed directly to preview
+- Failures → show steps block, HALT
+- Warnings only → brief inline note, ask to confirm
+
+## BL-4 — Preview (first creative only, for speed)
+
+get_ad_preview(ad_id: [ad_ids[0] from create_ads_bulk result], ad_format: "MOBILE_FEED_STANDARD")
+
+Render as adpreview block. Add note below: "Showing preview for creative 1 of [N]. All ads use the same format."
+
+Ask: **"✅ Pre-flight passed. Ready to go live? This will activate all [N] ads."**
+
+## BL-5 — Activate (only after explicit "yes")
+
+```
+update_campaign(campaign_id: [from workflow], status: "ACTIVE")
+update_ad_set(ad_set_id: [from workflow], status: "ACTIVE")
+```
+Then for each ad_id in create_ads_bulk result:
+```
+update_ad(ad_id: "[id]", status: "ACTIVE")
+```
+
+## BL-6 — Handoff
+
+1. update_workflow_context({ data: { ad_ids: [...], activation_status: "ACTIVE" } })
+2. IMMEDIATELY transfer_to_agent("ad_manager") — no text before the transfer.
+
+ad_manager bulk success summary:
+```metrics
+[
+  {"label":"Ads Created","value":"[N] ads","trend":"up"},
+  {"label":"Status","value":"✅ All Live","trend":"up"},
+  {"label":"Daily Budget","value":"[Amount + Currency]"},
+  {"label":"Campaign","value":"[Name]"}
+]
+```
+Then:
+```quickreplies
+["View campaign performance", "Create A/B test", "Build retargeting audience", "Save as template"]
 ```

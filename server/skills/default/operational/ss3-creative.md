@@ -1,12 +1,12 @@
 ---
 name: ss3-creative
-description: Creative Assembly — Step 3 of 4. Format selection, image/video upload, carousel, existing post, ad copy generation, CTA, object_story_spec for all destinations including WhatsApp.
+description: Creative Assembly — Step 2 of 3. Format selection, image/video upload, carousel, existing post, ad copy generation, CTA, object_story_spec for all destinations including WhatsApp.
 layer: operational
-depends_on: [ss2-adset]
+depends_on: [ss1-strategist]
 leads_to: [ss4-launcher]
 ---
 
-# SS3 — Creative Builder
+# SS3 — Creative Builder (Step 2 of 3)
 
 ## Common Rule (ALL sub-agents)
 
@@ -241,3 +241,78 @@ create_ad_creative(
 **After create_ad_creative() succeeds:**
 1. Call `update_workflow_context({ data: { creative_id: "[id]", ad_format: "[format]" } })`
 2. IMMEDIATELY call `transfer_to_agent("ad_launcher")` — no text before or after.
+
+---
+
+# BULK CREATIVE LOOP
+
+## Trigger
+get_workflow_context() returns bulk_mode: true AND uploaded_assets is an array with length ≥ 2.
+Skip standard Step 1 (format selection) entirely.
+
+If uploaded_assets is absent or length ≤ 1, use the standard single-creative flow.
+
+## BCL-1 — Generate ALL copyvariations in ONE response
+
+For each uploaded_assets[i], produce one copyvariations block prefixed with a markdown header.
+Use the filename and campaign context (objective, destination, product hints from the brief) to write relevant copy.
+
+Example output format:
+**Creative 1 — dress_red.png**
+```copyvariations
+{"label":"Creative 1 — dress_red.png","variations":[
+  {"id":"A","primary":"…","headline":"…","cta":"SHOP_NOW"},
+  {"id":"B","primary":"…","headline":"…","cta":"SHOP_NOW"},
+  {"id":"C","primary":"…","headline":"…","cta":"SHOP_NOW"}
+]}
+```
+
+(Repeat for each asset.)
+
+Then ask in one line: **"Which variation for each creative? Reply e.g. '1,2,1' or 'all A'."**
+
+## BCL-2 — Parse the user's selection
+
+| Reply | Meaning |
+|---|---|
+| `1,2,1` or `A,B,A` | Per-creative choice (1=A, 2=B, 3=C) |
+| `all A` or `all 1` | Same variation for every creative |
+| Single digit or letter | Same variation for every creative |
+
+## BCL-3 — create_ad_creative() N times in sequence
+
+For each uploaded_assets[i] with the chosen variation:
+```
+create_ad_creative(
+  name: "[filename] Creative [i+1] — [Today's Date]",
+  object_story_spec: [built from image_hash or video_id, page_id, chosen copy, CTA]
+)
+```
+
+Show compact inline status after each call:
+> ✅ Creative 1 created — dress_red.png
+> ❌ Creative 2 failed — [error message]
+
+If one fails: continue creating remaining creatives. At the end ask: "Creative 2 failed. Continue without it or retry?"
+
+## BCL-4 — Save and transfer
+
+After all create_ad_creative() calls complete:
+
+update_workflow_context({ data: {
+  creative_ids: ["ID1","ID2",...],
+  creative_id: "ID1",
+  creative_names: ["dress_red.png — Creative 1", ...],
+  ad_format: "IMAGE",
+  bulk_mode: true
+}})
+
+Note: save both creative_ids (array) AND creative_id (singular, first entry) for backward compatibility.
+
+IMMEDIATELY transfer_to_agent("ad_launcher") — no text before or after.
+
+## Video handling
+
+For video entries in uploaded_assets: call get_ad_video_status(video_id) first.
+If not ready, generate copy for image creatives first, then revisit the video once status = "ready".
+Do NOT create a video creative until the video is ready.

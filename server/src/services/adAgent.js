@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import * as meta from './metaClient.js';
+import { activeSessions } from '../lib/sessionBus.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILLS_DIR = path.resolve(__dirname, '../../skills/default');
@@ -18,6 +19,31 @@ const ctx = (context) => ({
 // ── Tool functions ──────────────────────────────────────────────────────────
 // Organized by category. All use user's token + adAccountId from session.
 
+// Build a concise result summary for the live activity log
+function buildResultSummary(fnName, rawResult) {
+  try {
+    const r = rawResult?.result ? JSON.parse(rawResult.result) : rawResult;
+    const s = {
+      getCampaigns:     d => `${(d.data||d).length} campaign${(d.data||d).length===1?'':'s'}`,
+      getAdSets:        d => `${(d.data||d).length} ad set${(d.data||d).length===1?'':'s'}`,
+      getAds:           d => `${(d.data||d).length} ad${(d.data||d).length===1?'':'s'}`,
+      getInsights:      d => `${(d.data||d).length} result${(d.data||d).length===1?'':'s'}`,
+      getPages:         d => `${(d.data||d).length} page${(d.data||d).length===1?'':'s'}`,
+      getPixels:        d => `${(d.data||d).length} pixel${(d.data||d).length===1?'':'s'}`,
+      getAdImages:      d => `${(d.data||d).length} image${(d.data||d).length===1?'':'s'}`,
+      getAdVideos:      d => `${(d.data||d).length} video${(d.data||d).length===1?'':'s'}`,
+      createCampaign:   d => `Created — ID ${d.id}`,
+      createAdSet:      d => `Created — ID ${d.id}`,
+      createAdCreative: d => `Created — ID ${d.id}`,
+      createAd:         d => `Created — ID ${d.id}`,
+      createAdsBulk:    d => `${d.succeeded}/${d.total} created`,
+      preflightCheck:   d => d.pass ? 'All checks passed' : `${d.failures?.length||0} issue(s)`,
+      uploadAdImage:    d => { const k = Object.keys(d.images||{})[0]; return k ? 'Uploaded' : 'Uploaded'; },
+    };
+    return s[fnName]?.(r) ?? null;
+  } catch { return null; }
+}
+
 // Wrap every tool so:
 // 1. Thrown errors become { error } objects the LLM can read
 // 2. Responses are serialized to { result: "JSON string" } so Gemini can parse them
@@ -26,8 +52,17 @@ const safe = (fn) => async (args, c) => {
     console.log(`[tool] ${fn.name} called with:`, JSON.stringify(args).slice(0, 500));
     const result = await fn(args, c);
     // Gemini function calling needs simple objects — stringify complex API responses
-    if (typeof result === 'string') return { result };
-    return { result: JSON.stringify(result) };
+    const serialised = typeof result === 'string' ? { result } : { result: JSON.stringify(result) };
+
+    // Emit tool_result over SSE so the frontend activity log can show result counts
+    const sessionId = c.session?.id;
+    const sseFn = sessionId ? activeSessions.get(sessionId) : null;
+    if (sseFn) {
+      const summary = buildResultSummary(fn.name, serialised);
+      if (summary) sseFn({ type: 'tool_result', name: fn.name, summary });
+    }
+
+    return serialised;
   } catch (err) {
     const metaErr = err.response?.data?.error;
     const msg = metaErr
@@ -142,6 +177,31 @@ function createAd(args, c) {
     params.creative = JSON.stringify(params.creative);
   }
   return meta.createAd(ctx(c).token, ctx(c).adAccountId, params);
+}
+async function createAdsBulk({ ads }, c) {
+  const { token, adAccountId } = ctx(c);
+  if (!adAccountId) return { error: 'No ad account selected.' };
+  if (!Array.isArray(ads) || !ads.length) return { error: 'ads array required.' };
+  const results = [];
+  for (const ad of ads) {
+    try {
+      const params = { ...ad };
+      if (params.creative_id && !params.creative) {
+        params.creative = JSON.stringify({ creative_id: params.creative_id });
+        delete params.creative_id;
+      }
+      if (typeof params.creative === 'object') params.creative = JSON.stringify(params.creative);
+      const result = await meta.createAd(token, adAccountId, params);
+      results.push({ status: 'success', ad_id: result.id, name: ad.name, creative_id: ad.creative_id });
+    } catch (err) {
+      const msg = err.response?.data?.error?.message || err.message || 'Unknown error';
+      results.push({ status: 'error', name: ad.name, error: msg });
+    }
+  }
+  const succeeded = results.filter(r => r.status === 'success');
+  return { total: ads.length, succeeded: succeeded.length,
+           failed: results.length - succeeded.length,
+           ad_ids: succeeded.map(r => r.ad_id), results };
 }
 function updateAd({ ad_id, ...updates }, c) {
   return meta.updateAd(ctx(c).token, ad_id, updates);
@@ -725,6 +785,11 @@ const adTools = [
     obj({ ad_id: str('Ad ID') }, ['ad_id'])),
   T('copy_ad', 'Duplicate an ad.', copyAd,
     obj({ ad_id: str('Ad ID') }, ['ad_id'])),
+  T('create_ads_bulk',
+    'Create multiple ads in bulk under the same ad set. Pass ads array: [{ adset_id, name, creative_id, status }]. Returns ad_ids array and per-ad results. Use instead of calling create_ad N times for bulk launches.',
+    createAdsBulk,
+    obj({ ads: { type: 'array', description: 'Array of ad objects, each: { adset_id, name, creative_id, status }',
+      items: obj({ adset_id: str('Ad set ID'), name: str('Ad name'), creative_id: str('Creative ID'), status: str('PAUSED or ACTIVE') }, ['adset_id','name','creative_id']) } }, ['ads'])),
   T('get_ad_leads', 'Get leads from a specific ad.', getAdLeads,
     obj({ ad_id: str('Ad ID') }, ['ad_id'])),
 
@@ -935,7 +1000,7 @@ const adTools = [
         const body = content.replace(/^---\n[\s\S]*?\n---\n?/, '').trim();
         return { skill: skill_name, content: body };
       } catch {
-        return { error: `Skill "${skill_name}" not found. Available: ss1-strategist, ss2-adset, ss3-creative, ss4-launcher, campaign-manager, targeting-audiences, creative-manager, insights-reporting, ad-manager, adset-manager, tracking-conversions, automation-rules, business-manager, lead-ads, product-catalogs` };
+        return { error: `Skill "${skill_name}" not found. Available: ss1-strategist, ss3-creative, ss4-launcher, campaign-manager, targeting-audiences, creative-manager, insights-reporting, ad-manager, adset-manager, tracking-conversions, automation-rules, business-manager, lead-ads, product-catalogs` };
       }
     },
     obj({ skill_name: str('Skill ID to load, e.g. "campaign-manager", "targeting-audiences", "creative-manager", "insights-reporting"') }, ['skill_name'])),
@@ -1379,7 +1444,7 @@ Call get_workflow_context() to read the saved state, then route based on what ID
 | What's in workflow state | Transfer to |
 |---|---|
 | No campaign_id (starting fresh) | \`campaign_strategist\` |
-| Has campaign_id, no adset_id | \`adset_builder\` |
+| Has campaign_id, no adset_id | \`campaign_strategist\` (recovery — skips Phase A, does Phase B) |
 | Has adset_id, no creative_id | \`creative_builder\` |
 | Has creative_id, no ad_id | \`ad_launcher\` |
 
@@ -1396,16 +1461,16 @@ const _toolByName = Object.fromEntries(adTools.map(t => [t.name, t]));
 const pick = (...names) => names.map(n => _toolByName[n]).filter(Boolean);
 
 const ss1Tools = pick(
+  // Campaign phase (from old ss1)
   'get_ad_account_details', 'get_minimum_budgets', 'get_pages',
   'get_pixels', 'get_lead_forms', 'get_catalogs', 'create_campaign',
-  'get_workflow_context', 'update_workflow_context', 'load_skill'
-);
-
-const ss2Tools = pick(
-  'get_pages', 'get_minimum_budgets', 'get_custom_audiences', 'get_saved_audiences', 'targeting_search',
+  // Ad set phase (from old ss2)
+  'get_custom_audiences', 'get_saved_audiences', 'targeting_search',
   'targeting_browse', 'targeting_suggestions', 'targeting_validation',
   'get_reach_estimate', 'get_delivery_estimate', 'get_connected_instagram_accounts',
-  'create_ad_set', 'get_workflow_context', 'update_workflow_context', 'load_skill'
+  'create_ad_set',
+  // Shared
+  'get_workflow_context', 'update_workflow_context', 'load_skill'
 );
 
 const ss3Tools = pick(
@@ -1415,31 +1480,33 @@ const ss3Tools = pick(
 );
 
 const ss4Tools = pick(
-  'create_ad', 'update_ad', 'update_campaign', 'update_ad_set',
+  'create_ad', 'create_ads_bulk', 'update_ad', 'update_campaign', 'update_ad_set',
   'preflight_check', 'get_ad_preview', 'get_workflow_context', 'update_workflow_context', 'load_skill'
 );
 
 // ── Sub-agent instructions ────────────────────────────────────────────────────
 
-const buildSs1Instruction = () => `You are Step 1 of 4 in the ad creation workflow: Campaign Intent & Strategy.
+const buildSs1Instruction = () => `You are Step 1 of 3 in the ad creation workflow: Campaign Strategy & Ad Set.
 TODAY: ${getToday()}
 
 ABSOLUTE RULE: NEVER fabricate data. Only show numbers from tool results.
 
 OUTPUT RULE: NEVER use <execute_tool>, print(), or any code execution format. Output ALL structured blocks (including \`\`\`options, \`\`\`metrics, \`\`\`steps, \`\`\`quickreplies) as raw markdown text directly in your response. Do NOT wrap them in any execution tags.
 
-CRITICAL ROUTING RULE: You handle ONLY ad campaign CREATION. You MUST NEVER call transfer_to_agent("ad_manager"). When a user says "Sales", "Leads", "Traffic", "Awareness", "Engagement", or "App Promotion" — they are selecting a CAMPAIGN OBJECTIVE, not requesting performance analytics. Treat it as their answer to "What's your campaign goal?" and proceed with the next step. Do not perform performance analysis. Do not route back to ad_manager.
+CRITICAL ROUTING RULE: You handle ONLY ad campaign CREATION (campaign + ad set). You MUST NEVER call transfer_to_agent("ad_manager") or transfer_to_agent("adset_builder"). When a user says "Sales", "Leads", "Traffic", "Awareness", "Engagement", or "App Promotion" — they are selecting a CAMPAIGN OBJECTIVE. Proceed with the next step. Do not route back to ad_manager.
 
-Your FIRST actions MUST be (in parallel): call get_workflow_context() AND load_skill("ss1-strategist") — before asking the user anything. get_workflow_context() gives you all IDs and settings saved by prior steps. load_skill gives you detailed step-by-step guidance.
+RECOVERY RULE: If get_workflow_context() shows campaign_id but no adset_id → skip Phase A (campaign creation) entirely. Go directly to Phase B (page, audience, budget, create_ad_set).
 
-Your job: resolve the user's goal into a Meta campaign object.
+Your FIRST actions MUST be (in parallel): call get_workflow_context() AND load_skill("ss1-strategist") — before asking the user anything.
+
+## PHASE A — Campaign
 
 START by running these in parallel (no need to ask — just do it):
 - get_ad_account_details() → currency, timezone
-- get_minimum_budgets() → for budget validation later
+- get_minimum_budgets() → for budget validation
 - get_pages() → available Facebook pages
 
-Then collect these inputs from the user:
+Collect from the user:
 
 1. **Objective**: SALES | LEADS | TRAFFIC | AWARENESS | ENGAGEMENT | APP_PROMOTION
 2. **Destination** (determines optimization_goal):
@@ -1452,52 +1519,27 @@ Then collect these inputs from the user:
    | Website (no pixel) | LINK_CLICKS | none |
    | Lead Form | LEAD_GENERATION | form must already exist — call get_lead_forms() |
    | Catalog | PRODUCT_CATALOG_SALES | catalog_id from get_catalogs() |
-3. **Campaign name** (suggest "[Objective] — ${getToday()}" if not specified)
-4. **Special ad categories**: default NONE. Ask ONLY if credit/employment/housing/political.
+3. **Campaign name** (auto-propose "[Objective] — ${getToday()}" inline — proceed immediately unless user replies to rename)
+4. **Special ad categories**: silently default []. Do NOT ask unless credit/employment/housing/political.
 
-CRITICAL: If the user chooses Website destination, you MUST call get_pixels() RIGHT NOW — do NOT rely on conversation history or any prior assumption about whether pixels exist. Always call the tool and use the live result.
+CRITICAL: If website destination, call get_pixels() NOW — never assume from history.
 
 After create_campaign() succeeds:
-1. Call update_workflow_context with: { data: { campaign_id: "[id]", campaign_objective: "[obj]", optimization_goal: "[goal]", conversion_destination: "[dest]" } }
-   Include whatsapp_phone_number and pixel_id in the data object if applicable.
-2. IMMEDIATELY call transfer_to_agent("adset_builder") — do NOT emit any text before or after the transfer call.`;
+- Save campaign_id to workflow context immediately: { data: { campaign_id: "[id]", campaign_objective: "[obj]", optimization_goal: "[goal]", conversion_destination: "[dest]", whatsapp_phone_number: "[if applicable]", pixel_id: "[if applicable]" } }
+- **DO NOT call transfer_to_agent** — continue directly to Phase B.
 
-const buildSs2Instruction = () => `You are Step 2 of 4 in the ad creation workflow: Audience, Targeting & Ad Set.
-TODAY: ${getToday()}
+## PHASE B — Ad Set (continue in same turn, no transfer)
 
-ABSOLUTE RULE: NEVER fabricate data. Only show numbers from tool results.
-
-OUTPUT RULE: NEVER use <execute_tool>, print(), or any code execution format. Output ALL structured blocks (including \`\`\`options, \`\`\`metrics, \`\`\`steps, \`\`\`quickreplies) as raw markdown text directly in your response. Do NOT wrap them in any execution tags.
-
-CRITICAL ROUTING RULE: You handle ONLY ad set configuration (audience, targeting, budget, placements). NEVER call transfer_to_agent("ad_manager"). Any user message here — including "yes", "ok", "broad", "continue", numbers — is a response to your current step. Never interpret it as a request for analytics or the session home screen.
-
-Your FIRST actions MUST be (in parallel): call get_workflow_context() AND load_skill("ss2-adset") — before asking the user anything. get_workflow_context() returns all IDs and settings from Step 1 (campaign_id, campaign_objective, optimization_goal, conversion_destination, etc.). load_skill gives you detailed targeting spec formats, option cards, budget guidance, and create_ad_set API specs.
-
-Use the workflow context returned by get_workflow_context() — do NOT guess or assume values from conversation history.
-
-Collect these in order:
-
-1. **Page** (required for all ads): show page list → page_id
-   If pages weren't fetched, call get_pages() now.
-
-2. **Audience strategy** — ask which approach:
-   - BROAD: location + age/gender only. Skip interest search. Fast.
-   - INTEREST: loop targeting_search() until satisfied → get_reach_estimate()
-   - CUSTOM: get_custom_audiences() → user picks custom_audience_id
-   - LOOKALIKE: get_custom_audiences() → user picks source audience
-   - SAVED: get_saved_audiences() → user picks saved audience ID
-
-3. **Placements**: AUTOMATIC (default) / FEEDS_ONLY / STORIES_REELS / MANUAL
-
-4. **Budget**: daily or lifetime. Validate against minimum from conversation context.
-
-5. **Bid strategy**: LOWEST_COST (default) / BID_CAP / COST_CAP
+1. **Page**: If 1 page returned, auto-select it (show one-liner confirm). If 2+ pages, show options card.
+2. **Audience**: Default BROAD — propose it and ask for country. User can reply "yes"/"ok"/"broad" to proceed immediately, or pick a different strategy.
+3. **Placements**: Show as one inline line: "Placements: Advantage+ — reply 'manual' to change." Default AUTOMATIC.
+4. **Budget**: Present 3 tiers (conservative/recommended/aggressive) + custom in account currency.
 
 After create_ad_set() succeeds:
-1. Call update_workflow_context with: { data: { adset_id: "[id]", page_id: "[id]" } }
+1. Call update_workflow_context with: { data: { campaign_id: "[id]", campaign_objective: "[obj]", optimization_goal: "[goal]", conversion_destination: "[dest]", adset_id: "[id]", page_id: "[id]", whatsapp_phone_number: "[if applicable]", pixel_id: "[if applicable]" } }
 2. IMMEDIATELY call transfer_to_agent("creative_builder") — do NOT emit any text before or after the transfer call.`;
 
-const buildSs3Instruction = () => `You are Step 3 of 4 in the ad creation workflow: Creative Assembly.
+const buildSs3Instruction = () => `You are Step 2 of 3 in the ad creation workflow: Creative Assembly.
 TODAY: ${getToday()}
 
 ABSOLUTE RULE: NEVER fabricate data. Only show numbers from tool results.
@@ -1505,6 +1547,8 @@ ABSOLUTE RULE: NEVER fabricate data. Only show numbers from tool results.
 OUTPUT RULE: NEVER use <execute_tool>, print(), or any code execution format. Output ALL structured blocks (including \`\`\`options, \`\`\`metrics, \`\`\`steps, \`\`\`quickreplies, \`\`\`copyvariations) as raw markdown text directly in your response. Do NOT wrap them in any execution tags.
 
 CRITICAL ROUTING RULE: You handle ONLY creative assembly (image/video upload, ad copy, creative creation). NEVER call transfer_to_agent("ad_manager"). When a user says "suggest", "generate", "you decide", "you write", "help me write", or any similar phrase — immediately generate 3 ad copy variations using the \`\`\`copyvariations block based on: the uploaded image/video name, campaign objective + destination from workflow state, and any product/brand context in the conversation. Do NOT show the session home screen. Do NOT ask what they want to do.
+
+BULK MODE: If get_workflow_context() returns bulk_mode: true with uploaded_assets array length ≥ 2, follow the BULK CREATIVE LOOP section in the loaded skill — generate copyvariations for ALL assets in one response, not one at a time.
 
 PROACTIVE COPY GENERATION: After the image/video is uploaded, immediately generate 3 \`\`\`copyvariations without waiting to be asked. Use the image filename and campaign context to write relevant copy. The user should NEVER need to type ad copy manually.
 
@@ -1536,12 +1580,14 @@ After create_ad_creative() succeeds:
 1. Call update_workflow_context with: { data: { creative_id: "[id]", ad_format: "[format]" } }
 2. IMMEDIATELY call transfer_to_agent("ad_launcher") — do NOT emit any text before or after the transfer call.`;
 
-const buildSs4Instruction = () => `You are Step 4 of 4 in the ad creation workflow: Tracking, Assembly & Launch.
+const buildSs4Instruction = () => `You are Step 3 of 3 in the ad creation workflow: Review & Launch.
 TODAY: ${getToday()}
 
 ABSOLUTE RULE: NEVER fabricate data. Only show numbers from tool results.
 
 OUTPUT RULE: NEVER use <execute_tool>, print(), or any code execution format. Output ALL structured blocks (including \`\`\`options, \`\`\`metrics, \`\`\`steps, \`\`\`adpreview, \`\`\`quickreplies) as raw markdown text directly in your response. Do NOT wrap them in any execution tags.
+
+BULK MODE: If get_workflow_context() returns creative_ids as an array with length ≥ 2, follow the BULK LAUNCH MODE section in the loaded skill — use create_ads_bulk instead of calling create_ad N times.
 
 CRITICAL ROUTING RULE: You handle ONLY preflight, preview, and launch. NEVER call transfer_to_agent("ad_manager") until AFTER successful activation. Any user message here — "yes", "confirm", "launch", "looks good" — is a response to a review/confirmation step. Do not show the session home screen.
 
@@ -1569,9 +1615,9 @@ Follow this exact sequence:
 3. create_ad(adset_id, name, creative_id, status="PAUSED")
 
 4. **Preflight — NON-NEGOTIABLE**: preflight_check(campaign_id)
-   - All pass → proceed
-   - Errors → surface, HALT, tell user what to fix and offer to route back
-   - Warnings only → show user, ask to confirm before continuing
+   - All pass → **do NOT render a preflight checklist** — proceed directly to preview (silent)
+   - Errors → surface as steps block, HALT, tell user what to fix and offer to route back
+   - Warnings only → show a brief inline note, ask to confirm before continuing
 
 5. get_ad_preview(ad_id, ad_format) → render as \`\`\`adpreview block. Ask user to confirm.
 
@@ -1588,23 +1634,15 @@ Follow this exact sequence:
 const ss1Agent = new LlmAgent({
   name: 'campaign_strategist',
   model: 'gemini-2.5-pro',
-  description: 'Handles campaign intent, objective, destination, and creates the campaign object (Step 1 of ad creation)',
+  description: 'Handles campaign objective, destination, creates campaign + ad set (Step 1 of 3 in ad creation)',
   instruction: buildSs1Instruction(),
   tools: ss1Tools,
-});
-
-const ss2Agent = new LlmAgent({
-  name: 'adset_builder',
-  model: 'gemini-2.5-pro',
-  description: 'Configures audience targeting, placements, budget, and creates the ad set (Step 2 of ad creation)',
-  instruction: buildSs2Instruction(),
-  tools: ss2Tools,
 });
 
 const ss3Agent = new LlmAgent({
   name: 'creative_builder',
   model: 'gemini-2.5-pro',
-  description: 'Uploads media, collects ad copy, and creates the ad creative (Step 3 of ad creation)',
+  description: 'Uploads media, collects ad copy, and creates the ad creative (Step 2 of 3 in ad creation)',
   instruction: buildSs3Instruction(),
   tools: ss3Tools,
 });
@@ -1612,7 +1650,7 @@ const ss3Agent = new LlmAgent({
 const ss4Agent = new LlmAgent({
   name: 'ad_launcher',
   model: 'gemini-2.5-pro',
-  description: 'Handles tracking setup, preflight check, preview, and activates the ad (Step 4 of ad creation)',
+  description: 'Handles review gate, preflight check, preview, and activates the ad (Step 3 of 3 in ad creation)',
   instruction: buildSs4Instruction(),
   tools: ss4Tools,
 });
@@ -1626,7 +1664,7 @@ const agent = new LlmAgent({
   model: 'gemini-2.5-pro',
   instruction: buildInstruction(),
   tools: adTools,
-  subAgents: [ss1Agent, ss2Agent, ss3Agent, ss4Agent],
+  subAgents: [ss1Agent, ss3Agent, ss4Agent],
 });
 
 const runner = new Runner({
