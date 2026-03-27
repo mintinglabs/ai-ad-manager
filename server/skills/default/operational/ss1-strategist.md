@@ -1,37 +1,149 @@
 ---
 name: ss1-strategist
-description: Campaign Strategy + Ad Set — Step 1 of 3. Objective, destination, pixel/WhatsApp/LeadForm, campaign name, create_campaign, then page, audience, budget, create_ad_set. Single step covering both campaign and ad set creation.
+description: Campaign Strategy + Ad Set — Step 1 of 3. Detect path (Brief/Boost/Guided), collect only must-have inputs, show ONE review card, create campaign + ad set, transfer to creative_builder.
 layer: operational
 leads_to: [ss3-creative]
 ---
 
 # SS1 — Campaign Strategy & Ad Set (Step 1 of 3)
 
-## Common Rule
+## Golden Rules
 
-**Read context.state.workflow first.** Check for existing values before asking the user anything.
-
-**Recovery rule:** If workflow has `campaign_id` but no `adset_id` → skip Phase A entirely, go directly to Phase B — Page Selection.
-
----
-
-## Pre-fetch (run in parallel immediately, no preamble)
-
-```
-get_ad_account_details()   → currency, timezone
-get_minimum_budgets()      → for budget validation
-get_pages()                → for page selection
-```
-
-Do NOT ask the user anything until these 3 calls complete.
+1. **Detect the path first** — do NOT show a wizard unless the user has no materials and no post to boost.
+2. **One review card per path** — never ask questions one by one. Batch everything into a single summary, then ask "yes to proceed".
+3. **Smart defaults** — never ask for anything in the table below.
+4. **Recovery** — if workflow already has `campaign_id` but no `adset_id`, skip to the ad-set step only.
 
 ---
 
-# PHASE A — Campaign
+## Smart Defaults (NEVER ask the user for these)
 
-## Step 1 — Objective
+| Field | Default |
+|---|---|
+| Campaign name | `[Objective] — [Today's Date]` |
+| special_ad_categories | `[]` |
+| bid_strategy | `LOWEST_COST_WITHOUT_CAP` |
+| billing_event | `IMPRESSIONS` |
+| age_min / age_max | 18 / 65 |
+| Gender | All (omit genders field) |
+| Placements | Advantage+ (omit publisher_platforms) |
+| Pixel / UTM tracking | Skip entirely — user adds later in Ads Manager |
 
-Show with no preamble:
+---
+
+## FIRST ACTIONS (parallel, no preamble)
+
+```
+get_workflow_context()
+load_skill("ss1-strategist")
+get_ad_account_details()
+get_minimum_budgets()
+get_pages()
+```
+
+Then detect the path:
+
+---
+
+## PATH A — Brief Mode (Drop + Brief)
+
+**Trigger:** User message contains `[Uploaded image:` or `[Uploaded video:` tokens AND workflow is empty (no `campaign_id`).
+
+### A-1 — Parse brief from natural language + tokens
+
+Extract from the message:
+
+| Signal | Extract | Default if missing |
+|---|---|---|
+| Objective / campaign type | `OUTCOME_XXX` | `OUTCOME_SALES` |
+| Country / location | geo_locations countries | Ask in review card |
+| Daily budget | amount in dollars | Ask in review card |
+| Destination URL | link | None (omit if not present) |
+| CTA | call_to_action type | `SHOP_NOW` |
+| Gender | genders | all |
+| Age range | age_min / age_max | 18 / 65 |
+| Assets | uploaded_assets array | from tokens |
+
+Parse each token:
+- `[Uploaded image: FILENAME, image_hash: HASH]` → `{ filename, type: "image", image_hash: HASH }`
+- `[Uploaded video: FILENAME, video_id: ID]` → `{ filename, type: "video", video_id: ID }`
+
+If country or budget is missing from the brief, add a single line below the review card: "Please also confirm: **Country** and **Daily budget**." Do NOT show a separate wizard step.
+
+### A-2 — Show ONE review card
+
+```steps
+{"title":"Campaign Setup — Please confirm","steps":[
+  {"label":"Campaign","description":"[Objective] — [Date] · PAUSED","priority":"high"},
+  {"label":"Destination","description":"[URL if present, else 'To be set in Ads Manager']","priority":"high"},
+  {"label":"Audience","description":"[Country] · Ages 18–65 · Broad targeting","priority":"high"},
+  {"label":"Daily Budget","description":"[Amount + currency, or 'Please confirm']","priority":"high"},
+  {"label":"Creatives","description":"[N] image(s)/video(s) ready to launch","priority":"high"},
+  {"label":"CTA","description":"[CTA — default SHOP_NOW]","priority":"medium"}
+]}
+```
+
+End with: **"Looks right? Reply 'yes' to create the campaign & ad set — or edit anything above."**
+
+### A-3 — On "yes"
+
+Run in sequence:
+1. `create_campaign(name, objective, status: "PAUSED", special_ad_categories: [])` → save `campaign_id`
+2. `create_ad_set(campaign_id, name: "[Objective] Ad Set — [Date]", optimization_goal, billing_event: "IMPRESSIONS", bid_strategy: "LOWEST_COST_WITHOUT_CAP", daily_budget: [cents], status: "PAUSED", targeting: {"geo_locations":{"countries":["XX"]},"age_min":18,"age_max":65,"targeting_optimization":"none"})` → save `adset_id`
+
+If page_id — use the only page, or the first page if multiple (user can change in Ads Manager).
+
+3. `update_workflow_context({ data: { campaign_id, campaign_objective, optimization_goal, conversion_destination, adset_id, page_id, bulk_mode: true, uploaded_assets: [...] } })`
+4. IMMEDIATELY `transfer_to_agent("creative_builder")` — no text before or after.
+
+---
+
+## PATH B — Post Boost (Existing Post)
+
+**Trigger:** User message contains "boost", "boost my post", "promote a post", "existing post", "promote this post", or similar.
+
+### B-1 — Fetch and show post picker + ask country+budget together
+
+Call `get_page_posts(page_id)` immediately (use the only page, or ask which page if 2+).
+
+Show posts as options:
+```options
+{"title":"Which post do you want to boost?","options":[
+  {"id":"PAGE_ID_POST_ID","title":"Post preview…","description":"Posted [date]"}
+]}
+```
+
+In the **same message** below the picker, add one line:
+> "Also: **Which country** should this reach, and what's your **daily budget**?"
+
+### B-2 — Show ONE review card (after user replies)
+
+```steps
+{"title":"Boost Setup — Please confirm","steps":[
+  {"label":"Post","description":"[Post preview — first 60 chars]","priority":"high"},
+  {"label":"Objective","description":"OUTCOME_ENGAGEMENT (Boost)","priority":"high"},
+  {"label":"Audience","description":"[Country] · Ages 18–65 · Broad targeting","priority":"high"},
+  {"label":"Daily Budget","description":"[Amount + currency]","priority":"high"},
+  {"label":"Page","description":"[Page Name]","priority":"medium"}
+]}
+```
+
+End with: **"Looks right? Reply 'yes' to create & boost."**
+
+### B-3 — On "yes"
+
+1. `create_campaign(name: "Boost — [Date]", objective: "OUTCOME_ENGAGEMENT", status: "PAUSED", special_ad_categories: [])` → save `campaign_id`
+2. `create_ad_set(...)` with same smart defaults → save `adset_id`
+3. `update_workflow_context({ data: { campaign_id, campaign_objective: "OUTCOME_ENGAGEMENT", optimization_goal: "POST_ENGAGEMENT", adset_id, page_id, boost_mode: true, object_story_id: "[PAGE_ID_POST_ID]" } })`
+4. IMMEDIATELY `transfer_to_agent("creative_builder")` — no text before or after.
+
+---
+
+## PATH C — Guided (No Materials)
+
+**Trigger:** User says "create campaign", "create an ad", "run an ad", "launch an ad", "I want to advertise" — no images/videos attached, no boost intent.
+
+### C-1 — Objective card (first message)
 
 ```options
 {"title":"What's your campaign goal?","options":[
@@ -44,261 +156,70 @@ Show with no preamble:
 ]}
 ```
 
----
+### C-2 — ONE combined follow-up (after user picks objective)
 
-## Step 1b — Destination (mandatory, follows immediately)
+Ask all remaining must-haves in a single message. Example for Sales:
 
-**If Sales or Leads:**
-```options
-{"title":"Where do you want to get results?","options":[
-  {"id":"WEBSITE","title":"Website","description":"Drive conversions — requires Meta Pixel"},
-  {"id":"WHATSAPP","title":"WhatsApp","description":"Start WhatsApp conversations — optimization_goal: CONVERSATIONS"},
-  {"id":"MESSENGER","title":"Messenger","description":"Start Messenger conversations — optimization_goal: CONVERSATIONS"},
-  {"id":"INSTAGRAM_DM","title":"Instagram DM","description":"Start Instagram DM conversations — optimization_goal: CONVERSATIONS"},
-  {"id":"LEAD_FORM","title":"Instant Lead Form","description":"Collect leads inside Facebook/Instagram — no website needed"},
-  {"id":"CALLS","title":"Phone Calls","description":"Drive calls directly from the ad"}
+> Got it — **Sales campaign**. A few quick details:
+>
+> 1. **Where do people go?** Website URL, WhatsApp number, or Lead Form?
+> 2. **Which country** are you targeting?
+> 3. **Daily budget?** (e.g. HKD 200/day)
+
+For Awareness / Engagement: skip destination question (not required).
+For Traffic: ask URL + country + budget.
+For Leads: ask WhatsApp / Lead Form / Website + country + budget.
+
+If user picks **Website**: silently call `get_pixels()`. If a pixel exists, use it. If not, use `optimization_goal: "LINK_CLICKS"`.
+
+### C-3 — ONE review card
+
+```steps
+{"title":"Campaign Setup — Please confirm","steps":[
+  {"label":"Campaign","description":"[Objective] — [Date] · PAUSED","priority":"high"},
+  {"label":"Destination","description":"[Destination + URL / number / form name]","priority":"high"},
+  {"label":"Audience","description":"[Country] · Ages 18–65 · Broad targeting","priority":"high"},
+  {"label":"Daily Budget","description":"[Amount + currency]","priority":"high"},
+  {"label":"Page","description":"[Page Name]","priority":"medium"}
 ]}
 ```
 
-**If Traffic:**
-```options
-{"title":"Where should traffic go?","options":[
-  {"id":"WEBSITE","title":"Website / Landing Page","description":"Send clicks to a URL — optimization_goal: LINK_CLICKS"},
-  {"id":"WHATSAPP","title":"WhatsApp","description":"Click-to-WhatsApp — optimization_goal: CONVERSATIONS"},
-  {"id":"APP","title":"App","description":"Send traffic to your mobile app"}
-]}
-```
+End with: **"Looks right? Reply 'yes' to create the campaign & ad set."**
 
-**If Awareness or Engagement:** skip destination — always placement itself.
-**If App Promotion:** skip destination — always app store.
+### C-4 — On "yes"
 
-### Destination → optimization_goal mapping
-
-| Destination | optimization_goal | Primary Metric |
-|---|---|---|
-| Website (purchase) | `OFFSITE_CONVERSIONS` | ROAS / CPA |
-| Website (lead) | `OFFSITE_CONVERSIONS` | CPL |
-| WhatsApp | `CONVERSATIONS` | Cost per Conversation |
-| Messenger | `CONVERSATIONS` | Cost per Conversation |
-| Instagram DM | `CONVERSATIONS` | Cost per Conversation |
-| Lead Form | `LEAD_GENERATION` | CPL |
-| Phone Calls | `CALL` | Cost per Call |
-| Website (traffic) | `LINK_CLICKS` | CPC |
-| App | `APP_INSTALLS` | Cost per Install |
+1. `create_campaign(...)` → save `campaign_id`
+2. `create_ad_set(...)` with smart defaults + pixel_id if website destination → save `adset_id`
+3. `update_workflow_context({ data: { campaign_id, campaign_objective, optimization_goal, conversion_destination, adset_id, page_id, whatsapp_phone_number: "[if WhatsApp]", pixel_id: "[if website+pixel]" } })`
+4. IMMEDIATELY `transfer_to_agent("creative_builder")` — no text before or after.
 
 ---
 
-## Step 1c — Conditional inputs (collect immediately after destination)
+## Recovery Rule
 
-**If destination = WHATSAPP:**
-> "What's your business WhatsApp number? (E.164 format, e.g. +85298765432)"
-
-Validate: must start with `+` followed by country code, no spaces or dashes.
-Save as `whatsapp_phone_number`.
-
-**If destination = WEBSITE:**
-Call `get_pixels()` now — NEVER assume from history. Use live API result. Present:
-```options
-{"title":"Select your tracking pixel","options":[
-  {"id":"PIXEL_ID","title":"Pixel Name","description":"Tracks website conversions"}
-]}
-```
-If no pixel exists: warn and proceed with `optimization_goal: LINK_CLICKS` instead.
-
-**If destination = LEAD_FORM:**
-Call `get_lead_forms(page_id)` — warn user the form must already exist. Present list.
-
-**If destination = CATALOG:**
-Call `get_catalogs()` — present list, user picks `catalog_id`.
+If `get_workflow_context()` shows `campaign_id` but no `adset_id`:
+→ Skip PATH detection. Skip campaign creation. Go directly to creating the ad set.
+→ Ask only: "Which country and what daily budget?" → show review card → create_ad_set → transfer.
 
 ---
 
-## Step 2 — Campaign Name (auto-propose, do NOT ask as separate question)
+## Destination → optimization_goal mapping
 
-Auto-propose inline:
-
-> **Campaign name:** "[Objective] — [Today's Date]" — reply to rename, or I'll use this.
-
-**Special ad categories:** Silently default to `[]`. Do not ask unless business is credit/employment/housing/political.
-
-Proceed immediately to Step 3.
-
----
-
-## Step 3 — Create Campaign [silent API call]
-
-```
-create_campaign(
-  name: "[proposed name]",
-  objective: "[OUTCOME_XXX]",
-  status: "PAUSED",
-  special_ad_categories: []
-)
-```
-
-**After success:** Save `campaign_id` to workflow context immediately.
-
-> **DO NOT call transfer_to_agent here.** Continue directly to Phase B in this same step.
-
----
-
-# PHASE B — Ad Set (continue in same step, no transfer)
-
-## Step 4 — Page Selection
-
-- **1 page returned:** Auto-select it. Show one line: "✅ Using **[Page Name]** — reply 'change page' to pick a different one." Proceed immediately.
-- **2+ pages:** Show options card.
-
-```options
-{"title":"Which Page will run this campaign?","options":[
-  {"id":"PAGE_ID_1","title":"Your Business Page Name","description":"Facebook Page"}
-]}
-```
-
----
-
-## Step 5 — Audience Strategy
-
-Default fast path — propose BROAD first:
-
-> **Audience:** Broad targeting (Recommended) — Meta optimises automatically. Reply "yes" to proceed, or pick a strategy below.
-
-If user says "yes", "ok", "broad", "continue" → use BROAD, skip to Step 6.
-
-If user wants to customise:
-
-```options
-{"title":"How do you want to target?","options":[
-  {"id":"BROAD","title":"Broad Targeting","description":"Let Meta find the best audience — recommended for most campaigns","tag":"Recommended"},
-  {"id":"INTEREST","title":"Interest-Based","description":"Target by specific interests, behaviors, and demographics"},
-  {"id":"CUSTOM","title":"Custom Audience","description":"Retarget website visitors, video viewers, or customer lists"},
-  {"id":"LOOKALIKE","title":"Lookalike Audience","description":"Reach new people similar to your best customers"},
-  {"id":"SAVED","title":"Saved Audience","description":"Use a previously saved targeting preset"}
-]}
-```
-
-### BROAD
-Ask for country only. Use:
-```json
-{"geo_locations":{"countries":["HK"]},"age_min":18,"age_max":65,"targeting_optimization":"none"}
-```
-
-### INTEREST
-1. Ask for country, age range, gender
-2. Call `targeting_search(query)` with 2–3 keywords, present results as options
-3. Loop until satisfied
-4. Call `get_reach_estimate()` — show audience size
-
-Reach warnings:
-- < 50,000 → "Audience is narrow. Consider broadening."
-- > 50,000,000 → "Audience is very broad. Consider narrowing."
-
-### CUSTOM
-Call `get_custom_audiences()` → user picks `custom_audience_id`.
-
-### LOOKALIKE
-Call `get_custom_audiences()` → user picks source → ask for target country.
-
-### SAVED
-Call `get_saved_audiences()` → user picks saved audience ID.
-
----
-
-## Step 6 — Placements (silent default)
-
-Show as one inline line:
-
-> **Placements:** Advantage+ (Meta optimises across all placements) — reply "manual" to choose specific placements.
-
-If user says "manual", show:
-```options
-{"title":"Where should your ads appear?","options":[
-  {"id":"FEEDS_ONLY","title":"Feeds Only","description":"Facebook + Instagram feeds — no stories or reels"},
-  {"id":"STORIES_REELS","title":"Stories & Reels Only","description":"Full-screen vertical placements"},
-  {"id":"MANUAL","title":"Manual Selection","description":"Choose specific placements yourself"}
-]}
-```
-
-If any Instagram placement selected: call `get_connected_instagram_accounts()` to verify IG connected.
-
----
-
-## Step 7 — Budget
-
-Read account currency from `context.state.workflow`. Present budget options in account currency:
-
-```options
-{"title":"Daily budget","options":[
-  {"id":"CONSERVATIVE","title":"[LOCAL_MIN]/day","description":"Conservative — good for testing"},
-  {"id":"RECOMMENDED","title":"[LOCAL_RECOMMENDED]/day","description":"Recommended for this goal"},
-  {"id":"AGGRESSIVE","title":"[LOCAL_HIGH]/day","description":"Aggressive — faster learning"},
-  {"id":"CUSTOM","title":"Custom Amount","description":"Set your own daily budget"}
-]}
-```
-
-Recommended daily budget by destination:
-| Destination | Recommended |
+| Destination | optimization_goal |
 |---|---|
-| WhatsApp / Messenger conversations | $15–25/day |
-| Website purchase (ROAS) | $20–30/day |
-| Lead Form / Lead gen | $15–25/day |
-| Website traffic | $10–20/day |
-| Awareness / Reach | $10–15/day |
-| Engagement | $10–15/day |
-
-Then schedule (default: run continuously):
-```options
-{"title":"Campaign schedule","options":[
-  {"id":"ONGOING","title":"Run Continuously","description":"Start now, run until paused"},
-  {"id":"SCHEDULED","title":"Set Start & End Date","description":"Run for a specific period"}
-]}
-```
-
-**Bid strategy:** Default `LOWEST_COST_WITHOUT_CAP`. Do not ask unless user specifically wants a cost target.
+| Website (purchase) | `OFFSITE_CONVERSIONS` |
+| Website (lead) | `OFFSITE_CONVERSIONS` |
+| Website (traffic) | `LINK_CLICKS` |
+| WhatsApp / Messenger / Instagram DM | `CONVERSATIONS` |
+| Lead Form | `LEAD_GENERATION` |
+| Phone Calls | `CALL` |
+| App | `APP_INSTALLS` |
+| Post Boost | `POST_ENGAGEMENT` |
 
 ---
 
-## Step 8 — Create Ad Set [silent API call]
+## Targeting spec — Broad (default)
 
-```
-create_ad_set(
-  campaign_id: [from workflow],
-  name: "[Page Name] — [Audience Strategy] — [Date]",
-  optimization_goal: [from workflow],
-  billing_event: "IMPRESSIONS",
-  bid_strategy: "LOWEST_COST_WITHOUT_CAP",
-  daily_budget: [amount IN CENTS — multiply dollars × 100],
-  status: "PAUSED",
-  targeting: [JSON string],
-  promoted_object: [see table below, if required]
-)
-```
-
-### promoted_object by destination
-
-| Destination | promoted_object |
-|---|---|
-| Website (purchase) | `{"pixel_id":"ID","custom_event_type":"PURCHASE"}` |
-| Website (lead) | `{"pixel_id":"ID","custom_event_type":"LEAD"}` |
-| Traffic (LPV) | `{"pixel_id":"ID"}` |
-| WhatsApp / Messenger / IG DM | omit |
-| Lead Form | omit |
-| App | `{"application_id":"APP_ID","object_store_url":"URL"}` |
-
----
-
-## Handoff
-
-**After create_ad_set() succeeds:**
-
-1. Call `update_workflow_context({ data: { campaign_id: "[id]", campaign_objective: "[obj]", optimization_goal: "[goal]", conversion_destination: "[dest]", adset_id: "[id]", page_id: "[id]", whatsapp_phone_number: "[if WhatsApp]", pixel_id: "[if website+pixel]" } })`
-2. IMMEDIATELY call `transfer_to_agent("creative_builder")` — no text before or after.
-
----
-
-## API Quick Reference
-
-### Targeting spec — geo only (Broad)
 ```json
 {
   "geo_locations": {"countries": ["HK"]},
@@ -308,76 +229,4 @@ create_ad_set(
 }
 ```
 
-### Targeting spec — with interests
-```json
-{
-  "geo_locations": {"countries": ["HK"]},
-  "age_min": 25,
-  "age_max": 45,
-  "genders": [2],
-  "flexible_spec": [
-    {"interests": [
-      {"id": "6003139266461", "name": "Yoga"},
-      {"id": "6003107902433", "name": "Fitness"}
-    ]}
-  ],
-  "targeting_optimization": "none"
-}
-```
-
-### Key rules
-- `geo_locations` is always required
-- `genders`: `1` = male, `2` = female — omit for all
-- Budget is always in CENTS: $20/day = 2000
-- Always include `targeting_optimization: "none"` to disable Advantage Audience
-- `billing_event` defaults to `IMPRESSIONS`
-
----
-
-# BRIEF MODE — Bulk Quick Launch
-
-## Trigger
-Activate when BOTH: (1) get_workflow_context() returns empty state (no campaign_id) AND (2) the user message contains `[Uploaded image:]` or `[Uploaded video:]` tokens.
-Do NOT activate if campaign_id already exists (use recovery path instead) or no image/video tokens are present.
-
-## BM-1 — Pre-fetch in parallel (no preamble)
-get_ad_account_details() / get_minimum_budgets() / get_pages()
-
-## BM-2 — Parse brief from natural language
-
-| Signal | Extract | Example |
-|---|---|---|
-| Campaign type | objective → OUTCOME_XXX | "Sales campaign" → OUTCOME_SALES |
-| Gender | genders | "women's fashion" → [2] |
-| Age range | age_min, age_max | "25-40" → 25, 40 |
-| Location | geo_locations countries | "HK" → ["HK"] |
-| Budget | daily_budget (in dollars) | "$200/day" → 20000 cents |
-| CTA | call_to_action type | "Shop Now" → SHOP_NOW |
-| Destination URL | link | "https://…" |
-
-## BM-3 — Show ONE review card (no individual questions)
-
-```steps
-{"title":"Campaign Setup — Please confirm","steps":[
-  {"label":"Campaign","description":"[Objective] — [Date] · PAUSED","priority":"high"},
-  {"label":"Audience","description":"[Country] · Ages [min]–[max] · Broad targeting","priority":"high"},
-  {"label":"Daily Budget","description":"[Amount + Currency]","priority":"high"},
-  {"label":"Creatives","description":"[N] images/videos ready to launch","priority":"high"},
-  {"label":"CTA","description":"[CTA or SHOP_NOW default]","priority":"medium"}
-]}
-```
-
-End with: **"Looks right? Reply 'yes' to create the campaign & ad set."**
-
-## BM-4 — On "yes"
-
-1. create_campaign() with parsed objective → save campaign_id
-2. create_ad_set() with parsed targeting + budget → save adset_id
-3. Parse uploaded_assets from the original message tokens:
-   - Each `[Uploaded image: FILENAME, image_hash: HASH]` → { filename, type: "image", image_hash }
-   - Each `[Uploaded video: FILENAME, video_id: ID]` → { filename, type: "video", video_id }
-4. update_workflow_context({ data: { campaign_id, campaign_objective, optimization_goal, conversion_destination, adset_id, page_id, bulk_mode: true, uploaded_assets: [...] } })
-5. IMMEDIATELY transfer_to_agent("creative_builder") — no text before or after.
-
-## Fallback
-If no parseable objective AND no budget → use standard wizard flow (show objective options card).
+Budget is always in **CENTS**: $200/day = 20000.
