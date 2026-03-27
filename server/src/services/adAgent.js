@@ -1426,17 +1426,16 @@ Then collect these inputs from the user:
 3. **Campaign name** (suggest "[Objective] — ${getToday()}" if not specified)
 4. **Special ad categories**: default NONE. Ask ONLY if credit/employment/housing/political.
 
-After create_campaign() succeeds, call update_workflow_context with:
-{ campaign_id, campaign_objective, optimization_goal, conversion_destination, whatsapp_phone_number (if WhatsApp), pixel_id (if website+pixel) }
-
-End with a clear handoff message: "Campaign created! Next I'll set up your audience and budget."`;
+After create_campaign() succeeds:
+1. Call update_workflow_context with: { campaign_id, campaign_objective, optimization_goal, conversion_destination, whatsapp_phone_number (if WhatsApp), pixel_id (if website+pixel) }
+2. IMMEDIATELY call transfer_to_agent("adset_builder") — do NOT emit any text before or after the transfer call.`;
 
 const buildSs2Instruction = () => `You are Step 2 of 4 in the ad creation workflow: Audience, Targeting & Ad Set.
 TODAY: ${getToday()}
 
 ABSOLUTE RULE: NEVER fabricate data. Only show numbers from tool results.
 
-Read campaign_id, optimization_goal, and conversion_destination from conversation history.
+Read campaign_id, optimization_goal, and conversion_destination from session state (workflow key) or conversation history.
 
 Collect these in order:
 
@@ -1456,23 +1455,22 @@ Collect these in order:
 
 5. **Bid strategy**: LOWEST_COST (default) / BID_CAP / COST_CAP
 
-After create_ad_set() succeeds, call update_workflow_context with:
-{ adset_id, page_id }
-
-End: "Ad set created! Next I'll help you build the creative."`;
+After create_ad_set() succeeds:
+1. Call update_workflow_context with: { adset_id, page_id }
+2. IMMEDIATELY call transfer_to_agent("creative_builder") — do NOT emit any text before or after the transfer call.`;
 
 const buildSs3Instruction = () => `You are Step 3 of 4 in the ad creation workflow: Creative Assembly.
 TODAY: ${getToday()}
 
 ABSOLUTE RULE: NEVER fabricate data. Only show numbers from tool results.
 
-Read page_id, conversion_destination, and whatsapp_phone_number (if set) from conversation history.
+Read page_id, conversion_destination, and whatsapp_phone_number (if set) from session state (workflow key) or conversation history.
 
 1. **Format** — ask user:
    - IMAGE → upload_ad_image() → image_hash
    - VIDEO → upload_ad_video() → POLL get_ad_video_status() until status="ready" (max 10 min)
    - CAROUSEL → upload 2–10 images, each needs headline + destination link
-   - EXISTING_POST → get_page_posts() → user picks post_id → skip to step 3
+   - EXISTING_POST → get_page_posts() → user picks post_id → skip to step 4
 
 2. **Upload media** (skip for EXISTING_POST)
 
@@ -1488,17 +1486,16 @@ Read page_id, conversion_destination, and whatsapp_phone_number (if set) from co
 
 5. **WhatsApp creative**: object_story_spec MUST include whatsapp_phone_number from context.
 
-After create_ad_creative() succeeds, call update_workflow_context with:
-{ creative_id, ad_format }
-
-End: "Creative ready! Last step — I'll set up tracking and launch."`;
+After create_ad_creative() succeeds:
+1. Call update_workflow_context with: { creative_id, ad_format }
+2. IMMEDIATELY call transfer_to_agent("ad_launcher") — do NOT emit any text before or after the transfer call.`;
 
 const buildSs4Instruction = () => `You are Step 4 of 4 in the ad creation workflow: Tracking, Assembly & Launch.
 TODAY: ${getToday()}
 
 ABSOLUTE RULE: NEVER fabricate data. Only show numbers from tool results.
 
-Read campaign_id, adset_id, creative_id, ad_format, and conversion_destination from conversation history.
+Read campaign_id, adset_id, creative_id, ad_format, and conversion_destination from session state (workflow key) or conversation history.
 
 Follow this exact sequence:
 
@@ -1528,7 +1525,11 @@ Follow this exact sequence:
 
 6. **Activate** (only after explicit confirmation):
    Update campaign, ad set, and ad status to ACTIVE.
-   Then show success summary with campaign_id, ad_id, and daily budget.`;
+
+7. After activation succeeds:
+   Call update_workflow_context with: { ad_id, activation_status: "ACTIVE" }
+   Then IMMEDIATELY call transfer_to_agent("ad_manager") — do NOT emit any text before the transfer call.
+   ad_manager will deliver the final success summary to the user.`;
 
 // ── Create sub-agents ─────────────────────────────────────────────────────────
 
