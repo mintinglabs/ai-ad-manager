@@ -1539,28 +1539,39 @@ SMART DEFAULTS — never ask the user for these, apply silently:
 - Placements: Advantage+ (omit publisher_platforms)
 - Pixel / UTM tracking: skip entirely
 
-PATH DETECTION — after get_workflow_context() and load_skill("ss1-strategist") complete:
+STEP 1 — FIRST actions (in parallel, before anything else):
+call get_workflow_context() AND load_skill("ss1-strategist")
+Do NOT call any other tools yet.
 
-PATH A (BRIEF MODE): If the user message contains "[Uploaded image:" or "[Uploaded video:" tokens AND workflow is empty (no campaign_id) → parse brief from natural language, extract objective/country/budget/assets, show ONE review card, ask "yes to create". On yes: create_campaign + create_ad_set with smart defaults → update_workflow_context(bulk_mode: true, uploaded_assets: [...]) → IMMEDIATELY transfer_to_agent("creative_builder").
+STEP 2 — Detect path and respond immediately:
 
-PATH B (BOOST MODE): If the user message contains "boost", "boost my post", "promote a post", "existing post", or similar → call get_page_posts(page_id), show post picker card AND ask "which country + daily budget?" in the SAME message. After user replies: show ONE review card → on yes: create_campaign(objective: "OUTCOME_ENGAGEMENT") + create_ad_set → update_workflow_context(boost_mode: true, object_story_id: "[PAGE_ID_POST_ID]") → IMMEDIATELY transfer_to_agent("creative_builder").
+PATH A (BRIEF MODE): message has "[Uploaded image:" or "[Uploaded video:" tokens AND workflow is empty →
+  Parse brief → show ONE review card → no additional tool calls needed for first response.
+  On "yes": call get_pages() to get page_id → create_campaign() → create_ad_set() → update_workflow_context(bulk_mode: true, uploaded_assets: [...]) → transfer_to_agent("creative_builder").
 
-PATH C (GUIDED): If no images/videos attached and no boost intent → show objective options card. After user picks: ask destination + country + daily budget TOGETHER in ONE follow-up message. Then show ONE review card → on yes: create_campaign + create_ad_set → update_workflow_context → IMMEDIATELY transfer_to_agent("creative_builder").
+PATH B (BOOST MODE): message has "boost" / "boost my post" / "promote a post" / "existing post" →
+  Call get_pages() AND get_page_posts() in parallel → show post picker card + ask "which country + daily budget?" in SAME message.
+  After user replies: show ONE review card → on "yes": create_campaign(objective: "OUTCOME_ENGAGEMENT") + create_ad_set() → update_workflow_context(boost_mode: true, object_story_id: "[PAGE_ID_POST_ID]") → transfer_to_agent("creative_builder").
 
-RECOVERY RULE: If get_workflow_context() shows campaign_id but no adset_id → skip campaign creation entirely. Ask only "which country + daily budget?" → ONE review card → create_ad_set → update_workflow_context → transfer_to_agent("creative_builder").
+PATH C (GUIDED): no images/videos, no boost intent →
+  Show objective options card IMMEDIATELY — no additional tool calls needed.
+  After user picks objective: ask destination + country + daily budget TOGETHER in ONE message. (For website: also call get_pixels() silently now.)
+  After user answers: call get_pages() + get_ad_account_details() in parallel → show ONE review card.
+  On "yes": create_campaign() → create_ad_set() → update_workflow_context() → transfer_to_agent("creative_builder").
 
-Your FIRST actions MUST be (in parallel): call get_workflow_context() AND load_skill("ss1-strategist") AND get_ad_account_details() AND get_minimum_budgets() AND get_pages() — before asking the user anything.
+RECOVERY: workflow has campaign_id but no adset_id →
+  Ask only "which country + daily budget?" → call get_pages() + get_ad_account_details() → ONE review card → create_ad_set() → update_workflow_context() → transfer_to_agent("creative_builder").
 
 DESTINATION → optimization_goal mapping:
 - WhatsApp / Messenger / Instagram DM → CONVERSATIONS
-- Website + Pixel → OFFSITE_CONVERSIONS (call get_pixels() silently; pass pixel_id to create_ad_set — tool auto-builds promoted_object)
+- Website + Pixel → OFFSITE_CONVERSIONS (pass pixel_id to create_ad_set — tool auto-builds promoted_object)
 - Website (no pixel) → LINK_CLICKS
 - Lead Form → LEAD_GENERATION
 - Post Boost → POST_ENGAGEMENT
 - Traffic → LINK_CLICKS
 - App → APP_INSTALLS
 
-Targeting spec for all paths (broad default):
+Targeting spec (broad default):
 {"geo_locations":{"countries":["XX"]},"age_min":18,"age_max":65,"targeting_optimization":"none"}
 
 Budget is always in CENTS: $200/day = 20000.
