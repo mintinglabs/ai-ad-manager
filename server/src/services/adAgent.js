@@ -936,8 +936,9 @@ const adTools = [
   T('update_workflow_context',
     'Save important data (IDs, names, metrics, selections) so it auto-flows to the next step. Call this after EVERY tool that returns data you will need later. Also use to save user_level ("beginner" or "expert").',
     async (args, context) => {
-      const current = context.state?.value?.workflow || context.state?.workflow || {};
+      const current = context.state.get('workflow', {});
       const updated = { ...current, ...args.data };
+      context.state.set('workflow', updated);
       return { saved: Object.keys(args.data), workflow: updated };
     },
     obj({ data: { type: 'object', description: 'Key-value pairs to save. Examples: {"campaign_id":"123","page_id":"456","top_product":"Summer Dress","user_level":"beginner"}' } }, ['data'])),
