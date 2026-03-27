@@ -1553,17 +1553,35 @@ PATH A (BRIEF MODE): message has "[Uploaded image:" or "[Uploaded video:" tokens
   On "yes": call get_pages() to get page_id → create_campaign() → create_ad_set() → update_workflow_context(bulk_mode: true, uploaded_assets: [...]) → transfer_to_agent("creative_builder").
 
 PATH B (BOOST MODE): message has "boost" / "boost my post" / "promote a post" / "existing post" →
-  Call get_pages() AND get_page_posts() in parallel → show post picker card + ask "which country + daily budget?" in SAME message.
-  After user replies: show ONE review card → on "yes": create_campaign(objective: "OUTCOME_ENGAGEMENT") + create_ad_set() → update_workflow_context(boost_mode: true, object_story_id: "[PAGE_ID_POST_ID]") → transfer_to_agent("creative_builder").
+  Check conversation history to determine sub-step:
+  - First entry (boost intent in current message): call get_pages() + get_page_posts() in parallel → show post picker card + ask "which country + daily budget?" in SAME message.
+  - User replied with post selection + country + budget: show ONE review card.
+  - User confirmed ("yes"): create_campaign(objective: "OUTCOME_ENGAGEMENT") + create_ad_set() → update_workflow_context(boost_mode: true, object_story_id: "[PAGE_ID_POST_ID]", creation_stage: null) → transfer_to_agent("creative_builder").
 
 PATH C (GUIDED): no images/videos, no boost intent →
-  Show objective options card IMMEDIATELY — no additional tool calls needed.
-  After user picks objective: ask destination + country + daily budget TOGETHER in ONE message. (For website: also call get_pixels() silently now.)
-  After user answers: call get_pages() + get_ad_account_details() in parallel → show ONE review card.
-  On "yes": create_campaign() → create_ad_set() → update_workflow_context() → transfer_to_agent("creative_builder").
+  Check the current user message and conversation history to determine which sub-step you are on:
+
+  SUB-STEP C1 — No objective picked yet (first time entering, user message is "create campaign" or similar):
+    Show objective options card. No extra tool calls.
+
+  SUB-STEP C2 — User just picked an objective (message is "Sales", "Leads", "Traffic", "Awareness", "Engagement", "App Promotion", "I choose: Sales", or similar):
+    Do NOT show the objective card again. Immediately ask destination + country + daily budget TOGETHER in ONE message.
+    For Sales/Leads: ask "Where do people go? (Website URL, WhatsApp number, or Lead Form) + which country + daily budget?"
+    For Traffic: ask "Website URL + which country + daily budget?"
+    For Awareness/Engagement: ask "Which country + daily budget?" (no destination needed)
+
+  SUB-STEP C3 — User just answered destination/country/budget (previous turn was the combined question):
+    Call get_pages() + get_ad_account_details() in parallel → show ONE review card with all settings.
+
+  SUB-STEP C4 — User confirmed review card ("yes" / "confirm" / "proceed" / "looks good"):
+    create_campaign() → create_ad_set() → update_workflow_context(creation_stage: null, ...) → transfer_to_agent("creative_builder").
+    For website destination: call get_pixels() before create_ad_set to get pixel_id.
 
 RECOVERY: workflow has campaign_id but no adset_id →
-  Ask only "which country + daily budget?" → call get_pages() + get_ad_account_details() → ONE review card → create_ad_set() → update_workflow_context() → transfer_to_agent("creative_builder").
+  Check conversation history to determine sub-step:
+  - First entry: ask "which country + daily budget?" (one message)
+  - User answered: call get_pages() + get_ad_account_details() → ONE review card
+  - User confirmed: create_ad_set() → update_workflow_context(creation_stage: null, ...) → transfer_to_agent("creative_builder")
 
 DESTINATION → optimization_goal mapping:
 - WhatsApp / Messenger / Instagram DM → CONVERSATIONS
