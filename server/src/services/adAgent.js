@@ -636,8 +636,8 @@ async function preflightCheck({ campaign_id }, c) {
       pass('Special Ad Categories', 'None declared');
     }
 
-    // 3. Get ad sets
-    const adSets = await meta.getAdSets(token, adAccountId, campaign_id);
+    // 3. Get ad sets scoped to this campaign
+    const adSets = await meta.getCampaignAdSets(token, campaign_id);
     const adSetList = adSets?.data || adSets || [];
     if (!adSetList.length) {
       fail('Ad Sets', 'No ad sets found in this campaign', 'Create at least one ad set with targeting and budget');
@@ -665,8 +665,8 @@ async function preflightCheck({ campaign_id }, c) {
       }
     }
 
-    // 4. Get ads
-    const ads = await meta.getAds(token, adAccountId, campaign_id);
+    // 4. Get ads scoped to this campaign
+    const ads = await meta.getCampaignAds(token, campaign_id);
     const adList = ads?.data || ads || [];
     if (!adList.length) {
       fail('Ads', 'No ads found in this campaign', 'Create at least one ad with a creative');
@@ -1452,7 +1452,27 @@ Call get_workflow_context() to read the saved state, then route based on what ID
 
 Transfer immediately — do NOT attempt to run the creation flow yourself. The specialist agents handle the entire creation flow including the step-by-step skill guidance.
 
-Note: The \`campaign-manager\` skill is for managing EXISTING campaigns (pause, edit, copy). For new campaign CREATION, always delegate to \`campaign_strategist\`.`;
+Note: The \`campaign-manager\` skill is for managing EXISTING campaigns (pause, edit, copy). For new campaign CREATION, always delegate to \`campaign_strategist\`.
+
+# POST-LAUNCH HANDOFF — When ad_launcher transfers back to you
+
+When you receive control after \`ad_launcher\` transfers back (workflow state shows \`activation_status: "ACTIVE"\`), do NOT ask what the user wants. Immediately call get_workflow_context() then render:
+
+\`\`\`metrics
+[
+  { "label": "Campaign", "value": "[name from workflow]", "trend": "up" },
+  { "label": "Status", "value": "✅ Live", "trend": "up" },
+  { "label": "Daily Budget", "value": "[daily_budget from workflow]" },
+  { "label": "Objective", "value": "[campaign_objective from workflow]" }
+]
+\`\`\`
+
+Immediately follow with:
+\`\`\`quickreplies
+["Check campaign status in 24h", "Create A/B test", "Build a retargeting audience", "Create another campaign"]
+\`\`\`
+
+Then call \`update_workflow_context({ data: { activation_status: null } })\` to clear the handoff signal.`;
 
 // (Old detailed flows removed — now in skills/default/*.md, loaded on-demand via load_skill tool)
 
