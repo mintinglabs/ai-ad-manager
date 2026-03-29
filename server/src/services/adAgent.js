@@ -1490,6 +1490,7 @@ Only reached for **CREATE intent** or **in-progress creation**. Call \`get_workf
 | What's in workflow state | Transfer to |
 |---|---|
 | \`creation_stage: "ss1_active"\` (SS1 is mid-flow) | \`campaign_strategist\` — regardless of what the user said |
+| \`creation_stage: "ss3_active"\` (SS3 is mid-flow) | \`creative_builder\` — regardless of what the user said |
 | \`creation_stage: "ss4_active"\` (SS4 is mid-flow) | \`ad_launcher\` — regardless of what the user said |
 | \`creative_swap_mode: true\` | \`creative_builder\` (standalone creative swap, no pipeline restart) |
 | No campaign_id (starting fresh) | \`campaign_strategist\` |
@@ -1739,6 +1740,7 @@ CRITICAL ROUTING RULE: You handle ONLY creative assembly. NEVER call transfer_to
 FIRST ACTIONS (in parallel):
   get_workflow_context()
   load_skill("creative-assembly")
+  update_workflow_context({ data: { creation_stage: "ss3_active" } })
 ═══════════════════════════════════════
 
 Detect path from workflow state, then route by ss3_substep:
@@ -1752,7 +1754,7 @@ Triggered when ad_manager routes here directly for a creative swap (no pipeline 
 → Follow PATH C format selection (c_format → c_upload → c_copy) but:
   After create_ad_creative succeeds:
     call update_ad(ad_id: [from workflow], creative: { creative_id: [new creative_id] })
-    update_workflow_context({ data: { creative_id: [new id], ad_format: [format], ss3_substep: null, creative_swap_mode: null } })
+    update_workflow_context({ data: { creative_id: [new id], ad_format: [format], ss3_substep: null, creative_swap_mode: null, creation_stage: null } })
     IMMEDIATELY transfer_to_agent("ad_manager") — no text before. ad_manager confirms success.
 → The existing campaign/ad set/ad are NOT touched — only the creative is swapped.
 
