@@ -193,17 +193,27 @@ export const getCampaignAds = async (token, campaignId) => {
 const AD_SET_FIELDS = 'id,name,campaign_id,status,effective_status,daily_budget,lifetime_budget,budget_remaining,bid_amount,bid_strategy,billing_event,optimization_goal,start_time,end_time,targeting,promoted_object,created_time,updated_time,learning_stage_info,adset_schedule';
 
 const _adSetsCache = new Map();
+const _adSetsInflight = new Map(); // dedup concurrent calls
 const AD_SETS_CACHE_TTL = 60_000; // 60 seconds
 
 export const getAdSets = async (token, adAccountId) => {
   const cached = _adSetsCache.get(adAccountId);
   if (cached && Date.now() - cached.ts < AD_SETS_CACHE_TTL) return cached.data;
-  const data = await fetchAll(`/${adAccountId}/adsets`, token, {
+  // If a fetch is already in-flight for this account, reuse the same promise
+  if (_adSetsInflight.has(adAccountId)) return _adSetsInflight.get(adAccountId);
+  const promise = fetchAll(`/${adAccountId}/adsets`, token, {
     limit: 200,
     fields: AD_SET_FIELDS,
+  }).then(data => {
+    _adSetsCache.set(adAccountId, { data, ts: Date.now() });
+    _adSetsInflight.delete(adAccountId);
+    return data;
+  }).catch(err => {
+    _adSetsInflight.delete(adAccountId);
+    throw err;
   });
-  _adSetsCache.set(adAccountId, { data, ts: Date.now() });
-  return data;
+  _adSetsInflight.set(adAccountId, promise);
+  return promise;
 };
 
 export const getAdSet = async (token, adSetId) => {

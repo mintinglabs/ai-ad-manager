@@ -419,13 +419,17 @@ async function getObjectInsights({ object_id, date_preset = 'last_7d', since, un
   if (breakdowns) params.breakdowns = breakdowns;
   if (level) params.level = level;
 
+  const t0 = Date.now();
   const insights = await meta.getObjectInsights(token, object_id, params);
+  console.log(`[getObjectInsights] insights fetch took ${Date.now() - t0}ms (since=${since} until=${until})`);
 
   // When level=campaign, enrich each campaign row with optimization_goal from its ad sets.
   // This removes the AI from the data classification loop — the tool returns pre-classified data.
   if (level === 'campaign' && Array.isArray(insights) && insights.length > 0) {
     try {
+      const t1 = Date.now();
       const adSets = await meta.getAdSets(token, adAccountId);
+      console.log(`[getObjectInsights] getAdSets took ${Date.now() - t1}ms`);
       // Build campaign_id → optimization_goal map (use first ad set's goal per campaign)
       const goalMap = {};
       for (const adSet of adSets) {
