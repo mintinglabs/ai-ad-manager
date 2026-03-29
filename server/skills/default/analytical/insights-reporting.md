@@ -186,21 +186,23 @@ Read the user's message and classify it into ONE of 4 scenarios. The scenario de
 
 ### Step 0 -- Detect Goal & Select Primary Metric
 
-**0a. Run ALL THREE in parallel — never wait sequentially:**
+**0a. Run these in parallel — never wait sequentially:**
 
 ```
 get_campaigns()
-get_ad_sets()
 get_account_insights(date_preset: "last_7d")
 ```
 
-**0b. `optimization_goal` from ad sets is the ONLY source of truth for metric selection.**
+Note: `get_ad_sets()` is NOT needed here for goal classification. `get_object_insights(level="campaign")` in Step 1 returns each row with `optimization_goal` pre-joined. Only call `get_ad_sets` if you need targeting/budget details for a specific drill-down.
+
+**0b. `optimization_goal` is pre-joined into the API response — use it directly.**
+- When you call `get_object_insights` with `level=campaign`, each campaign row already contains an `optimization_goal` field (e.g. `CONVERSATIONS`, `THRUPLAY`, `OFFSITE_CONVERSIONS`, `LINK_CLICKS`, `PROFILE_VISIT`). This is fetched from the ad set level automatically by the tool — you do NOT need to call `get_ad_sets` separately for goal classification.
 - NEVER use campaign `objective` alone — it is wrong for mixed-destination campaigns.
 - NEVER infer the goal from the campaign name (e.g., "Sales_Wts_" does not mean ROAS).
-- A campaign with `objective = OUTCOME_SALES` + WhatsApp destination has `optimization_goal = CONVERSATIONS` on its ad sets → treat it as a **Messaging** campaign, show Cost per Conversation, not ROAS or CPL.
-- Always call `get_ad_sets` and read the `optimization_goal` field directly before choosing any metric.
+- A campaign with `objective = OUTCOME_SALES` + WhatsApp destination has `optimization_goal = CONVERSATIONS` → treat it as a **Messaging** campaign, show Cost per Conversation, not ROAS or CPL.
+- Use the `optimization_goal` field from each row directly — never guess or override it.
 
-Once ad sets return, map `optimization_goal` to the primary metric using table 0c below.
+Map each row's `optimization_goal` to its primary metric using table 0c below.
 
 **0c. Map to primary metric using this table:**
 
@@ -290,7 +292,7 @@ This returns ALL active campaigns' data in 2 API calls, matching exactly what Me
 
 **Do NOT use `get_account_insights` to derive primary metrics.** The account-level endpoint aggregates all action types — numbers will be wrong for goal-specific metrics.
 
-After fetching, join each campaign row with its `optimization_goal` from the ad sets already loaded in Step 0a.
+Each campaign row already includes `optimization_goal` (pre-joined by the tool). Use it directly to classify campaigns into goal groups — no manual join needed.
 
 > **Trend requirement:** Dual-period fetch is mandatory for all 7-day+ reports. Compute % delta in Step 2.
 > **No previous data:** If previous period returns $0 spend or no data, skip delta — omit `prev` and `trend` fields in the insights card and set `status` from absolute thresholds (Strategic Handoff Summary).
@@ -477,8 +479,8 @@ Then transfer. The receiving skill reads this context to start immediately with 
 ### 1. Weekly Performance Report
 
 **Tool call sequence:**
-- **Round 1 (parallel):** `get_campaigns` + `get_ad_sets` + `get_account_insights(last_7d)` + `get_account_insights(last_14d)`
-- **Round 2 (parallel):** `get_object_insights(current 7d)` + `get_object_insights(previous 7d)` for each active campaign
+- **Round 1 (parallel):** `get_campaigns` + `get_account_insights(last_7d)` + `get_account_insights(last_14d)`
+- **Round 2 (parallel):** `get_object_insights(level="campaign", current 7d)` + `get_object_insights(level="campaign", previous 7d)` — each row includes pre-joined `optimization_goal`
 - Output sequence: diagnostic → metrics → trend → table (grouped by goal) → insights → steps → quickreplies
 
 **Strategic Handoff:**
@@ -493,8 +495,8 @@ Then transfer. The receiving skill reads this context to start immediately with 
 ### 2. Monthly Performance Report
 
 **Tool call sequence:**
-- **Round 1 (parallel):** `get_campaigns` + `get_ad_sets` + `get_account_insights(this_month)` + `get_account_insights(last_month)`
-- **Round 2 (parallel):** `get_object_insights(this_month)` + `get_object_insights(last_month)` for each active campaign
+- **Round 1 (parallel):** `get_campaigns` + `get_account_insights(this_month)` + `get_account_insights(last_month)`
+- **Round 2 (parallel):** `get_object_insights(level="campaign", this_month)` + `get_object_insights(level="campaign", last_month)` — each row includes pre-joined `optimization_goal`
 - Output sequence: diagnostic → metrics → trend (daily for the month) → comparison card (this vs last month) → table → insights → steps → quickreplies
 
 **Strategic Handoff:**
@@ -509,7 +511,7 @@ Then transfer. The receiving skill reads this context to start immediately with 
 ### 3. Problems & Quick Wins
 
 **Tool call sequence:**
-1. get_campaigns + get_ad_sets (detect optimization_goal per campaign) -> get_object_insights for each active campaign (last_7d, goal-appropriate fields) -> get_object_insights for low performers
+1. `get_object_insights(level="campaign", last_7d)` — each row includes pre-joined `optimization_goal`. No need for separate `get_ad_sets` call for goal detection.
 2. Look for: high cost per primary result, declining result volume, high frequency, audience overlap, inactive campaigns still spending
 
 **Strategic Handoff:**
@@ -540,7 +542,7 @@ Then transfer. The receiving skill reads this context to start immediately with 
 ### 5. Budget Optimisation Plan
 
 **Tool call sequence:**
-1. get_campaigns + get_ad_sets (detect optimization_goal per campaign) -> get_object_insights for each campaign (last_7d, goal-appropriate fields) -> calculate PRIMARY metric cost per campaign
+1. `get_object_insights(level="campaign", last_7d)` — each row includes pre-joined `optimization_goal`. Calculate PRIMARY metric cost per campaign using the goal from the row.
 2. Identify over/under-spending relative to PRIMARY metric performance — not ROAS universally
 
 **Strategic Handoff:**
@@ -555,8 +557,8 @@ Then transfer. The receiving skill reads this context to start immediately with 
 ### 6. Full Account Health Audit
 
 **Tool call sequence:**
-- **Round 1 (parallel):** `get_campaigns` + `get_ad_sets` + `get_ads` + `get_pixels` + `get_account_insights(last_30d)`
-- **Round 2 (parallel):** `get_object_insights(last_30d)` for each active campaign
+- **Round 1 (parallel):** `get_campaigns` + `get_ads` + `get_pixels` + `get_account_insights(last_30d)`
+- **Round 2 (parallel):** `get_object_insights(level="campaign", last_30d)` — each row includes pre-joined `optimization_goal`
 - Score: structure (naming, organization), budget efficiency, creative diversity, pixel setup, audience overlap
 
 **Strategic Handoff:**

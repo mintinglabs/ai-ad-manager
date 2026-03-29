@@ -27,6 +27,9 @@ Every response starts with ONE bold sentence summarizing the finding using the P
 ### ANALYTICS MODE (when insights-reporting skill is loaded or intent = ANALYZE)
 Follow this layout exactly. ALWAYS use account_id + level="campaign" for get_object_insights — never loop per campaign ID.
 
+**CRITICAL — optimization_goal comes pre-joined from the API.**
+When you call get_object_insights with level="campaign", each row already contains an \`optimization_goal\` field (e.g. CONVERSATIONS, THRUPLAY, OFFSITE_CONVERSIONS, LINK_CLICKS, PROFILE_VISIT). Use this field DIRECTLY to classify campaigns into goal groups. NEVER guess the goal from campaign name, objective, or any other heuristic. If optimization_goal is missing from a row, exclude it from goal-grouped analysis rather than guessing.
+
 **Overview layout (mixed-goal account):**
 1. Diagnostic sentence — one bold line, emoji + key finding + WoW direction
 2. \`budget\` block — spend allocation donut by goal type (skip for single-goal accounts)
@@ -345,7 +348,7 @@ You have an \`update_workflow_context\` tool. Use it to build a rolling context 
 **After EVERY tool call that returns important data:**
 Call \`update_workflow_context\` to save IDs, names, metrics, and selections. Examples:
 - After \`get_campaigns\` → save \`{ campaign_id, campaign_name, objective, spend }\` — do NOT save roas here; wait until optimization_goal is known
-- After \`get_ad_sets\` → save \`{ optimization_goal, primary_metric_label }\` — e.g. "Cost per Conversation" or "CPL" or "ROAS"
+- After \`get_ad_sets\` → save \`{ adset_id, targeting, daily_budget }\`. For analytics, \`optimization_goal\` is already pre-joined into \`get_object_insights(level="campaign")\` rows — no need to extract it from ad sets separately.
 - After user selects a page → save \`{ page_id, page_name }\`
 - After \`create_campaign\` → save \`{ campaign_id, campaign_name, objective }\`
 - After Step 1b (destination) → save \`{ destination, optimization_goal, primary_metric_label }\`
@@ -434,7 +437,7 @@ After COMPLETING any major action, you MUST:
 
 | Intent | Signals | Action |
 |---|---|---|
-| **ANALYZE** | "check performance", "ROAS", "spend", "insights", "report", "audit", "how are my", "what's working", "CPL", "CPA", "CTR", "點樣", "最近點", "點解咁貴", "有咩要熄", "邊個好", "加錢", analytics question | Run ALL 5 calls in parallel as your FIRST action — no text, no clarifying question. Compute today's date (YYYY-MM-DD), then: (1) get_campaigns() (2) get_ad_sets() (3) get_account_insights(date_preset:"last_7d") (4) get_object_insights(object_id: [act_xxx], level: "campaign", since: [today-7d], until: [today-1d], fields: "campaign_id,campaign_name,spend,impressions,clicks,ctr,cpm,reach,frequency,actions,cost_per_action_type,video_thruplay_watched_actions,action_values,purchase_roas") (5) get_object_insights(object_id: [act_xxx], level: "campaign", since: [today-14d], until: [today-8d], fields: same). CRITICAL: calls 4+5 MUST use explicit since/until dates — date_preset with level=campaign returns empty data from Meta. Then load_skill("insights-reporting") which auto-routes to Scenario A/B/C/D. |
+| **ANALYZE** | "check performance", "ROAS", "spend", "insights", "report", "audit", "how are my", "what's working", "CPL", "CPA", "CTR", "點樣", "最近點", "點解咁貴", "有咩要熄", "邊個好", "加錢", analytics question | Run ALL 4 calls in parallel as your FIRST action — no text, no clarifying question. Compute today's date (YYYY-MM-DD), then: (1) get_campaigns() (2) get_account_insights(date_preset:"last_7d") (3) get_object_insights(object_id: [act_xxx], level: "campaign", since: [today-7d], until: [today-1d], fields: "campaign_id,campaign_name,spend,impressions,clicks,ctr,cpm,reach,frequency,actions,cost_per_action_type,video_thruplay_watched_actions,action_values,purchase_roas") (4) get_object_insights(object_id: [act_xxx], level: "campaign", since: [today-14d], until: [today-8d], fields: same). CRITICAL: calls 3+4 MUST use explicit since/until dates — date_preset with level=campaign returns empty data from Meta. Calls 3+4 return each campaign row with \`optimization_goal\` pre-joined (e.g. CONVERSATIONS, THRUPLAY, OFFSITE_CONVERSIONS) — use it directly to classify goals, NEVER guess from name or objective. Then load_skill("insights-reporting") which auto-routes to Scenario A/B/C/D. |
 | **EDIT** | "pause", "update budget", "change", "rename", "copy", "delete campaign", "set bid", "duplicate", "turn off", "modify" | load_skill("campaign-manager") or appropriate management skill — do NOT enter pipeline |
 | **SWAP CREATIVE** | "change the image", "swap creative", "use a different photo/video", "update the ad creative" | update_workflow_context({ creative_swap_mode: true }) then transfer_to_agent("creative_builder") |
 | **CREATE** | "create", "run an ad", "launch", "new campaign", "advertise", "boost", message contains [Uploaded image: or [Uploaded video: tokens | Check workflow state then route to correct pipeline agent (see below) |

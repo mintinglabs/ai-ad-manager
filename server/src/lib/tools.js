@@ -306,7 +306,7 @@ function getAccountInsights({ date_preset = 'last_7d', since, until }, c) {
   const timeRange = (since && until) ? { since, until } : null;
   return meta.getInsights(token, adAccountId, date_preset, timeRange);
 }
-function getObjectInsights({ object_id, date_preset = 'last_7d', since, until, breakdowns, fields, level }, c) {
+async function getObjectInsights({ object_id, date_preset = 'last_7d', since, until, breakdowns, fields, level }, c) {
   const { token, adAccountId } = ctx(c);
 
   // If level is set (e.g. "campaign"), auto-use account ID and convert date_preset → since/until.
@@ -344,7 +344,36 @@ function getObjectInsights({ object_id, date_preset = 'last_7d', since, until, b
   }
   if (breakdowns) params.breakdowns = breakdowns;
   if (level) params.level = level;
-  return meta.getObjectInsights(token, object_id, params);
+
+  const insights = await meta.getObjectInsights(token, object_id, params);
+
+  // When level=campaign, enrich each campaign row with optimization_goal from its ad sets.
+  // This removes the AI from the data classification loop — the tool returns pre-classified data.
+  if (level === 'campaign' && Array.isArray(insights) && insights.length > 0) {
+    try {
+      const adSets = await meta.getAdSets(token, adAccountId);
+      // Build campaign_id → optimization_goal map (use first ad set's goal per campaign)
+      const goalMap = {};
+      for (const adSet of adSets) {
+        if (adSet.campaign_id && adSet.optimization_goal && !goalMap[adSet.campaign_id]) {
+          goalMap[adSet.campaign_id] = adSet.optimization_goal;
+        }
+      }
+      // Enrich each insight row
+      for (const row of insights) {
+        const cid = row.campaign_id || row.id;
+        if (cid && goalMap[cid]) {
+          row.optimization_goal = goalMap[cid];
+        }
+      }
+      console.log(`[getObjectInsights] Enriched ${insights.length} campaigns with optimization_goal from ${adSets.length} ad sets`);
+    } catch (err) {
+      console.warn(`[getObjectInsights] Failed to enrich optimization_goal: ${err.message}`);
+      // Non-fatal — return insights without enrichment
+    }
+  }
+
+  return insights;
 }
 
 // ─── Account Info ───────────────────────────────────────────────────────────
@@ -785,7 +814,7 @@ const num = (desc) => ({ type: 'number', description: desc });
 
 const adTools = [
   // ── Campaigns ───────────────────────────────────────────────────────────
-  T('get_campaigns', 'List all campaigns with last 7 days performance (spend, impressions, clicks, objective). Always follow up with get_ad_sets to read optimization_goal before selecting the primary metric for analysis.', getCampaigns),
+  T('get_campaigns', 'List all campaigns with last 7 days performance (spend, impressions, clicks, objective). For analytics, use get_object_insights with level="campaign" instead — it returns optimization_goal pre-joined in each row.', getCampaigns),
   T('create_campaign', 'Create a new campaign. Requires name, objective, status. special_ad_categories defaults to NONE.', createCampaign,
     obj({ name: str('Campaign name'), objective: str('OUTCOME_TRAFFIC, OUTCOME_ENGAGEMENT, OUTCOME_AWARENESS, OUTCOME_LEADS, OUTCOME_SALES, OUTCOME_APP_PROMOTION'), status: str('ACTIVE or PAUSED'), special_ad_categories: str('Comma-separated: NONE, HOUSING, CREDIT, EMPLOYMENT, ISSUES_ELECTIONS_POLITICS. Defaults to NONE if omitted.') }, ['name', 'objective', 'status'])),
   T('update_campaign', 'Update a campaign (name, status, daily_budget, etc). CONFIRM with user before executing.', updateCampaign,
