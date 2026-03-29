@@ -131,15 +131,25 @@ Once ad sets return, map `optimization_goal` to the primary metric using table 0
 | `LEAD_GENERATION` | CPL | `lead` or `onsite_conversion.lead_grouped` | Cost per Lead |
 | `OFFSITE_CONVERSIONS` — purchase event | ROAS + CPA | `purchase` / `offsite_conversion.fb_pixel_purchase` | ROAS & Cost per Purchase |
 | `OFFSITE_CONVERSIONS` — lead event | CPL | `offsite_conversion.fb_pixel_lead` | Cost per Lead |
-| `OFFSITE_CONVERSIONS` — other event | CPA | match `custom_event_type` from promoted_object | Cost per Result |
+| `OFFSITE_CONVERSIONS` — view_content event | Cost per View Content | `offsite_conversion.fb_pixel_view_content` | Cost per View Content |
+| `OFFSITE_CONVERSIONS` — other/unknown event | Cost per Landing Page View | `landing_page_view` (fallback) | Cost per Landing Page View |
 | `LINK_CLICKS` | CPC + CTR | `link_click` | Cost per Click |
 | `LANDING_PAGE_VIEWS` | Cost per LPV | `landing_page_view` | Cost per Landing Page View |
+| `PROFILE_VISIT` (IG Traffic) | Cost per Profile Visit | `link_click` (proxy — Meta does not expose profile_visit in actions array) | Cost per Click |
 | `REACH` | CPM + Reach | reach + impressions | CPM & Reach |
 | `THRUPLAY` | Cost per ThruPlay | `video_thruplay_watched_actions` | Cost per ThruPlay |
 | `VIDEO_VIEWS` | Cost per View | `video_view` | Cost per View |
 | `POST_ENGAGEMENT` | CPE | `post_engagement` | Cost per Engagement |
 | `APP_INSTALLS` | CPI | `mobile_app_install` | Cost per Install |
 | `VALUE` | ROAS | `purchase` + `action_values` | ROAS |
+
+**OFFSITE_CONVERSIONS detection rule:** `promoted_object` may be null (Meta API does not always return it). Instead, check the `actions` array from the insights response:
+- Contains `offsite_conversion.fb_pixel_purchase` → purchase event
+- Contains `offsite_conversion.fb_pixel_lead` → lead event
+- Contains `offsite_conversion.fb_pixel_view_content` → view_content event
+- None of the above → fall back to `landing_page_view`
+
+**PROFILE_VISIT note:** Meta does not include IG profile visits in the `actions` array. Use `link_click` as the primary metric and label it "Clicks to Profile". CTR and CPM are the most meaningful secondary metrics for this goal.
 
 **0d. Mixed account handling** (multiple campaigns with different goals):
 - Never average ROAS across a Sales campaign and a WhatsApp campaign.
