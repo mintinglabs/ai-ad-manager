@@ -3,6 +3,7 @@ import { MessageSquare } from 'lucide-react';
 import { useChatSessions } from '../hooks/useChatSessions.js';
 import { useSkills } from '../hooks/useSkills.js';
 import { ChatInterface } from './ChatInterface.jsx';
+import { CanvasPanel } from './CanvasPanel.jsx';
 import { Sidebar } from './Sidebar.jsx';
 import { SavedItemView } from './SavedItemView.jsx';
 import { StrategistConfig } from './StrategistConfig.jsx';
@@ -37,6 +38,7 @@ export const Dashboard = ({
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [chatLanguage, setChatLanguage] = useState(() => localStorage.getItem('aam_language') || 'en');
   const [activeView, setActiveView] = useState({ type: 'chat' });
+  const [canvasData, setCanvasData] = useState(null);
 
   const {
     skills, activeSkill, activeSkillId, toggleSkill,
@@ -109,6 +111,14 @@ export const Dashboard = ({
     sendMessage(prompt);
   }, [sendMessage]);
 
+  const handleOpenCanvas = useCallback((data) => {
+    setCanvasData(data);
+  }, []);
+
+  const handleCloseCanvas = useCallback(() => {
+    setCanvasData(null);
+  }, []);
+
   // Find current saved item for viewer
   const currentSavedItem = activeView.type === 'saved'
     ? savedItems.find(i => i.id === activeView.itemId)
@@ -154,7 +164,8 @@ export const Dashboard = ({
 
       {/* Main Content */}
       <main className="flex-1 flex min-w-0">
-        <div className="flex flex-col min-w-0 flex-1 transition-all duration-300">
+        {/* Chat area — shrinks to 40% when canvas is open */}
+        <div className={`flex flex-col min-w-0 transition-all duration-300 ease-in-out ${canvasData ? 'w-[40%]' : 'flex-1'}`}>
           {!sidebarOpen && (
             <button
               onClick={() => setSidebarOpen(true)}
@@ -220,6 +231,18 @@ export const Dashboard = ({
                 const viewMap = { audiences: 'audiences', skills: 'skillsLibrary' };
                 setActiveView({ type: viewMap[view] || 'chat' });
               }}
+              onOpenCanvas={handleOpenCanvas}
+            />
+          )}
+        </div>
+
+        {/* Canvas Panel — slides in from right, 60% width */}
+        <div className={`transition-all duration-300 ease-in-out overflow-hidden ${canvasData ? 'w-[60%]' : 'w-0'}`}>
+          {canvasData && (
+            <CanvasPanel
+              data={canvasData}
+              onClose={handleCloseCanvas}
+              onSend={handleSend}
             />
           )}
         </div>

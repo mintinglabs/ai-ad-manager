@@ -1227,11 +1227,34 @@ export const hasRichCards = (text) => {
   return segments.some(s => !['text', 'quickreplies'].includes(s.type));
 };
 
-// ── Strip canvas_detail markers — everything renders inline now ──────────────
+// ── Split message into chat (text-only) vs canvas (full content with charts) ──
+// These block types get stripped from inline chat and rendered in the canvas panel instead
+const CANVAS_BLOCK_NAMES = ['metrics', 'budget', 'comparison', 'trend', 'funnel', 'adpreview'];
+
 export const splitChatAndCanvas = (text) => {
-  if (!text) return { chatText: '', canvasText: null };
-  // Remove ~~~canvas_detail markers but keep the content
-  return { chatText: text.replace(/~~~canvas_detail~~~?/g, '').trim(), canvasText: null };
+  if (!text) return { chatText: '', canvasData: null };
+
+  // Check if any canvas-worthy blocks exist
+  const hasCanvas = CANVAS_BLOCK_NAMES.some(b => text.includes('```' + b));
+  // Also check for markdown tables (lines starting with |)
+  const hasTable = /^\|.+\|$/m.test(text) && /^\|[\s\-:|]+\|$/m.test(text);
+
+  if (!hasCanvas && !hasTable) return { chatText: text, canvasData: null };
+
+  // Strip canvas blocks from chat text using regex (keeps text + interactive blocks intact)
+  let chatText = text;
+  for (const block of CANVAS_BLOCK_NAMES) {
+    const re = new RegExp('```' + block + '\\n[\\s\\S]*?```', 'g');
+    chatText = chatText.replace(re, '');
+  }
+  // Strip markdown tables (header + separator + rows)
+  chatText = chatText.replace(/(?:^|\n)(\|.+\|\n\|[\s\-:|]+\|\n(?:\|.+\|\n?)*)/g, '');
+  chatText = chatText.replace(/\n{3,}/g, '\n\n').trim();
+
+  return {
+    chatText,
+    canvasData: { content: text, title: 'Performance Dashboard' },
+  };
 };
 
 // ── Save menu for agent messages ─────────────────────────────────────────────
@@ -1288,17 +1311,15 @@ const SaveMenu = ({ messageId, onSave, folders = [] }) => {
 };
 
 // ── Message bubble ────────────────────────────────────────────────────────────
-const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem, folders, isAnswered, answeredWith }) => {
+const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem, folders, isAnswered, answeredWith, onOpenCanvas }) => {
   if (message.type === 'report') return (<><ReportMessage message={message} timestamp={message.timestamp} /><div className="mb-2" /></>);
   if (message.type === 'table') return (<><TableMessage message={message} />{isLatest && message.actions?.length > 0 && <QuickReplies actions={message.actions} onSend={onSend} disabled={isTyping} />}<div className="mb-6" /></>);
 
   const isAgent = message.role === 'agent';
   if (isAgent) {
-    // All content renders inline — no canvas split
-    const { chatText } = splitChatAndCanvas(message.text);
+    const { chatText, canvasData } = splitChatAndCanvas(message.text);
     const segments = parseMarkdownTable(chatText);
     const hasWide = segments.some(s => s.type !== 'text');
-    // Extract the selected option title from the user's reply (strip "I choose: " prefix)
     const selectedTitle = answeredWith ? answeredWith.replace(/^I choose:\s*/i, '').trim() : null;
     return (
       <>
@@ -1332,6 +1353,16 @@ const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem, folder
                   default: return <div key={i} className="whitespace-pre-wrap">{renderRichText(seg.content)}</div>;
                 }
               })}
+              {/* Canvas trigger button — only when data blocks were split out */}
+              {canvasData && (
+                <button
+                  onClick={() => onOpenCanvas?.(canvasData)}
+                  className="mt-3 flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-50 to-violet-50 border border-blue-200/60 text-blue-600 text-xs font-medium hover:from-blue-100 hover:to-violet-100 hover:border-blue-300 transition-all group/btn"
+                >
+                  <BarChart3 size={14} className="group-hover/btn:scale-110 transition-transform" />
+                  <span>View Dashboard</span>
+                </button>
+              )}
             </div>
             <p className="text-xs text-slate-400 mt-1 ml-1">{fmtTime(message.timestamp)}</p>
           </div>
@@ -1640,7 +1671,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
-export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, activityLog = [], onSend, onStop, suggestedActions = [], adAccountId, onSaveItem, folders = [], activeSkill = null, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate }) => {
+export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, activityLog = [], onSend, onStop, suggestedActions = [], adAccountId, onSaveItem, folders = [], activeSkill = null, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas }) => {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState([]); // { id, file, preview, status, progress, result }
   const [isDragOver, setIsDragOver] = useState(false);
@@ -1946,6 +1977,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, 
                     folders={folders}
                     isAnswered={!!nextUserMsg}
                     answeredWith={nextUserMsg?.text || ''}
+                    onOpenCanvas={onOpenCanvas}
                   />
                 );
               })}
