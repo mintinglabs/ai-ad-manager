@@ -217,76 +217,106 @@ Use `"positive"` status when cost metrics improve > 10% or volume/ratio metrics 
 
 ### Step 3 -- Present with goal-appropriate structured blocks
 
-**Output block sequence — always in this exact order:**
-1. Diagnostic statement (🟢/🟡/🚨 + 2–3 sentences)
-2. `metrics` block — account-level hero KPIs only (max 4 metrics)
-3. `insights` card — primary metric + trend/status (max 4 items)
-4. **Compact campaign summary** — NOT a full table (see format below)
-5. `trend` block — only if date range ≥ 7 days
-6. `quickreplies` — always end here; full detail is opt-in via quickreplies
-
-**DO NOT output a full markdown table by default.** A table listing every campaign with 8+ columns is unreadable in chat. Instead use the compact summary format below. Full table is only shown if user explicitly asks "show all campaigns" or "show full breakdown".
-
 ---
 
-**DIAGNOSTIC-FIRST RULE (mandatory — output this before ANY block):**
+#### LAYOUT A — Single-goal account (all active campaigns share the same optimization_goal)
 
-Write 2–3 sentences with status emoji, primary metric value + WoW change, and one action signal. Keep it to 2 lines max.
+Output in this exact order, no deviations:
 
-- 🟢 **28 WhatsApp conversations last 7 days at $180/conv (flat vs last week).** Budget on track. Top performer: Reels at $168/conv.
-- 🚨 **CPL jumped +15% this week (HK$50 → HK$57).** Lead volume also dropped 12%. Worst adset needs creative refresh.
-- 🟡 **ROAS dipped from 3.5x to 2.9x (−17% WoW).** Spend stable — likely conversion rate drop. Check pixel and creative fatigue.
+**1. Diagnostic sentence** (one bold line before any block):
+`[emoji] **[N] [primary results] last [period] at [cost/result] ([trend vs prior week]).** [One action signal — best or worst campaign called out.]`
 
----
+Examples:
+- 🟢 **28 conversations last week at $181/conv (flat WoW).** All 5 campaigns healthy — FB Reels leading at $168/conv.
+- 🟡 **28 conversations last week at $181/conv (+12% WoW cost rise).** IG Carousel at $233/conv is pulling the average up.
+- 🚨 **CPL up +28% this week ($50 → $64).** Lead volume also dropped 18%. Immediate action needed.
 
+**2. `metrics` block** — 4 KPIs, goal-specific, all from `get_object_insights` (NOT from account-level):
 ```metrics
-Account-level hero KPIs — always include Spend. Then based on goal (max 4 total):
-- Messaging: Total Spend, Conversations, Cost per Conversation, Reach
-- Leads: Total Spend, Leads, CPL, CTR
-- Sales (ROAS): Total Spend, ROAS, Revenue, Conversions
-- Traffic: Total Spend, Landing Page Views, CPC, CTR
-- Awareness: Total Spend, Reach, CPM, Frequency
+- Messaging: Spend | Conversations | Cost per Conv | CTR
+- Leads: Spend | Leads | CPL | CTR
+- Sales: Spend | ROAS | Conversions | CPA
+- Traffic: Spend | Clicks | CPC | CTR
+- Awareness: Spend | Reach | CPM | Frequency
 ```
 
-**`insights` card — mandatory, max 4 items, primary metric first:**
+**3. Campaign lines** — max 2 lines, plain text (no table):
+```
+✅ Best: [Short Name] — [N results] @ [cost]
+⚠️ Review: [Short Name] — [cost] ([+X% above avg or reason])
+```
+Only show ⚠️ line if a campaign is warning/critical. If all are healthy, write: "All [N] campaigns within normal range."
+Strip long prefixes from campaign names — keep only the meaningful part (e.g. "FB Retargeting Reels" not "Sales_Wts_FB_Retargeting_Onda Pro_瘦咗肥返_Reels_+wrapped framework").
 
+**4. `insights` card** — 4 items max, primary metric first, with trend + status:
 ```insights
 [
-  { "metric": "Cost per Conv", "value": 180.86, "prev": 161.48, "trend": "+12%", "status": "warning" },
+  { "metric": "Cost per Conv", "value": 181, "prev": 161, "trend": "+12%", "status": "warning" },
   { "metric": "Conversations", "value": 28, "prev": 31, "trend": "-9.7%", "status": "ok" },
   { "metric": "CTR", "value": "1.8%", "prev": "2.1%", "trend": "-14%", "status": "warning" },
   { "metric": "Spend", "value": 5064, "prev": 4980, "trend": "+1.7%", "status": "ok" }
 ]
 ```
 
-**Compact campaign summary (default — NOT a table):**
+**5. `trend` block** — only if date range ≥ 7 days; skip for single-day:
+```trend
+Series 1: Spend. Series 2: primary metric (Conversations / CPL / ROAS etc — never generic "Actions").
+```
 
-Show max 2–3 lines total:
-- Best performer: `[Campaign short name] — [N] [primary result] @ [cost]` ✅
-- Needs attention (only if warning/critical): `[Campaign short name] — [reason in 5 words]` ⚠️
-- If all campaigns are healthy: one line saying so
+**6. `quickreplies`** — always 4 buttons:
+- Button 1: `"Show all [N] campaigns"` — opt-in for full table
+- Button 2: most urgent action (pause worst / scale best)
+- Button 3: drill deeper (creative / audience / budget)
+- Button 4: `"Compare last 30 days"`
+
+---
+
+#### LAYOUT B — Mixed-goal account (campaigns have different optimization_goals)
+
+Output in this exact order:
+
+**1. Diagnostic sentence** (account-level, mentions both goal types and spend):
+`[emoji] **$[total spend] spent last [period] — [Goal1]: [primary metric summary], [Goal2]: [primary metric summary].**`
 
 Example:
-> ✅ **Best:** FB Retargeting Reels — 10 conv @ $168
-> ⚠️ **Review:** IG Carousel — $233/conv (+40% above avg)
+- 🟡 **$16,331 spent last week — WhatsApp: 28 conv at $181/conv (↑12%), Traffic: 913 clicks at $1.69/click (stable).**
 
-Use shortened campaign names (strip prefix patterns like "Sales_Wts_FB_Retargeting_Onda Pro_" — keep only the descriptive part).
+**2. One section per active goal type** — repeat this mini-block for each goal:
 
-```trend
-Day-by-day chart — only if date range ≥ 7 days.
-Series 1: Spend. Series 2: PRIMARY metric (e.g. Conversations, not ROAS).
+```
+### [emoji] [Goal Type Label] · [N] campaigns · $[spend] spent
+
+[metrics block — 3 KPIs for THIS goal only: primary result | cost per result | CTR]
+
+✅ Best: [Short Name] — [N results] @ [cost]
+⚠️ Review: [Short Name] — [reason] (only if warning/critical)
 ```
 
-```quickreplies
-Always end with drill-down options. Examples:
-["Show all 5 campaigns", "Pause worst performer", "Scale Reels budget", "Check last 30 days"]
+Goal type labels and emojis:
+- CONVERSATIONS → 📱 WhatsApp / Messaging
+- LEAD_GENERATION → 📋 Lead Generation
+- OFFSITE_CONVERSIONS (purchase) → 🛒 Sales
+- LINK_CLICKS / LANDING_PAGE_VIEWS → 🔗 Traffic
+- REACH / THRUPLAY → 📢 Awareness
+
+**3. `insights` card** — top 3–4 findings across ALL goals, most critical first:
+```insights
+[{ metric: "Cost per Conv", ... }, { metric: "Traffic CPC", ... }, { metric: "Total Spend", ... }]
 ```
 
-Quickreply rules:
-- First button = "Show all [N] campaigns" — this is how user opts into full table
-- Second button = most urgent action from diagnostic
-- Third + fourth = scaling opportunity + period comparison
-- NEVER include "Improve ROAS" for messaging or lead campaigns
+**4. `quickreplies`** — goal-specific drill-downs:
+- `"Dive into [Goal1]"` — e.g. "Dive into WhatsApp"
+- `"Dive into [Goal2]"` — e.g. "Dive into Traffic"
+- Most urgent action across all goals
+- `"Compare last 30 days"`
+
+---
+
+**Rules that apply to both layouts:**
+- NEVER show a full campaign table unless user explicitly asks "show all" or "show full breakdown"
+- NEVER mix metrics from different goal types in the same `metrics` block
+- Always use shortened campaign names (≤ 25 chars)
+- `insights` card values must come from `get_object_insights` — never from `get_account_insights`
 
 ---
 
