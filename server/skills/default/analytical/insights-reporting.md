@@ -121,13 +121,16 @@ Before fetching any data, determine what the campaign is actually optimising for
 ### Step 1 -- Gather data (after goal is known)
 
 - **get_account_insights** with appropriate date_preset
-- **get_object_insights** for each active campaign — include fields relevant to detected goal:
-  - All goals: `spend,impressions,clicks,ctr,cpm,reach,frequency,actions,cost_per_action_type`
-  - Messaging/conversations: add `onsite_conversion.messaging_conversation_started_7d` to fields
-  - Sales/ROAS: add `action_values,purchase_roas`
-  - Video/awareness: add `video_p25_watched_actions,video_p75_watched_actions,video_p100_watched_actions,video_avg_time_watched_actions,video_thruplay_watched_actions`
+- **get_object_insights** — call **TWICE** for each active campaign (in parallel):
+  - **Current period:** `time_range: { since: TODAY-7, until: TODAY-1 }` — fields relevant to detected goal:
+    - All goals: `spend,impressions,clicks,ctr,cpm,reach,frequency,actions,cost_per_action_type`
+    - Messaging/conversations: add `onsite_conversion.messaging_conversation_started_7d`
+    - Sales/ROAS: add `action_values,purchase_roas`
+    - Video/awareness: add `video_p25_watched_actions,video_p75_watched_actions,video_p100_watched_actions,video_avg_time_watched_actions,video_thruplay_watched_actions`
+  - **Previous period:** `time_range: { since: TODAY-14, until: TODAY-8 }` — same fields
 - **get_ad_sets** if optimization_goal is needed for any campaign (always needed on first analysis)
 
+> **Trend requirement:** The dual-period fetch is mandatory for all 7-day and longer reports. Store both results and compute % delta in Step 2.
 > **Data freshness:** Meta has up to a 48-hour attribution window. Always note this when presenting recent data.
 
 ---
@@ -139,15 +142,45 @@ Before fetching any data, determine what the campaign is actually optimising for
 - Extract primary result count: `actions.find(a => a.action_type === PRIMARY_ACTION_TYPE)?.value`
 - Extract primary cost: `cost_per_action_type.find(a => a.action_type === PRIMARY_ACTION_TYPE)?.value`
 - For ROAS only (OFFSITE_CONVERSIONS + PURCHASE / VALUE): `purchase_roas[0]?.value` or `action_values / spend`
-- Compare periods: last 7d vs previous 7d for trend detection
 - Identify winners and losers using the correct metric — not ROAS
 - Flag creative fatigue: frequency > 3 or declining CTR over time
+
+**Trend delta computation (mandatory when previous period data exists):**
+
+For each primary metric, compute:
+- `delta_pct = ((current - prev) / prev) * 100`
+- Round to 1 decimal. Prefix with `+` if positive.
+
+Assign `status` based on metric direction (whether higher is better or worse):
+
+| Metric type | ok | warning | critical |
+|---|---|---|---|
+| **Cost metrics** (CPL, CPC, CPM, CPA, Cost per Conversation) — lower is better | delta ≤ +10% | +10% to +25% | > +25% |
+| **Volume metrics** (Leads, Clicks, Conversions, Reach) — higher is better | delta ≥ -10% | -10% to -25% | < -25% |
+| **Ratio metrics** (CTR, ROAS, Video View Rate) — higher is better | delta ≥ -10% | -10% to -25% | < -25% |
+| **Frequency** — lower is better (> 3 is bad) | ≤ 3 absolute | 3–5 absolute | > 5 absolute |
+
+Use `"positive"` status when cost metrics improve > 10% or volume/ratio metrics improve > 15%.
 
 **Never use total `actions` count as "conversions" — always filter by the specific action_type for this campaign's goal.**
 
 ---
 
 ### Step 3 -- Present with goal-appropriate structured blocks
+
+**DIAGNOSTIC-FIRST RULE (mandatory — output this before ANY block):**
+
+Write 2–3 sentences interpreting the primary metric with trend direction and an action signal. Lead with the status emoji:
+- 🟢 on track / improving
+- 🟡 warning — monitoring needed
+- 🚨 critical — action required
+
+Examples:
+- 🚨 **CPL rose +15% this week (HK$50 → HK$57.50).** Lead volume also dropped 12%. Suggest reviewing audience overlap or refreshing creative copy.
+- 🟢 **WhatsApp conversations held steady at 42 this week (flat vs last week).** Cost per conversation improved slightly to $85. Campaign is healthy — consider scaling budget.
+- 🟡 **ROAS dipped from 3.5x to 2.9x week-on-week (−17%).** Spend is stable, suggesting conversion rate dropped. Check pixel attribution and creative fatigue.
+
+---
 
 **Bold headline** — one sentence with the PRIMARY metric, not always ROAS.
 
@@ -175,9 +208,23 @@ Use PRIMARY metric as the second series (not always ROAS)
 
 Markdown table -- campaign/ad set breakdown. Column 4 must be the PRIMARY METRIC for that campaign's goal, not a universal ROAS column. For mixed accounts, group by goal type.
 
+**`insights` card — mandatory format with trend and status fields:**
+
 ```insights
-Findings using the correct metric benchmarks (see Strategic Handoff section below).
+[
+  { "metric": "CPL", "value": 57.50, "prev": 50.00, "trend": "+15%", "status": "warning" },
+  { "metric": "Leads", "value": 112, "prev": 128, "trend": "-12.5%", "status": "warning" },
+  { "metric": "CTR", "value": "1.6%", "prev": "2.1%", "trend": "-23.8%", "status": "warning" },
+  { "metric": "Spend", "value": 6450, "prev": 6200, "trend": "+4%", "status": "ok" }
+]
 ```
+
+Rules for the `insights` card:
+- Always use real computed values from the dual-period fetch — never estimate.
+- `value` = current period. `prev` = previous period. Both required when trend data exists.
+- `status` must be one of: `ok`, `warning`, `critical`, `positive`.
+- List the primary metric FIRST. Then supporting metrics (Spend always included).
+- NEVER include ROAS in the insights card unless `optimization_goal` is `OFFSITE_CONVERSIONS` (purchase) or `VALUE`.
 
 ```score
 Audit scorecard when running health checks.
@@ -196,6 +243,27 @@ Contextual follow-up actions.
 ### Step 4 -- Strategic Handoff (always end here)
 
 After every analysis, identify which strategic skill the user should load next based on findings. Present this as quickreplies.
+
+**When routing to `campaign-manager` due to warning or critical findings:**
+
+Before transferring, save the alert context so `campaign-manager` can immediately enter Diagnostic Mode with full context:
+
+```
+update_workflow_context({ data: {
+  insights_alert: {
+    metric: "[primary metric label, e.g. CPL]",
+    value: [current value],
+    prev: [previous value],
+    trend: "[e.g. +15%]",
+    status: "warning|critical",
+    campaign_id: "[id]",
+    adset_id: "[id or null]",
+    optimization_goal: "[e.g. LEAD_GENERATION]"
+  }
+}})
+```
+
+Then transfer. `campaign-manager` will read this context and skip the creation flow, going directly to D1 → D2 → D3.
 
 ---
 
@@ -571,6 +639,30 @@ WhatsApp campaign example:
 - Use SHORT date labels (e.g., "Mar 18", "Mon", "Week 1") -- not full ISO dates
 - Multi-series: include 2-3 lines max for readability
 - ALWAYS output a trend block when showing 7+ days of data
+
+### Insights Card Format
+
+Every analysis MUST include an `insights` block in this exact structure:
+
+```insights
+[
+  { "metric": "PRIMARY_METRIC_LABEL", "value": CURRENT_VALUE, "prev": PREV_VALUE, "trend": "±X%", "status": "ok|warning|critical|positive" },
+  { "metric": "Spend", "value": CURRENT_SPEND, "prev": PREV_SPEND, "trend": "±X%", "status": "ok|warning|critical|positive" }
+]
+```
+
+**Status mapping:**
+
+| Status | Meaning | Icon shown in UI |
+|---|---|---|
+| `ok` | Within normal range or < 10% change in bad direction | 🟢 |
+| `warning` | 10–25% deterioration (cost rising / volume falling) | 🟡 |
+| `critical` | > 25% deterioration or absolute threshold breach | 🚨 |
+| `positive` | > 10% improvement (cost falling / volume rising) | ✅ |
+
+**When no previous period data is available** (e.g. first-ever report, campaign < 7 days old):
+- Omit `prev` and `trend` fields.
+- Set `status` based on absolute thresholds from the Strategic Handoff Summary section.
 
 ### Special Block Types
 
