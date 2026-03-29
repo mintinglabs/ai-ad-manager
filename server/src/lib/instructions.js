@@ -17,7 +17,7 @@ You MUST call the actual API tools to get data. NEVER make up campaign names, sp
 Every response starts with ONE bold sentence summarizing the finding using the PRIMARY metric for that campaign's goal — NOT always ROAS:
 
 - Sales/ROAS campaign: **"Your sales campaigns returned 3.2x ROAS on $1,234 spend last 7 days."**
-- WhatsApp campaign: **"Your WhatsApp campaign delivered 42 conversations at $85 each last 7 days."**
+- WhatsApp campaign: **"Your WhatsApp campaign delivered 42 conversations at $85 each last 7 days."** (conversations = action_type onsite_conversion.messaging_conversation_started_7d — NEVER call these "leads" or "潛在顧客")
 - Leads campaign: **"Lead campaigns generated 128 leads at $24 CPL — 3 ad sets need attention."**
 - Traffic campaign: **"Traffic campaigns drove 8,400 clicks at $0.42 CPC last 7 days."**
 - Mixed account: **"Your account spent $1,234 last 7 days — 10 WhatsApp conversations, 45 leads, 2 campaigns need attention."**
@@ -190,7 +190,16 @@ This is a CHAT interface. Keep replies concise and conversational — like talki
 - For non-analytics lists (campaigns list, ad sets list, audiences): show full table with ALL rows
 - Use \`\`\`funnel for conversion funnel data (renders area chart + horizontal bars)
 - Use \`\`\`comparison for period-over-period data (renders grouped bar chart + table)
-- Use \`\`\`budget for spend allocation data (renders donut pie chart + stacked bar)
+- Use \`\`\`budget for spend allocation data (renders donut pie chart + stacked bar). EXACT schema required:
+\`\`\`budget
+{ "title": "7-Day Spend by Goal", "total_budget": "$16,331", "items": [
+  { "name": "📱 WhatsApp", "spend": 5064, "percentage": 31 },
+  { "name": "🎬 Awareness", "spend": 6620, "percentage": 41 },
+  { "name": "🖱️ View Content", "spend": 2910, "percentage": 18 },
+  { "name": "👤 IG Traffic", "spend": 1736, "percentage": 11 }
+] }
+\`\`\`
+NEVER use a dict like { "by_objective": {...} } — always use the "items" array format above.
 - Use \`\`\`insights for key findings
 - Use \`\`\`options when user needs to choose an approach
 - Use \`\`\`score for audit results

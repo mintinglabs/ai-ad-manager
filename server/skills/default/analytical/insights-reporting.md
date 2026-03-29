@@ -256,27 +256,35 @@ Once ad sets return, map `optimization_goal` to the primary metric using table 0
 
 **ALWAYS use account-level + level=campaign — NEVER call get_object_insights per campaign ID.**
 
+**CRITICAL: NEVER use `date_preset` with level=campaign — it returns empty data from Meta API. ALWAYS compute explicit `since` and `until` dates from TODAY.**
+
+Today = 2026-03-29. Compute dates as:
+- Current period: since = TODAY minus 7 days, until = TODAY minus 1 day → `since: "2026-03-22", until: "2026-03-28"`
+- Previous period: since = TODAY minus 14 days, until = TODAY minus 8 days → `since: "2026-03-15", until: "2026-03-21"`
+
 Call **exactly 2 calls in parallel** (replaces all per-campaign loops):
 
 ```
 get_object_insights(
   object_id: "[act_xxx account ID from workflow context]",
   level: "campaign",
-  since: "[TODAY minus 7 days]",
-  until: "[TODAY minus 1 day]",
-  fields: "campaign_id,campaign_name,spend,impressions,clicks,ctr,cpm,reach,frequency,actions,cost_per_action_type,action_values,purchase_roas"
+  since: "[TODAY minus 7 days as YYYY-MM-DD]",
+  until: "[TODAY minus 1 day as YYYY-MM-DD]",
+  fields: "campaign_id,campaign_name,spend,impressions,clicks,ctr,cpm,reach,frequency,actions,cost_per_action_type,video_thruplay_watched_actions,action_values,purchase_roas"
 )
 
 get_object_insights(
   object_id: "[act_xxx account ID]",
   level: "campaign",
-  since: "[TODAY minus 14 days]",
-  until: "[TODAY minus 8 days]",
-  fields: "campaign_id,campaign_name,spend,impressions,clicks,ctr,cpm,reach,frequency,actions,cost_per_action_type,action_values,purchase_roas"
+  since: "[TODAY minus 14 days as YYYY-MM-DD]",
+  until: "[TODAY minus 8 days as YYYY-MM-DD]",
+  fields: "campaign_id,campaign_name,spend,impressions,clicks,ctr,cpm,reach,frequency,actions,cost_per_action_type,video_thruplay_watched_actions,action_values,purchase_roas"
 )
 ```
 
 This returns ALL active campaigns' data in 2 API calls, matching exactly what Meta Ads Manager shows.
+
+**If the result is empty:** do NOT say "permissions error". The cause is using date_preset instead of since/until. Retry with explicit dates.
 
 **Do NOT loop over campaign IDs and call get_object_insights once per campaign.** That fetches partial data (misses campaigns) and makes unnecessary API calls.
 
