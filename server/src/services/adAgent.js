@@ -996,11 +996,11 @@ const adTools = [
     obj({ campaign_id: str('Campaign ID to validate') }, ['campaign_id'])),
 
   // ── Skill Loader ──────────────────────────────────────────────────────
-  T('load_skill', 'Load a skill\'s detailed workflow guidance. Call this BEFORE executing complex flows like campaign creation, audience creation, report generation, etc. The skill contains step-by-step instructions, API formats, and best practices. Available skills: ss1-strategist, ss2-adset, ss3-creative, ss4-launcher, campaign-manager, targeting-audiences, creative-manager, insights-reporting, ad-manager, adset-manager, tracking-conversions, automation-rules, business-manager, lead-ads, product-catalogs.',
+  T('load_skill', 'Load a skill\'s detailed workflow guidance. Call this BEFORE executing complex flows like campaign creation, audience creation, report generation, etc. The skill contains step-by-step instructions, API formats, and best practices. Available pipeline skills: campaign-setup, creative-assembly, ad-launcher. Available operational skills: campaign-manager, targeting-audiences, creative-manager, insights-reporting, ad-manager, adset-manager, tracking-conversions, automation-rules, business-manager, lead-ads, product-catalogs.',
     async (_args, context) => {
       const { skill_name } = _args;
-      // Search across all 3 layer subfolders
-      for (const layer of ['analytical', 'strategic', 'operational']) {
+      // Search across all layer subfolders including pipeline
+      for (const layer of ['pipeline', 'analytical', 'strategic', 'operational']) {
         try {
           const filepath = path.join(SKILLS_DIR, layer, `${skill_name}.md`);
           const content = await fs.readFile(filepath, 'utf-8');
@@ -1015,10 +1015,10 @@ const adTools = [
         const body = content.replace(/^---\n[\s\S]*?\n---\n?/, '').trim();
         return { skill: skill_name, content: body };
       } catch {
-        return { error: `Skill "${skill_name}" not found. Available: ss1-strategist, ss3-creative, ss4-launcher, campaign-manager, targeting-audiences, creative-manager, insights-reporting, ad-manager, adset-manager, tracking-conversions, automation-rules, business-manager, lead-ads, product-catalogs` };
+        return { error: `Skill "${skill_name}" not found. Pipeline skills: campaign-setup, creative-assembly, ad-launcher. Operational skills: campaign-manager, targeting-audiences, creative-manager, insights-reporting, ad-manager, adset-manager, tracking-conversions, automation-rules, business-manager, lead-ads, product-catalogs` };
       }
     },
-    obj({ skill_name: str('Skill ID to load, e.g. "campaign-manager", "targeting-audiences", "creative-manager", "insights-reporting"') }, ['skill_name'])),
+    obj({ skill_name: str('Skill ID to load, e.g. "campaign-setup", "creative-assembly", "ad-launcher", "campaign-manager", "insights-reporting"') }, ['skill_name'])),
 
   // ── Workflow Context ────────────────────────────────────────────────────
   T('get_workflow_context',
@@ -1585,7 +1585,7 @@ SMART DEFAULTS — never ask for these, apply silently:
 ═══════════════════════════════════════
 FIRST ACTIONS (in parallel, before anything else):
   get_workflow_context()
-  load_skill("ss1-strategist")
+  load_skill("campaign-setup")
   update_workflow_context({ data: { creation_stage: "ss1_active" } })
 ═══════════════════════════════════════
 
@@ -1738,7 +1738,7 @@ CRITICAL ROUTING RULE: You handle ONLY creative assembly. NEVER call transfer_to
 ═══════════════════════════════════════
 FIRST ACTIONS (in parallel):
   get_workflow_context()
-  load_skill("ss3-creative")
+  load_skill("creative-assembly")
 ═══════════════════════════════════════
 
 Detect path from workflow state, then route by ss3_substep:
@@ -1853,7 +1853,7 @@ NEVER call transfer_to_agent("ad_manager") until AFTER successful activation.
 ═══════════════════════════════════════
 FIRST ACTIONS (in parallel):
   get_workflow_context()
-  load_skill("ss4-launcher")
+  load_skill("ad-launcher")
   update_workflow_context({ data: { creation_stage: "ss4_active" } })
 ═══════════════════════════════════════
 

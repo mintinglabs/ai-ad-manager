@@ -1,9 +1,9 @@
 ---
-name: ss3-creative
+name: creative-assembly
 description: Creative Assembly — Step 2 of 3. Three paths: PATH A skips upload (assets already in context), PATH B is invisible boost creative, PATH C is guided upload+copy. Always auto-generates copy — never asks user to type manually.
-layer: operational
-depends_on: [ss1-strategist]
-leads_to: [ss4-launcher]
+layer: pipeline
+depends_on: [campaign-setup]
+leads_to: [ad-launcher]
 ---
 
 # SS3 — Creative Builder (Step 2 of 3)

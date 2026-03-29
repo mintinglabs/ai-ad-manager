@@ -1,8 +1,8 @@
 ---
-name: ss1-strategist
+name: campaign-setup
 description: Campaign Strategy + Ad Set — Step 1 of 3. Detect path (Brief/Boost/Guided), collect only must-have inputs, show ONE review card, create campaign + ad set, transfer to creative_builder.
-layer: operational
-leads_to: [ss3-creative]
+layer: pipeline
+leads_to: [creative-assembly]
 ---
 
 # SS1 — Campaign Strategy & Ad Set (Step 1 of 3)

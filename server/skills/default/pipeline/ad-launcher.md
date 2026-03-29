@@ -1,8 +1,8 @@
 ---
-name: ss4-launcher
+name: ad-launcher
 description: Review & Launch — Step 3 of 3. Review card (HARD STOP), create ad, silent preflight, preview, activate on "go live". No Pixel/UTM step. Max 2 user confirmations.
-layer: operational
-depends_on: [ss3-creative]
+layer: pipeline
+depends_on: [creative-assembly]
 leads_to: []
 ---
 
