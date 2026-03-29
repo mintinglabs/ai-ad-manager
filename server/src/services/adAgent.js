@@ -1029,18 +1029,38 @@ const adTools = [
     }),
 
   T('update_workflow_context',
-    'Save important data (IDs, names, metrics, selections) so it auto-flows to the next step. Call this after EVERY tool that returns data you will need later. Also use to save user_level ("beginner" or "expert").',
+    'Save important data (IDs, names, metrics, selections) so it auto-flows to the next step. Pass clear_task: true to wipe all task-scoped fields while preserving global fields (page_id, pixel_id, currency, user_level).',
     async (args, context) => {
       // Accept both { data: {...} } and flat { campaign_id: ..., ... } patterns
-      // Skill files pass flat objects; tool schema expects data:{} wrapper — handle both
       const data = (args.data && typeof args.data === 'object') ? args.data : args;
       const current = context.state.get('workflow', {});
-      const updated = { ...current, ...data };
+
+      // Task-scoped fields — cleared when clear_task: true
+      const TASK_FIELDS = new Set([
+        'campaign_id', 'campaign_name', 'campaign_objective', 'optimization_goal',
+        'conversion_destination', 'adset_id', 'creative_id', 'creative_ids',
+        'creative_names', 'ad_format', 'ad_id', 'ad_ids',
+        'ss1_substep', 'ss3_substep', 'ss4_substep', 'creation_stage',
+        'bulk_mode', 'boost_mode', 'object_story_id', 'uploaded_assets',
+        'link', 'cta', 'country', 'daily_budget_cents', 'whatsapp_phone_number',
+        'form_id', 'auto_confirmed', 'activation_status', 'creative_swap_mode',
+        'pending_video_ids', 'ss3_format', 'intent',
+      ]);
+
+      let base = current;
+      if (data.clear_task === true) {
+        // Keep only global fields (page_id, pixel_id, currency, user_level, primary_goal, etc.)
+        base = Object.fromEntries(
+          Object.entries(current).filter(([k]) => !TASK_FIELDS.has(k))
+        );
+      }
+
+      const { clear_task, ...rest } = data;
+      const updated = { ...base, ...rest };
       context.state.set('workflow', updated);
-      const savedKeys = Object.keys(data).filter(k => k !== 'data');
-      return { saved: savedKeys, workflow: updated };
+      return { saved: Object.keys(rest), cleared_task: clear_task === true, workflow: updated };
     },
-    obj({ data: { type: 'object', description: 'Key-value pairs to save. Examples: {"campaign_id":"123","page_id":"456","top_product":"Summer Dress","user_level":"beginner"}' } }, ['data'])),
+    obj({ data: { type: 'object', description: 'Key-value pairs to save. Pass clear_task: true to wipe task-scoped fields (campaign_id, adset_id, creative_id, substeps, etc.) while keeping global fields. Examples: {"campaign_id":"123","page_id":"456"} or {"clear_task":true,"activation_status":"ACTIVE"}' } }, ['data'])),
 ];
 
 // ── System instruction ──────────────────────────────────────────────────────
@@ -1449,29 +1469,48 @@ After COMPLETING any major action, you MUST:
 4. If user follows the ⚡ suggestion, auto-load the recommended skill and carry forward ALL saved context.
 5. If user ignores it, respect their choice — don't push.
 
+# INTENT-FIRST CLASSIFICATION
+
+**Run this BEFORE any workflow check or tool call.** Classify the user's intent from their message:
+
+| Intent | Signals | Action |
+|---|---|---|
+| **ANALYZE** | "check performance", "ROAS", "spend", "insights", "report", "audit", "how are my", "what's working", "CPL", "CPA", "CTR", analytics question | load_skill("insights-reporting") directly — do NOT enter creation pipeline |
+| **EDIT** | "pause", "update budget", "change", "rename", "copy", "delete campaign", "set bid", "duplicate", "turn off", "modify" | load_skill("campaign-manager") or appropriate management skill — do NOT enter pipeline |
+| **SWAP CREATIVE** | "change the image", "swap creative", "use a different photo/video", "update the ad creative" | update_workflow_context({ creative_swap_mode: true }) then transfer_to_agent("creative_builder") |
+| **CREATE** | "create", "run an ad", "launch", "new campaign", "advertise", "boost", message contains [Uploaded image: or [Uploaded video: tokens | Check workflow state then route to correct pipeline agent (see below) |
+| **In-progress creation** | creation_stage is set in workflow | Route to correct agent immediately — ignore message content |
+
+**NEVER enter the creation pipeline for ANALYZE or EDIT intents.** The pipeline is only for CREATE.
+
 # AD CREATION — DELEGATE TO SPECIALIST AGENTS
 
-When the user wants to CREATE an ad or campaign (phrases like "create a campaign", "create an ad", "run an ad", "launch an ad", "boost my post", "I want to advertise"), OR when workflow state shows an in-progress creation, ALWAYS delegate to the appropriate specialist agent.
-
-**Step 1 — Check workflow state first:**
-Call get_workflow_context() to read the saved state, then route based on what's present:
+Only reached for **CREATE intent** or **in-progress creation**. Call \`get_workflow_context()\` then route:
 
 | What's in workflow state | Transfer to |
 |---|---|
 | \`creation_stage: "ss1_active"\` (SS1 is mid-flow) | \`campaign_strategist\` — regardless of what the user said |
 | \`creation_stage: "ss4_active"\` (SS4 is mid-flow) | \`ad_launcher\` — regardless of what the user said |
+| \`creative_swap_mode: true\` | \`creative_builder\` (standalone creative swap, no pipeline restart) |
 | No campaign_id (starting fresh) | \`campaign_strategist\` |
 | Has campaign_id, no adset_id | \`campaign_strategist\` (recovery) |
 | Has adset_id, no creative_id | \`creative_builder\` |
 | Has creative_id, no ad_id | \`ad_launcher\` |
 
-**CRITICAL:** If \`creation_stage: "ss1_active"\` or \`creation_stage: "ss4_active"\` is set, the user is in the middle of the campaign creation flow (e.g. they just picked an objective, confirmed a review card, or responded to "go live?"). Do NOT analyse their message as a new intent — route to the correct specialist immediately.
+**CRITICAL:** If \`creation_stage\` is set, the user is mid-flow. Do NOT analyse their message — route immediately.
+**NEVER** detect stage from conversation history — always read from workflow state.
 
-**NEVER** detect the stage from conversation history — always read from workflow state.
+# WORKFLOW STATE ARCHITECTURE
 
-Transfer immediately — do NOT attempt to run the creation flow yourself.
+The workflow state has two tiers:
 
-Note: The \`campaign-manager\` skill is for managing EXISTING campaigns (pause, edit, copy). For new campaign CREATION, always delegate to \`campaign_strategist\`.
+**GLOBAL fields** — persist across tasks, never cleared automatically:
+\`page_id\`, \`page_name\`, \`pixel_id\`, \`currency\`, \`user_level\`, \`primary_goal\`, \`ad_account_timezone\`
+
+**TASK fields** — scoped to the current creation task. Cleared by passing \`clear_task: true\` to update_workflow_context:
+\`campaign_id\`, \`adset_id\`, \`creative_id\`, \`ad_id\`, \`creation_stage\`, \`ss1/ss3/ss4_substep\`, \`bulk_mode\`, \`boost_mode\`, \`uploaded_assets\`, \`auto_confirmed\`, \`activation_status\`, \`country\`, \`daily_budget_cents\`, and all other task-specific fields.
+
+After any task completes (activation_status set), the pipeline agents call \`clear_task: true\` so the next task starts clean while global context is preserved.
 
 # POST-LAUNCH HANDOFF — When ad_launcher transfers back to you
 
@@ -1634,14 +1673,31 @@ PATH A — BRIEF MODE:
     Assets: "[Uploaded image: FILENAME, image_hash: HASH]" → { filename, type: "image", image_hash }
             "[Uploaded video: FILENAME, video_id: ID]" → { filename, type: "video", video_id }
     Objective: from text (default OUTCOME_SALES)
-    Country: from text (default null)
-    Daily budget: from text (default null)
+    Country: from text (ISO code, default null)
+    Daily budget: from text in cents (default null)
     Destination URL: from text (default null)
     CTA: from text (default SHOP_NOW)
-  Save IMMEDIATELY: update_workflow_context({ data: { ss1_substep: "a_review", campaign_objective, uploaded_assets: [...parsed assets...], link, country, daily_budget_cents, cta } })
-  Show ONE \`\`\`steps review card (Campaign, Destination, Audience, Daily Budget, Creatives, CTA).
-  If country or budget missing, add ONE line below: "Please also confirm: **Country** and/or **Daily budget**."
-  Ask: "Looks right? Reply 'yes' to create the campaign & ad set — or edit anything above."
+
+  AUTO-FILL CHECK — if ALL of the following are present in the parsed brief:
+    ✓ uploaded_assets (at least 1 asset)
+    ✓ campaign_objective (extracted or default OUTCOME_SALES)
+    ✓ country (resolvable ISO code)
+    ✓ daily_budget_cents
+    ✓ destination URL OR WhatsApp number OR objective is OUTCOME_AWARENESS/OUTCOME_ENGAGEMENT (no destination needed)
+
+  → FULL-BRIEF FAST PATH (skip review card entirely — creates immediately):
+    call get_pages() → use first page as page_id
+    if destination is website URL: call get_pixels() silently → use pixel_id if found
+    create_campaign(name: "[campaign_objective] — ${getToday()}", objective: [campaign_objective], status: "PAUSED", special_ad_categories: [])
+    create_ad_set(campaign_id, name: "[Objective] Ad Set — ${getToday()}", optimization_goal: [from mapping], billing_event: "IMPRESSIONS", bid_strategy: "LOWEST_COST_WITHOUT_CAP", daily_budget: [daily_budget_cents], status: "PAUSED", targeting: {"geo_locations":{"countries":["[country]"]},"age_min":18,"age_max":65,"targeting_optimization":"none"})
+    update_workflow_context({ data: { campaign_id, campaign_objective, optimization_goal, conversion_destination: [link], adset_id, page_id, pixel_id: [if any], bulk_mode: true, uploaded_assets: [...parsed assets...], link, country, daily_budget_cents, cta, auto_confirmed: true, creation_stage: null, ss1_substep: null } })
+    IMMEDIATELY transfer_to_agent("creative_builder") — NO text to user before or after.
+
+  → PARTIAL-BRIEF REVIEW PATH (one or more fields missing — show review card):
+    update_workflow_context({ data: { ss1_substep: "a_review", campaign_objective, uploaded_assets: [...parsed assets...], link, country, daily_budget_cents, cta } })
+    Show ONE \`\`\`steps review card (Campaign, Destination, Audience, Daily Budget, Creatives, CTA).
+    If country or budget missing, add ONE line below: "Please also confirm: **Country** and/or **Daily budget**."
+    Ask: "Looks right? Reply 'yes' to create the campaign & ad set — or edit anything above."
 
 PATH B — BOOST MODE:
   Trigger: message contains "boost", "promote my post", "boost my post", "existing post", "promote this post".
@@ -1686,6 +1742,19 @@ FIRST ACTIONS (in parallel):
 ═══════════════════════════════════════
 
 Detect path from workflow state, then route by ss3_substep:
+
+───────────────────────────────────────
+STANDALONE CREATIVE SWAP MODE (creative_swap_mode: true in workflow):
+───────────────────────────────────────
+Triggered when ad_manager routes here directly for a creative swap (no pipeline restart).
+
+→ Do NOT call transfer_to_agent("ad_launcher"). Do NOT restart SS1.
+→ Follow PATH C format selection (c_format → c_upload → c_copy) but:
+  After create_ad_creative succeeds:
+    call update_ad(ad_id: [from workflow], creative: { creative_id: [new creative_id] })
+    update_workflow_context({ data: { creative_id: [new id], ad_format: [format], ss3_substep: null, creative_swap_mode: null } })
+    IMMEDIATELY transfer_to_agent("ad_manager") — no text before. ad_manager confirms success.
+→ The existing campaign/ad set/ad are NOT touched — only the creative is swapped.
 
 ───────────────────────────────────────
 PATH A — BRIEF MODE (bulk_mode: true AND uploaded_assets array present):
@@ -1794,17 +1863,29 @@ Read ss4_substep from workflow state. Detect mode (BULK if creative_ids.length �
 STANDARD FLOW
 ═══════════════════════
 
-▸ ss4_substep NOT set (first entry — show review card):
-  update_workflow_context({ data: { ss4_substep: "review" } })
-  Show \`\`\`steps block with ALL settings from workflow:
-    Campaign: [campaign_objective] — ${getToday()} · PAUSED
-    Destination: [conversion_destination or "Not set"]
-    Page: [page_id — call get_pages() if page name not in workflow]
-    Creative: [ad_format] · [filename from creative_names, NOT raw ID]
-    Audience: [country] · Ages 18–65 · Broad targeting
-    Budget: [daily_budget_cents / 100] [currency]/day
-  Ask: "Should I create this ad?"
-  HARD STOP — do NOT call create_ad until user confirms.
+▸ ss4_substep NOT set (first entry):
+  Check workflow for auto_confirmed flag.
+
+  IF auto_confirmed = true (SS1 full-brief fast path — user already saw all settings, no extra confirmation needed):
+    update_workflow_context({ data: { ss4_substep: "preview", auto_confirmed: null } })
+    create_ad(adset_id: [from workflow], name: "[campaign_objective] — Ad", creative_id: [from workflow], status: "PAUSED")
+    update_workflow_context({ data: { ad_id: "[new ad id]" } })
+    preflight_check(campaign_id: [from workflow]) — silent if all pass; HALT on failures
+    call get_ad_preview(ad_id, "MOBILE_FEED_STANDARD") AND get_ad_preview(ad_id, "DESKTOP_FEED_STANDARD") in parallel
+    Render as \`\`\`adpreview block.
+    Ask: "✅ Everything looks good. Ready to go live?"
+
+  ELSE (normal flow — show review card):
+    update_workflow_context({ data: { ss4_substep: "review" } })
+    Show \`\`\`steps block with ALL settings from workflow:
+      Campaign: [campaign_objective] — ${getToday()} · PAUSED
+      Destination: [conversion_destination or "Not set"]
+      Page: [page_id — call get_pages() if page name not in workflow]
+      Creative: [ad_format] · [filename from creative_names, NOT raw ID]
+      Audience: [country] · Ages 18–65 · Broad targeting
+      Budget: [daily_budget_cents / 100] [currency]/day
+    Ask: "Should I create this ad?"
+    HARD STOP — do NOT call create_ad until user confirms.
 
 ▸ ss4_substep = "review" (review card shown, user confirming):
   On "yes"/"confirm"/"proceed"/"looks good":
@@ -1823,7 +1904,7 @@ STANDARD FLOW
     update_campaign(campaign_id: [from workflow], status: "ACTIVE")
     update_ad_set(ad_set_id: [from workflow], status: "ACTIVE")
     update_ad(ad_id: [from workflow], status: "ACTIVE")
-    update_workflow_context({ data: { activation_status: "ACTIVE", creation_stage: null, ss4_substep: null } })
+    update_workflow_context({ data: { clear_task: true, activation_status: "ACTIVE" } })
     IMMEDIATELY transfer_to_agent("ad_manager") — no text before the transfer.
 
 ═══════════════════════
@@ -1849,7 +1930,7 @@ BULK LAUNCH MODE (creative_ids.length ≥ 2)
     update_campaign(campaign_id, status: "ACTIVE")
     update_ad_set(ad_set_id, status: "ACTIVE")
     For each ad_id in ad_ids: update_ad(ad_id, status: "ACTIVE")
-    update_workflow_context({ data: { activation_status: "ACTIVE", creation_stage: null, ss4_substep: null } })
+    update_workflow_context({ data: { clear_task: true, activation_status: "ACTIVE" } })
     IMMEDIATELY transfer_to_agent("ad_manager") — no text before the transfer.`;
 
 // ── Create sub-agents ─────────────────────────────────────────────────────────
