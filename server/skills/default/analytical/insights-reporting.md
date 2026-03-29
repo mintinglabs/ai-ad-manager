@@ -399,15 +399,17 @@ Frequency is an INPUT to the decision tree (contributes to Creative Decay diagno
 
 **Every response has TWO streams.** Chat = strategic text (no data blocks). Canvas = formal report (all data blocks + tables). The UI auto-separates them via `splitChatAndCanvas()`.
 
+**⚡ STREAMING-FIRST RULE: Start outputting the Chat briefing IMMEDIATELY.** Do not pre-compute every campaign's diagnostic status before writing. Use account-level totals first (total spend, total results, average CPA from `_benchmarks`), write the Executive Briefing headline, then elaborate as you process campaign details. The user must see text appearing within seconds — not a blank screen for 30 seconds.
+
 ---
 
 #### STREAM 1 — Chat Strategic Briefing (left panel)
 
-Output these 4 sections in order. Data blocks (`metrics`, `budget`, `comparison`, `trend`, `funnel`, `adpreview`) and markdown tables are FORBIDDEN in the chat stream — they belong in the Canvas stream only.
+Output these sections in order. Data blocks (`metrics`, `budget`, `comparison`, `trend`, `funnel`, `adpreview`) and markdown tables are FORBIDDEN in the chat stream — they belong in the Canvas stream only.
 
-**1. 🚦 Executive Briefing** — `### 🚦 [Status Emoji + Label] 執行官簡報`
+**1. 🚦 Executive Briefing** — `### 🚦 [Status Emoji + Label] 執行官簡報` — **OUTPUT THIS FIRST, IMMEDIATELY**
 
-One bold headline sentence using the account's dominant diagnostic status, followed by 1-2 paragraphs explaining the situation with key numbers in **bold**.
+One bold headline sentence using the account's dominant diagnostic status, followed by 1-2 paragraphs explaining the situation with key numbers in **bold**. Start with headline numbers from account-level data before diving into per-campaign analysis.
 
 Examples:
 - ### 🚦 ⚔️ 流量競爭加劇 執行官簡報
