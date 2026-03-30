@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Square, Paperclip, CheckCircle2, XCircle, ArrowUpRight, BarChart3, Target, TrendingDown, Search, FileText, DollarSign, AlertTriangle, Zap, X, Upload, Image, Film, TrendingUp, ChevronRight, Shield, Sparkles, Download, Bookmark, LayoutGrid } from 'lucide-react';
+import { Send, Square, Paperclip, CheckCircle2, XCircle, ArrowUpRight, BarChart3, Target, TrendingDown, Search, FileText, DollarSign, AlertTriangle, Zap, X, Upload, Image, Film, TrendingUp, ChevronRight, Shield, Sparkles, Download, Bookmark, LayoutGrid, ChevronDown } from 'lucide-react';
+import { CreationWizard } from './CreationWizard';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -2075,7 +2076,9 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, 
       {/* Chat messages */}
       {!isEmptyState && (
         <>
-          <CreationStepBanner step={creationStep} summary={creationSummary} />
+          {creationStep ? (
+            <CreationWizard step={creationStep} summary={creationSummary} onSend={handleSend} />
+          ) : null}
           <div className="flex-1 overflow-y-auto">
             <div className="max-w-3xl mx-auto px-4 pt-6 pb-2">
               {messages.map((msg, idx) => {
