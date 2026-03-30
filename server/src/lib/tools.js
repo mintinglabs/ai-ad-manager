@@ -625,7 +625,7 @@ async function analyzePerformance(_, c) {
   // Emit account summary as SSE text — client shows this BEFORE LLM generates response
   if (sseFn) {
     const currency = totalSpend > 0 ? '$' : '';
-    const summaryText = `\n**7-Day Account Summary:** ${currency}${accountSummary.total_spend.toLocaleString()} spent across ${accountSummary.campaign_count} campaigns · ${accountSummary.total_clicks.toLocaleString()} clicks · ${accountSummary.total_impressions.toLocaleString()} impressions\n\n`;
+    const summaryText = `📊 **${accountSummary.period}** — ${currency}${accountSummary.total_spend.toLocaleString()} spent · ${accountSummary.campaign_count} campaigns · ${accountSummary.total_clicks.toLocaleString()} clicks\n\n`;
     sseFn({ type: 'text', content: summaryText });
     emitProgress(`Analysis ready — ${current7d.length} campaigns, ${Object.keys(_benchmarks).length} goal groups`);
   }

@@ -251,7 +251,7 @@ router.post('/', async (req, res) => {
       fullText = '';
       eventCount = 0;
       let malformedCall = false;
-      let sentAnalyzeHeader = false;
+
 
       for await (const event of events) {
         eventCount++;
@@ -273,20 +273,6 @@ router.post('/', async (req, res) => {
         }
 
         if (event.content?.parts) {
-          // Detect ANALYZE pattern: analyze_performance or multiple get_object_insights calls
-          // Send an immediate text so the chat bubble appears before tools finish
-          if (!sentAnalyzeHeader) {
-            const fnCalls = event.content.parts.filter(p => p.functionCall);
-            const isAnalyze = fnCalls.some(p => p.functionCall.name === 'analyze_performance')
-              || fnCalls.filter(p => p.functionCall.name === 'get_object_insights').length >= 2;
-            if (isAnalyze) {
-              const header = '📊 Pulling your campaign data...\n\n';
-              fullText += header;
-              sse(res, { type: 'text', content: header });
-              sentAnalyzeHeader = true;
-            }
-          }
-
           for (const part of event.content.parts) {
             if (part.text) {
               fullText += part.text;
