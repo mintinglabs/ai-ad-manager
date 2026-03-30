@@ -2,8 +2,9 @@ import { adTools } from './tools.js';
 
 const getToday = () => new Date().toISOString().split('T')[0];
 
-// ── Shared output rules (prepended to all agent instructions) ────────────────
-const SHARED_OUTPUT_RULES = `
+// ── Shared output rules ─────────────────────────────────────────────────────
+// Base rules: slim version for read-only agents (analyst). No creation/preview blocks.
+const BASE_OUTPUT_RULES = `
 # ABSOLUTE RULES
 - NEVER fabricate data. Every number must come from a tool result. If a tool fails, tell the user — do NOT substitute fake data.
 - Ban generic labels. NEVER use "needs adjustment", "needs attention", "needs optimization". Name the specific diagnostic status and root cause.
@@ -14,10 +15,6 @@ The UI renders special code blocks as interactive cards:
 
 \`\`\`metrics — KPI summary (4 items max: Spend + 3 goal-relevant KPIs)
 [{ "label": "Spend", "value": "$1,234", "change": "+12%", "trend": "up", "vs": "vs last 7d" }, ...]
-\`\`\`
-
-\`\`\`options — Selectable cards (2+ choices)
-{ "title": "Choose", "options": [{ "id": "A", "title": "Name", "desc": "Details", "tag": "Recommended" }] }
 \`\`\`
 
 \`\`\`insights — Severity-coded findings (critical/warning/success/info)
@@ -32,15 +29,27 @@ The UI renders special code blocks as interactive cards:
 ["Option 1", "Option 2", "Option 3"]
 \`\`\`
 
-\`\`\`score — Audit health score
-{ "score": 7, "max": 10, "label": "Account Health", "items": [{ "status": "good", "text": "..." }] }
-\`\`\`
-
 \`\`\`budget — Spend allocation donut chart
 { "title": "7-Day Spend", "total_budget": "$16,331", "items": [{ "name": "WhatsApp", "spend": 5064, "percentage": 31 }] }
 \`\`\`
 
 \`\`\`comparison — Period-over-period bar chart
+\`\`\`
+
+Rules: Max 1-2 sentences between blocks. ALWAYS end with quickreplies. Dollar amounts from insights API are already in currency — do NOT divide by 100. Only daily_budget and bid_amount are in cents.
+
+# DUAL-PANEL OUTPUT — Chat vs Canvas
+The UI has a Chat panel (left) and Canvas panel (right). Canvas blocks (metrics, budget, comparison, trend, funnel, adpreview) + markdown tables are STRIPPED from chat and shown only in canvas. BUT any regular text you write appears in BOTH panels. To avoid duplication: write all chat text/blocks FIRST, then emit canvas blocks at the END with no surrounding text.
+`;
+
+// Full rules: extends base with creation/preview blocks for agents that need them.
+const SHARED_OUTPUT_RULES = BASE_OUTPUT_RULES + `
+\`\`\`options — Selectable cards (2+ choices)
+{ "title": "Choose", "options": [{ "id": "A", "title": "Name", "desc": "Details", "tag": "Recommended" }] }
+\`\`\`
+
+\`\`\`score — Audit health score
+{ "score": 7, "max": 10, "label": "Account Health", "items": [{ "status": "good", "text": "..." }] }
 \`\`\`
 
 \`\`\`copyvariations — Ad copy A/B/C options with "Use this" button
@@ -50,11 +59,6 @@ The UI renders special code blocks as interactive cards:
 \`\`\`adpreview — Visual ad preview in device frame
 [{ "format": "MOBILE_FEED_STANDARD", "html": "<iframe...>" }, { "format": "DESKTOP_FEED_STANDARD", "html": "<iframe...>" }]
 \`\`\`
-
-Rules: Max 1-2 sentences between blocks. ALWAYS end with quickreplies. Dollar amounts from insights API are already in currency — do NOT divide by 100. Only daily_budget and bid_amount are in cents.
-
-# DUAL-PANEL OUTPUT — Chat vs Canvas
-The UI has a Chat panel (left) and Canvas panel (right). Canvas blocks (metrics, budget, comparison, trend, funnel, adpreview) + markdown tables are STRIPPED from chat and shown only in canvas. BUT any regular text you write appears in BOTH panels. To avoid duplication: write all chat text/blocks FIRST, then emit canvas blocks at the END with no surrounding text.
 `;
 
 // ── Root orchestrator (~80 lines — intent classifier + routing) ──────────────
@@ -110,7 +114,7 @@ When a sub-agent transfers back to you after completing its task, present the re
 // ── Analyst sub-agent ────────────────────────────────────────────────────────
 const buildAnalystInstruction = () => `You are the Analyst — a senior performance diagnostician for Meta Ads accounts.
 TODAY: ${getToday()}
-${SHARED_OUTPUT_RULES}
+${BASE_OUTPUT_RULES}
 
 # YOUR ROLE
 Diagnose campaign performance using data-driven causal analysis. You are read-only — never create, update, or delete anything.
