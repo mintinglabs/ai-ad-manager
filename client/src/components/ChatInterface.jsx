@@ -42,35 +42,83 @@ const downloadCardAsImage = async (cardEl, title) => {
   }
 };
 
-// ── Creation step banner ──────────────────────────────────────────────────────
+// ── Creation wizard accordion ─────────────────────────────────────────────────
 const STEP_LABELS = ['Campaign & Targeting', 'Creative', 'Review & Launch'];
+const STEP_ICONS = [Target, Sparkles, CheckCircle2];
 
-const CreationStepBanner = ({ step }) => {
+const CreationStepBanner = ({ step, summary = {} }) => {
   if (!step) return null;
+  const [expandedPhase, setExpandedPhase] = useState(null);
+
+  // Auto-expand completed phases when clicked, but don't auto-expand by default
+  const togglePhase = (phase) => {
+    setExpandedPhase(prev => prev === phase ? null : phase);
+  };
+
+  const phaseSummaryText = (phase) => {
+    if (phase === 1 && summary.phase1) {
+      const p = summary.phase1;
+      return `${p.campaign_objective || 'Campaign'} · Ad Set created`;
+    }
+    if (phase === 2 && summary.phase2) {
+      const p = summary.phase2;
+      const count = p.creative_ids?.length || 1;
+      return `${count} creative${count > 1 ? 's' : ''} · ${p.ad_format || 'Ready'}`;
+    }
+    return null;
+  };
+
   return (
-    <div className="flex items-center gap-2 px-4 py-2.5 bg-white border-b border-slate-100 shrink-0">
-      <span className="text-[11px] font-medium text-slate-400 shrink-0">Creating ad</span>
-      <div className="flex items-center gap-1 flex-1">
-        {STEP_LABELS.map((label, i) => {
-          const num = i + 1;
-          const done = num < step.current;
-          const active = num === step.current;
-          return (
-            <React.Fragment key={i}>
-              <div className={`flex items-center gap-1.5 ${active ? 'text-blue-600' : done ? 'text-emerald-600' : 'text-slate-300'}`}>
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border transition-colors
-                  ${active ? 'border-blue-500 bg-blue-50' : done ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
-                  {done ? '✓' : num}
-                </div>
-                <span className="text-[11px] font-semibold hidden sm:block">{label}</span>
-              </div>
-              {i < STEP_LABELS.length - 1 && (
-                <div className={`flex-1 h-px min-w-[16px] transition-colors ${done ? 'bg-emerald-400' : 'bg-slate-200'}`} />
-              )}
-            </React.Fragment>
-          );
-        })}
+    <div className="bg-white border-b border-slate-100 shrink-0">
+      {/* Compact progress bar */}
+      <div className="flex items-center gap-2 px-4 py-2.5">
+        <span className="text-[11px] font-medium text-slate-400 shrink-0">Creating ad</span>
+        <div className="flex items-center gap-1 flex-1">
+          {STEP_LABELS.map((label, i) => {
+            const num = i + 1;
+            const done = num < step.current;
+            const active = num === step.current;
+            const Icon = STEP_ICONS[i];
+            return (
+              <React.Fragment key={i}>
+                <button onClick={() => done ? togglePhase(num) : null}
+                  className={`flex items-center gap-1.5 transition-colors ${done ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}
+                    ${active ? 'text-blue-600' : done ? 'text-emerald-600' : 'text-slate-300'}`}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border transition-all
+                    ${active ? 'border-blue-500 bg-blue-50 shadow-sm shadow-blue-100' : done ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+                    {done ? <CheckCircle2 size={12} /> : <Icon size={12} />}
+                  </div>
+                  <span className="text-[11px] font-semibold hidden sm:block">{label}</span>
+                </button>
+                {i < STEP_LABELS.length - 1 && (
+                  <div className={`flex-1 h-px min-w-[16px] transition-colors ${done ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Expandable phase summary panels */}
+      {[1, 2, 3].map(phase => {
+        const done = phase < step.current;
+        const summaryText = phaseSummaryText(phase);
+        if (!done || !summaryText || expandedPhase !== phase) return null;
+        return (
+          <div key={phase} className="px-4 py-2.5 bg-emerald-50/50 border-t border-emerald-100 animate-in slide-in-from-top-1">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={13} className="text-emerald-500" />
+                <span className="text-[11px] font-semibold text-emerald-700">{STEP_LABELS[phase - 1]}</span>
+                <span className="text-[11px] text-emerald-600">{summaryText}</span>
+              </div>
+              <button onClick={() => setExpandedPhase(null)} className="text-emerald-400 hover:text-emerald-600">
+                <X size={12} />
+              </button>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -1740,7 +1788,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
-export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, activityLog = [], onSend, onStop, suggestedActions = [], adAccountId, onSaveItem, folders = [], activeSkill = null, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas }) => {
+export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, creationSummary = {}, activityLog = [], onSend, onStop, suggestedActions = [], adAccountId, onSaveItem, folders = [], activeSkill = null, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas }) => {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState([]); // { id, file, preview, status, progress, result }
   const [isDragOver, setIsDragOver] = useState(false);
@@ -2027,7 +2075,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, 
       {/* Chat messages */}
       {!isEmptyState && (
         <>
-          <CreationStepBanner step={creationStep} />
+          <CreationStepBanner step={creationStep} summary={creationSummary} />
           <div className="flex-1 overflow-y-auto">
             <div className="max-w-3xl mx-auto px-4 pt-6 pb-2">
               {messages.map((msg, idx) => {

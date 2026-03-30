@@ -302,6 +302,7 @@ export const useChatSessions = ({ token, adAccountId, accountName, language = 'e
     isTyping: agent.isTyping,
     thinkingText: agent.thinkingText,
     creationStep: agent.creationStep,
+    creationSummary: agent.creationSummary,
     activityLog: agent.activityLog,
     sendMessage,
     stopGeneration: agent.stopGeneration,

@@ -31,6 +31,7 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
   const [thinkingText, setThinkingText] = useState('');
   const [notification, setNotification] = useState(null);
   const [creationStep, setCreationStep] = useState(null);
+  const [creationSummary, setCreationSummary] = useState({});
   const [activityLog, setActivityLog] = useState([]);
   const sessionIdRef = useRef(externalSessionId || makeId());
   const abortRef = useRef(null);
@@ -44,6 +45,7 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
       setIsTyping(false);
       setThinkingText('');
       setCreationStep(null);
+      setCreationSummary({});
       setActivityLog([]);
     }
   }, [externalSessionId, initialMessages, accountName, language]);
@@ -66,6 +68,7 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
     setIsTyping(false);
     setThinkingText('');
     setCreationStep(null);
+    setCreationSummary({});
     setActivityLog([]);
   }, [accountName, language]);
 
@@ -77,6 +80,7 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
     setIsTyping(false);
     setThinkingText('');
     setCreationStep(null);
+    setCreationSummary({});
     setActivityLog([]);
   }, []);
 
@@ -88,6 +92,7 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
     setIsTyping(false);
     setThinkingText('');
     setCreationStep(null);
+    setCreationSummary({});
     setActivityLog([]);
     return newId;
   }, [accountName, language]);
@@ -192,10 +197,16 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
               const d = event.data || {};
               if (d.ad_id && d.activation_status === 'ACTIVE') {
                 setCreationStep(null);
+                setCreationSummary({});
+              } else if (d.clear_task) {
+                setCreationStep(null);
+                setCreationSummary({});
               } else if (d.creative_id) {
                 setCreationStep({ current: 3, total: 3, label: 'Review & Launch' });
+                setCreationSummary(prev => ({ ...prev, phase2: { creative_id: d.creative_id, ad_format: d.ad_format, creative_ids: d.creative_ids } }));
               } else if (d.adset_id) {
                 setCreationStep({ current: 2, total: 3, label: 'Creative' });
+                setCreationSummary(prev => ({ ...prev, phase1: { campaign_id: d.campaign_id, adset_id: d.adset_id, campaign_objective: d.campaign_objective, optimization_goal: d.optimization_goal, page_id: d.page_id } }));
               } else if (d.campaign_id) {
                 setCreationStep({ current: 1, total: 3, label: 'Campaign & Targeting' });
               }
@@ -255,6 +266,7 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
     isTyping,
     thinkingText,
     creationStep,
+    creationSummary,
     activityLog,
     sendMessage,
     stopGeneration,

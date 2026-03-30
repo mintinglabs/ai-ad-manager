@@ -47,7 +47,7 @@ export const Dashboard = ({
 
   const {
     sessions, activeSessionId, createNewChat, switchSession, deleteSession,
-    messages, isTyping, thinkingText, creationStep, activityLog, sendMessage, stopGeneration, notification,
+    messages, isTyping, thinkingText, creationStep, creationSummary, activityLog, sendMessage, stopGeneration, notification,
     savedItems, saveItem, deleteSavedItem,
     folders, createFolder, deleteFolder, renameFolder, reorderFolders,
   } = useChatSessions({ token, adAccountId, accountName: selectedAccount?.name, language: chatLanguage });
@@ -215,6 +215,7 @@ export const Dashboard = ({
               isTyping={isTyping}
               thinkingText={thinkingText}
               creationStep={creationStep}
+              creationSummary={creationSummary}
               activityLog={activityLog}
               onSend={handleSend}
               onStop={stopGeneration}
