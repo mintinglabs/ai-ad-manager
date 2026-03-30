@@ -302,7 +302,9 @@ get_custom_audiences()
 get_saved_audiences()
 ```
 
-Show all 3 stages with Stage 1 done:
+Show all 3 stages with Stage 1 done. Stage 2 has the audience strategy as an inline `type:"select"` inside the card — NO separate options block, NO quickreplies for choices.
+
+**If saved/custom audiences exist:**
 
 ```setupcard
 {"phase":1,"status":"done","collapsed":true,"title":"Stage 1: Strategy ✅","subtitle":"[Objective] · [Destination] · [Country] · [Budget]/day","items":[
@@ -314,140 +316,107 @@ Show all 3 stages with Stage 1 done:
 ```
 
 ```setupcard
-{"phase":2,"status":"active","title":"Stage 2: Audience","subtitle":"Choose your targeting strategy","items":[]}
+{"phase":2,"status":"active","title":"Stage 2: Audience","items":[
+  {"label":"Strategy","value":"Select targeting strategy...","icon":"sparkles","type":"select","options":[
+    {"id":"saved","title":"Use Saved Audience","description":"Pick from your [N] existing audiences"},
+    {"id":"custom","title":"Build Custom Targeting","description":"Define interests, demographics, behaviors with AI help"},
+    {"id":"lookalike","title":"Lookalike Audience","description":"Find people similar to your existing customers"}
+  ]}
+]}
 ```
 
 ```setupcard
 {"phase":3,"status":"pending","title":"Stage 3: Creative","subtitle":"Complete Stage 2 first","items":[]}
 ```
 
-Then show audience options. Build the options dynamically based on what audiences exist in the account:
-
-**If saved/custom audiences exist:**
-
-```options
-{"title":"How would you like to target?","options":[
-  {"id":"broad","title":"Broad (Advantage+)","description":"Let Meta AI find your best customers — recommended for new campaigns","tag":"Recommended"},
-  {"id":"saved","title":"Use Saved Audience","description":"Pick from your [N] existing audiences"},
-  {"id":"custom","title":"Build Custom Targeting","description":"Define interests, demographics, behaviors with AI help"},
-  {"id":"lookalike","title":"Lookalike Audience","description":"Find people similar to your existing customers"}
-]}
-```
-
 **If NO saved/custom audiences exist:**
 
-```options
-{"title":"How would you like to target?","options":[
-  {"id":"broad","title":"Broad (Advantage+)","description":"Let Meta AI find your best customers — recommended for new campaigns","tag":"Recommended"},
-  {"id":"custom","title":"Build Custom Targeting","description":"Define interests, demographics, behaviors with AI help"},
-  {"id":"lookalike","title":"Lookalike Audience","description":"Find people similar to your existing customers"}
-]}
-```
+Same structure but only Custom and Lookalike options in the select.
 
-### Audience Sub-flow: Broad
+**No Broad option.** Do not offer Broad (Advantage+) targeting.
 
-User picks "Broad":
+### After user picks a strategy
+
+**Saved Audience** — show audience list as second inline select:
 
 ```setupcard
 {"phase":2,"status":"active","title":"Stage 2: Audience","items":[
-  {"label":"Strategy","value":"Broad (Advantage+)","icon":"sparkles"},
-  {"label":"Age Range","value":"18–65","icon":"target"},
-  {"label":"Placements","value":"Advantage+ (all platforms)","icon":"target"}
-]}
-```
-
-```quickreplies
-["✅ Confirm Stage 2", "Rebuild"]
-```
-
-### Audience Sub-flow: Saved Audience
-
-User picks "Use Saved Audience":
-
-Show audiences **inline** inside the Stage 2 setupcard using `type:"select"` items. This keeps the audience list inside the card — no separate options block needed:
-
-```setupcard
-{"phase":2,"status":"active","title":"Stage 2: Audience","items":[
-  {"label":"Strategy","value":"Saved Audience","icon":"sparkles"},
+  {"label":"Strategy","value":"Saved Audience","icon":"sparkles","editable":true,"options":[
+    {"id":"saved","title":"Use Saved Audience"},
+    {"id":"custom","title":"Build Custom Targeting"},
+    {"id":"lookalike","title":"Lookalike Audience"}
+  ]},
   {"label":"Audience","value":"Select an audience...","icon":"target","type":"select","options":[
-    {"id":"AUDIENCE_ID_1","title":"[Custom audience name]","description":"[type] · ~[size] people · Updated [date]"},
-    {"id":"AUDIENCE_ID_2","title":"[Saved audience name]","description":"[targeting summary]"}
+    {"id":"AUDIENCE_ID_1","title":"[Audience name]","description":"[type] · ~[size] people · Updated [date]"},
+    {"id":"AUDIENCE_ID_2","title":"[Audience name]","description":"[targeting summary]"}
   ]}
 ]}
 ```
 
-After user picks an audience from the inline dropdown, update the card with the selection:
+After user picks an audience:
 
 ```setupcard
 {"phase":2,"status":"active","title":"Stage 2: Audience","items":[
-  {"label":"Audience","value":"[Audience name]","icon":"sparkles"},
-  {"label":"Type","value":"[Custom / Saved / Lookalike]","icon":"target"},
+  {"label":"Strategy","value":"Saved Audience","icon":"sparkles","editable":true,"options":[SAME_STRATEGIES]},
+  {"label":"Audience","value":"[Audience name]","icon":"target","editable":true,"options":[SAME_AUDIENCE_LIST]},
   {"label":"Size","value":"~[N] people","icon":"target"}
 ]}
 ```
 
 ```quickreplies
-["✅ Confirm Stage 2", "Rebuild"]
+["✅ Confirm Stage 2"]
 ```
 
-### Audience Sub-flow: Build Custom
+**Build Custom** — transfer to audience_strategist:
 
-User picks "Build Custom":
-
-Transfer to audience_strategist: `transfer_to_agent("audience_strategist")`
-
-Before transferring, save current progress:
 ```
 update_workflow_context({ data: { ...current, creation_stage: "stage2_custom_audience" } })
+transfer_to_agent("audience_strategist")
 ```
 
-The audience_strategist will:
-1. Ask user to describe their ideal customer (via quickreplies)
-2. Call `targeting_search()` + `targeting_suggestions()`
-3. Build targeting spec
-4. Save to workflow_context: `{ targeting_spec: {...}, audience_description: "..." }`
-5. Transfer back to executor
-
-When executor receives control back, read workflow_context for the targeting spec and show:
+The audience_strategist builds targeting and saves to workflow_context, then transfers back. On return, show:
 
 ```setupcard
 {"phase":2,"status":"active","title":"Stage 2: Audience","items":[
-  {"label":"Targeting","value":"[Summary — e.g. Women 25-40, Beauty & Skincare]","icon":"sparkles"},
+  {"label":"Strategy","value":"Custom Targeting","icon":"sparkles","editable":true,"options":[SAME_STRATEGIES]},
+  {"label":"Targeting","value":"[Summary — e.g. Women 25-40, Beauty & Skincare]","icon":"target"},
   {"label":"Interests","value":"[Interest list]","icon":"target"},
   {"label":"Est. Reach","value":"~[N] people","icon":"target"}
 ]}
 ```
 
 ```quickreplies
-["✅ Confirm Stage 2", "Rebuild"]
+["✅ Confirm Stage 2"]
 ```
+
+**Lookalike** — show source audience + percentage as inline selects:
 
 ### Audience Sub-flow: Lookalike
 
 User picks "Lookalike":
 
-Show source audiences inline in the Stage 2 card:
+Show source + percentage as inline selects inside Stage 2:
 
 ```setupcard
 {"phase":2,"status":"active","title":"Stage 2: Audience","items":[
-  {"label":"Type","value":"Lookalike","icon":"sparkles"},
+  {"label":"Strategy","value":"Lookalike","icon":"sparkles","editable":true,"options":[SAME_STRATEGIES]},
   {"label":"Source","value":"Select source audience...","icon":"target","type":"select","options":[
     {"id":"AUD_1","title":"[Custom audience name]","description":"[type] · ~[size] people"}
+  ]},
+  {"label":"Percentage","value":"Select similarity...","icon":"target","type":"select","options":[
+    {"id":"1","title":"1% — Most similar"},
+    {"id":"3","title":"3% — Balanced"},
+    {"id":"5","title":"5% — Broader"},
+    {"id":"10","title":"10% — Widest"}
   ]}
 ]}
 ```
 
-After source selected, ask percentage:
-
-```quickreplies
-["1% — Most similar", "3% — Balanced", "5% — Broader", "10% — Widest"]
-```
-
-After percentage selected, call `create_lookalike_audience(source_audience_id, country, percentage)`.
+After both selected, call `create_lookalike_audience(source_audience_id, country, percentage)`, then show:
 
 ```setupcard
 {"phase":2,"status":"active","title":"Stage 2: Audience","items":[
-  {"label":"Type","value":"Lookalike","icon":"sparkles"},
+  {"label":"Strategy","value":"Lookalike","icon":"sparkles","editable":true,"options":[SAME_STRATEGIES]},
   {"label":"Source","value":"[Source audience name]","icon":"target"},
   {"label":"Percentage","value":"[X]%","icon":"target"},
   {"label":"Est. Size","value":"~[N] people","icon":"target"}
@@ -455,7 +424,7 @@ After percentage selected, call `create_lookalike_audience(source_audience_id, c
 ```
 
 ```quickreplies
-["✅ Confirm Stage 2", "Rebuild"]
+["✅ Confirm Stage 2"]
 ```
 
 ---
@@ -469,7 +438,7 @@ Update workflow context:
 update_workflow_context({ data: {
   ...current,
   creation_stage: "stage3",
-  audience_type: "broad" | "saved" | "custom" | "lookalike",
+  audience_type: "saved" | "custom" | "lookalike",
   // For saved:
   audience_id: "[ID]",
   // For custom:

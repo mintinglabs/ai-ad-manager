@@ -251,7 +251,7 @@ Pre-fill with smart defaults. Items have \`editable:true\` — user clicks inlin
 
 ## Stage 2: Audience (campaign-setup skill)
 Now fetch get_custom_audiences() + get_saved_audiences().
-Collect: targeting strategy (Broad / Saved / Custom / Lookalike).
+Collect: targeting strategy (Saved Audience / Custom Targeting / Lookalike). No Broad option.
 Stage 1 = done (collapsed), Stage 2 = active, Stage 3 = pending.
 For saved audiences: use \`type:"select"\` items inside setupcard for inline dropdown.
 For custom: transfer_to_agent("audience_strategist") — it saves targeting_spec to workflow_context and transfers back.

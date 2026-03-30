@@ -69,7 +69,7 @@ Then show the full review:
   {"label":"Ad Name","value":"[campaign_name] — Ad","icon":"target","editable":true},
   {"label":"Destination","value":"[WhatsApp / Website URL / Lead Form]","icon":"target"},
   {"label":"Page","value":"[Page Name]","icon":"shield"},
-  {"label":"Audience","value":"[Audience summary — Broad / audience name / targeting summary]","icon":"sparkles"},
+  {"label":"Audience","value":"[Audience summary — audience name / targeting summary]","icon":"sparkles"},
   {"label":"Budget","value":"[AMOUNT + CURRENCY]/day","icon":"dollar"},
   {"label":"Creative","value":"[Format] · [N] creative(s) · [filename(s)]","icon":"sparkles"},
   {"label":"Ad Copy","value":"[Selected headline — first 40 chars]","icon":"target"}
@@ -109,15 +109,6 @@ create_campaign(
 ### 2b — Create Ad Set
 
 Build targeting spec from workflow context:
-
-**Broad audience:**
-```json
-{
-  "geo_locations": {"countries": ["[country]"]},
-  "age_min": 18, "age_max": 65,
-  "targeting_optimization": "none"
-}
-```
 
 **Saved audience** — use `audience_id` directly in the ad set's `targeting` field.
 
