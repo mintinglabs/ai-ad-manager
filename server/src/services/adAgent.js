@@ -1,34 +1,50 @@
 import { LlmAgent, Runner, InMemorySessionService } from '@google/adk';
-import { adTools, ss1Tools, ss3Tools, ss4Tools } from '../lib/tools.js';
-import { buildInstruction, buildSs1Instruction, buildSs3Instruction, buildSs4Instruction } from '../lib/instructions.js';
+import { adTools, analystTools, audienceTools, creativeTools, executorTools, technicalTools } from '../lib/tools.js';
+import { buildInstruction, buildAnalystInstruction, buildAudienceInstruction, buildCreativeInstruction, buildExecutorInstruction, buildTechnicalInstruction } from '../lib/instructions.js';
 
-// ── Pipeline sub-agents ───────────────────────────────────────────────────────
+// ── 5 Sub-agents ─────────────────────────────────────────────────────────────
 
-const ss1Agent = new LlmAgent({
-  name: 'campaign_strategist',
+const analystAgent = new LlmAgent({
+  name: 'analyst',
   model: 'gemini-2.5-pro',
-  description: 'Handles campaign objective, destination, creates campaign + ad set (Step 1 of 3 in ad creation)',
-  instruction: buildSs1Instruction(),
-  tools: ss1Tools,
+  description: 'Diagnoses campaign performance using 5-signal decision tree. Returns structured diagnostic statuses and action queue.',
+  instruction: buildAnalystInstruction(),
+  tools: analystTools,
 });
 
-const ss3Agent = new LlmAgent({
-  name: 'creative_builder',
+const audienceAgent = new LlmAgent({
+  name: 'audience_strategist',
   model: 'gemini-2.5-pro',
-  description: 'Uploads media, collects ad copy, and creates the ad creative (Step 2 of 3 in ad creation)',
-  instruction: buildSs3Instruction(),
-  tools: ss3Tools,
+  description: 'Maps performance gaps to audience actions — expansion, exclusion, lookalikes, retargeting.',
+  instruction: buildAudienceInstruction(),
+  tools: audienceTools,
 });
 
-const ss4Agent = new LlmAgent({
-  name: 'ad_launcher',
+const creativeAgent = new LlmAgent({
+  name: 'creative_strategist',
   model: 'gemini-2.5-pro',
-  description: 'Handles review gate, preflight check, preview, and activates the ad (Step 3 of 3 in ad creation)',
-  instruction: buildSs4Instruction(),
-  tools: ss4Tools,
+  description: 'Audits creative health — hook rates, fatigue signals, copy pivot recommendations.',
+  instruction: buildCreativeInstruction(),
+  tools: creativeTools,
 });
 
-// ── Root agent + runner ───────────────────────────────────────────────────────
+const executorAgent = new LlmAgent({
+  name: 'executor',
+  model: 'gemini-2.5-pro',
+  description: 'Executes campaign creation, ad set setup, creative assembly, ad activation, and campaign edits (pause, budget, status). The only agent that writes to Meta API.',
+  instruction: buildExecutorInstruction(),
+  tools: executorTools,
+});
+
+const technicalAgent = new LlmAgent({
+  name: 'technical_guard',
+  model: 'gemini-2.5-pro',
+  description: 'Checks pixel health, CAPI status, conversion tracking, and attribution setup.',
+  instruction: buildTechnicalInstruction(),
+  tools: technicalTools,
+});
+
+// ── Root agent + runner ──────────────────────────────────────────────────────
 
 const sessionService = new InMemorySessionService();
 
@@ -37,7 +53,7 @@ const agent = new LlmAgent({
   model: 'gemini-2.5-pro',
   instruction: buildInstruction(),
   tools: adTools,
-  subAgents: [ss1Agent, ss3Agent, ss4Agent],
+  subAgents: [analystAgent, audienceAgent, creativeAgent, executorAgent, technicalAgent],
 });
 
 const runner = new Runner({

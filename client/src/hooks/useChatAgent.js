@@ -170,8 +170,11 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
               setActivityLog(prev => [...prev, entry]);
               if (event.name === 'transfer_to_agent') {
                 const labels = {
-                  creative_builder: 'Moving to Creative step...',
-                  ad_launcher: 'Moving to Review & Launch...',
+                  analyst: 'Analyzing performance...',
+                  audience_strategist: 'Reviewing audiences...',
+                  creative_strategist: 'Auditing creatives...',
+                  executor: 'Setting up...',
+                  technical_guard: 'Checking tracking...',
                   ad_manager: 'Finishing up...',
                 };
                 setThinkingText(labels[event.target] || 'Continuing...');

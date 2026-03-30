@@ -1346,40 +1346,84 @@ const adTools = [
       }
 
       const { clear_task, ...rest } = data;
-      const updated = { ...base, ...rest };
+      // Deep-merge baton field so sub-agents can write to their own namespace
+      // without overwriting other sub-agents' data
+      let updated;
+      if (rest.baton && typeof rest.baton === 'object' && base.baton && typeof base.baton === 'object') {
+        const mergedBaton = { ...base.baton, ...rest.baton };
+        const { baton: _, ...restWithoutBaton } = rest;
+        updated = { ...base, ...restWithoutBaton, baton: mergedBaton };
+      } else {
+        updated = { ...base, ...rest };
+      }
       context.state.set('workflow', updated);
       return { saved: Object.keys(rest), cleared_task: clear_task === true, workflow: updated };
     },
     obj({ data: { type: 'object', description: 'Key-value pairs to save. Pass clear_task: true to wipe task-scoped fields (campaign_id, adset_id, creative_id, substeps, etc.) while keeping global fields. Examples: {"campaign_id":"123","page_id":"456"} or {"clear_task":true,"activation_status":"ACTIVE"}' } }, ['data'])),
 ];
 
-// ── Tool subsets for pipeline sub-agents ────────────────────────────────────
-// ── Tool subsets for ad creation sub-agents ──────────────────────────────────
+// ── Tool subsets for 5 sub-agents ────────────────────────────────────────────
 const _toolByName = Object.fromEntries(adTools.map(t => [t.name, t]));
 const pick = (...names) => names.map(n => _toolByName[n]).filter(Boolean);
 
-const ss1Tools = pick(
-  // Campaign phase (from old ss1)
-  'get_ad_account_details', 'get_minimum_budgets', 'get_pages',
-  'get_pixels', 'get_lead_forms', 'get_catalogs', 'create_campaign',
-  // Ad set phase (from old ss2)
-  'get_custom_audiences', 'get_saved_audiences', 'targeting_search',
-  'targeting_browse', 'targeting_suggestions', 'targeting_validation',
-  'get_reach_estimate', 'get_delivery_estimate', 'get_connected_instagram_accounts',
-  'create_ad_set',
+// Analyst — diagnosis, benchmarks, action_queue (read-only + baton write)
+const analystTools = pick(
+  'analyze_performance', 'get_object_insights',
+  'get_workflow_context', 'update_workflow_context', 'load_skill'
+);
+
+// Audience Strategist — targeting gaps, audience recommendations
+const audienceTools = pick(
+  'get_custom_audiences', 'get_saved_audiences', 'get_custom_audience',
+  'get_reach_estimate', 'get_delivery_estimate',
+  'targeting_search', 'targeting_browse', 'targeting_suggestions', 'targeting_validation',
+  'create_custom_audience', 'create_lookalike_audience',
+  'get_workflow_context', 'update_workflow_context', 'load_skill'
+);
+
+// Creative Strategist — hook analysis, copy pivots, format recommendations (read-only audit)
+const creativeTools = pick(
+  'get_ad_creatives', 'get_ad_creative', 'get_ad_preview',
+  'get_ad_images', 'get_ad_videos', 'get_page_posts', 'get_page_videos',
+  'get_workflow_context', 'update_workflow_context', 'load_skill'
+);
+
+// Executor — all creation + management (merges old SS1+SS3+SS4)
+const executorTools = pick(
+  // Account info
+  'get_ad_account_details', 'get_minimum_budgets',
+  // Pages & connections
+  'get_pages', 'get_connected_instagram_accounts',
+  // Tracking
+  'get_pixels', 'get_lead_forms', 'get_catalogs',
+  // Campaign CRUD
+  'create_campaign', 'update_campaign', 'delete_campaign', 'copy_campaign',
+  'get_campaigns', 'get_campaign_ad_sets', 'get_campaign_ads',
+  // Ad Set CRUD
+  'create_ad_set', 'update_ad_set', 'delete_ad_set', 'copy_ad_set',
+  'get_ad_sets', 'get_ad_set', 'get_ad_set_ads',
+  // Audience (for ad set targeting)
+  'get_custom_audiences', 'get_saved_audiences',
+  'targeting_search', 'targeting_browse', 'targeting_suggestions', 'targeting_validation',
+  'get_reach_estimate', 'get_delivery_estimate',
+  // Creative assembly
+  'get_ad_images', 'get_ad_videos', 'get_page_posts', 'get_page_videos',
+  'upload_ad_image', 'upload_ad_video', 'get_ad_video_status',
+  'create_ad_creative', 'update_ad_creative',
+  // Ad CRUD
+  'create_ad', 'create_ads_bulk', 'update_ad', 'delete_ad', 'copy_ad',
+  'get_ads', 'get_ad',
+  // Launch & preview
+  'preflight_check', 'get_ad_preview',
   // Shared
   'get_workflow_context', 'update_workflow_context', 'load_skill'
 );
 
-const ss3Tools = pick(
-  'get_ad_images', 'get_ad_videos', 'get_pages', 'get_page_posts', 'get_page_videos',
-  'upload_ad_image', 'upload_ad_video', 'get_ad_video_status',
-  'create_ad_creative', 'get_workflow_context', 'update_workflow_context', 'load_skill'
+// Technical Guard — pixel, CAPI, conversion tracking health
+const technicalTools = pick(
+  'get_pixels', 'get_custom_conversions', 'create_custom_conversion',
+  'get_ad_account_details', 'get_pages', 'get_page_posts',
+  'get_workflow_context', 'update_workflow_context', 'load_skill'
 );
 
-const ss4Tools = pick(
-  'create_ad', 'create_ads_bulk', 'update_ad', 'update_campaign', 'update_ad_set',
-  'preflight_check', 'get_ad_preview', 'get_workflow_context', 'update_workflow_context', 'load_skill'
-);
-
-export { adTools, ss1Tools, ss3Tools, ss4Tools };
+export { adTools, analystTools, audienceTools, creativeTools, executorTools, technicalTools };

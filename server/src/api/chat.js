@@ -133,7 +133,17 @@ function toolCallLabel(name, args) {
     load_skill:              () => `Loading skill "${args.skill_name || ''}"`,
     get_workflow_context:    () => 'Reading workflow state',
     update_workflow_context: () => 'Saving progress',
-    transfer_to_agent:       () => `Moving to ${args.agent_name || 'next step'}`,
+    transfer_to_agent:       () => {
+      const labels = {
+        analyst: 'Analyzing performance...',
+        audience_strategist: 'Reviewing audiences...',
+        creative_strategist: 'Auditing creatives...',
+        executor: 'Setting up execution...',
+        technical_guard: 'Checking tracking health...',
+        ad_manager: 'Finishing up...',
+      };
+      return labels[args.agent_name] || `Moving to ${args.agent_name || 'next step'}`;
+    },
   };
   return (map[name] || (() => name.replace(/_/g, ' ')))();
 }
