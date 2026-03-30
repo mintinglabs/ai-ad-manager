@@ -230,8 +230,7 @@ export const Dashboard = ({
               onLogin={onLogin}
               selectedAccount={selectedAccount}
               selectedBusiness={selectedBusiness}
-              onSwitchAccount={onSwitchAccount}
-              onSwitchBusiness={onSwitchBusiness}
+              onSelectAccount={handleAccountSelect}
               onNavigate={(view) => {
                 const viewMap = { audiences: 'audiences', skills: 'skillsLibrary' };
                 setActiveView({ type: viewMap[view] || 'chat' });

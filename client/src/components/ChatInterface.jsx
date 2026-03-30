@@ -1772,7 +1772,7 @@ const TikTokIcon = () => (
   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 0010.86 4.46V13a8.28 8.28 0 005.58 2.17V11.7a4.84 4.84 0 01-3.77-1.81V6.69h3.77z"/></svg>
 );
 
-const AccountConnector = ({ token, onLogin, selectedAccount, selectedBusiness, onSwitchAccount, onSwitchBusiness }) => {
+const AccountConnector = ({ token, onLogin, selectedAccount, selectedBusiness, onSelectAccount }) => {
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState('platforms'); // 'platforms' | 'business' | 'accounts'
   const [activeBiz, setActiveBiz] = useState(null);
@@ -1808,8 +1808,7 @@ const AccountConnector = ({ token, onLogin, selectedAccount, selectedBusiness, o
   const handleBizClick = (biz) => { setActiveBiz(biz); setLevel('accounts'); };
 
   const handleAccClick = (account) => {
-    onSwitchBusiness?.(activeBiz);
-    onSwitchAccount?.(account);
+    onSelectAccount?.(activeBiz, account);
     setOpen(false);
     setLevel('platforms');
   };
@@ -1939,7 +1938,7 @@ const useSuggestedSkill = (input, skills, activeSkill, slashSkills) => {
   return null;
 };
 
-const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, attachments, onRemoveAttachment, fileRef, isTyping, handleFileUpload, isOver, activeSkill, onDeactivateSkill, skills = [], onSlashSelect, slashSkills = [], onRemoveSlashSkill, onClearAllSlash, onToggleSkill, onManageSkills, token, onLogin, selectedAccount, selectedBusiness, onSwitchAccount, onSwitchBusiness }) => {
+const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, attachments, onRemoveAttachment, fileRef, isTyping, handleFileUpload, isOver, activeSkill, onDeactivateSkill, skills = [], onSlashSelect, slashSkills = [], onRemoveSlashSkill, onClearAllSlash, onToggleSkill, onManageSkills, token, onLogin, selectedAccount, selectedBusiness, onSelectAccount }) => {
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   // Slash command detection — show picker when input starts with "/"
@@ -2049,7 +2048,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
             {skillsOpen && (
               <SkillsDropdown skills={skills} activeSkill={activeSkill} onToggleSkill={onToggleSkill} onManageSkills={onManageSkills} onClose={() => setSkillsOpen(false)} />
             )}
-            <AccountConnector token={token} onLogin={onLogin} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSwitchAccount={onSwitchAccount} onSwitchBusiness={onSwitchBusiness} />
+            <AccountConnector token={token} onLogin={onLogin} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => fileRef.current?.click()} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
@@ -2080,7 +2079,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
-export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = [], onSend, onStop, suggestedActions = [], adAccountId, onSaveItem, folders = [], activeSkill = null, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas, token, onLogin, selectedAccount, selectedBusiness, onSwitchAccount, onSwitchBusiness }) => {
+export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = [], onSend, onStop, suggestedActions = [], adAccountId, onSaveItem, folders = [], activeSkill = null, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas, token, onLogin, selectedAccount, selectedBusiness, onSelectAccount }) => {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState([]); // { id, file, preview, status, progress, result }
   const [isDragOver, setIsDragOver] = useState(false);
@@ -2404,7 +2403,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
               activeSkill={activeSkill} onDeactivateSkill={onDeactivateSkill}
               skills={skills} onSlashSelect={handleSlashSelect} slashSkills={slashSkills} onRemoveSlashSkill={handleRemoveSlashSkill} onClearAllSlash={() => setSlashSkills([])}
               onToggleSkill={onToggleSkill} onManageSkills={onManageSkills}
-              token={token} onLogin={onLogin} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSwitchAccount={onSwitchAccount} onSwitchBusiness={onSwitchBusiness}
+              token={token} onLogin={onLogin} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount}
             />
           </div>
 
