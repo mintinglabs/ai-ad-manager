@@ -1,22 +1,23 @@
 ---
 name: campaign-setup
-description: Campaign Strategy + Ad Set — Step 1 of 3. Detect path (Brief/Boost/Guided), collect only must-have inputs, show ONE review card, create campaign + ad set, transfer to creative_builder.
+description: Stage 1 (Strategy) + Stage 2 (Audience) — Collect campaign settings and targeting. NO Meta API calls — just collect info into workflow_context. Transfer to creative-assembly for Stage 3.
 layer: pipeline
 leads_to: [creative-assembly]
 ---
 
-# SS1 — Campaign Strategy & Ad Set (Step 1 of 3)
+# Campaign Setup — Stage 1 (Strategy) + Stage 2 (Audience)
 
 ## Golden Rules
 
-1. **Detect the path first** — do NOT show a wizard unless the user has no materials and no post to boost.
-2. **One review card per path** — never ask questions one by one. Batch everything into a single summary, then ask "yes to proceed".
-3. **Smart defaults** — never ask for anything in the table below.
-4. **Recovery** — if workflow already has `campaign_id` but no `adset_id`, skip to the ad-set step only.
+1. **3-stage UX** — Always show all 3 stages as `setupcard` blocks. Completed = `status:"done"`, current = `status:"active"`, future = `status:"pending"`.
+2. **NO API calls yet** — Do NOT create campaign/ad_set here. Just collect info into `workflow_context`. Execution happens in ad-launcher.
+3. **Smart defaults** — Pre-fill everything possible. User only confirms or edits.
+4. **No typing required** — Every choice uses `options`, `quickreplies`, or dropdown (`options` with `layout:"dropdown"`). Never ask the user to type free text.
+5. **Detect the path first** — Brief Mode (assets present), Boost Mode (post promotion), or Guided (nothing).
 
 ---
 
-## Smart Defaults (NEVER ask the user for these)
+## Smart Defaults (pre-fill, NEVER ask)
 
 | Field | Default |
 |---|---|
@@ -27,7 +28,7 @@ leads_to: [creative-assembly]
 | age_min / age_max | 18 / 65 |
 | Gender | All (omit genders field) |
 | Placements | Advantage+ (omit publisher_platforms) |
-| Pixel / UTM tracking | Skip entirely — user adds later in Ads Manager |
+| CTA | Based on objective (Sales→SHOP_NOW, Messages→WHATSAPP_MESSAGE, Leads→SIGN_UP, Traffic→LEARN_MORE) |
 
 ---
 
@@ -42,117 +43,114 @@ get_custom_audiences()
 get_saved_audiences()
 ```
 
-The audience calls fetch existing audiences so the user can pick one instead of always using broad targeting.
+Then detect path:
 
-Then detect the path:
+- Message has `[Uploaded image:` or `[Uploaded video:` tokens → **PATH A (Brief Mode)**
+- Message has "boost", "promote a post", "existing post" → **PATH B (Boost Mode)**
+- Otherwise → **PATH C (Guided)**
 
 ---
 
-## PATH A — Brief Mode (Drop + Brief)
+## STAGE 1: Strategy
 
-**Trigger:** User message contains `[Uploaded image:` or `[Uploaded video:` tokens AND workflow is empty (no `campaign_id`).
+### PATH A — Brief Mode (assets present)
 
-### A-1 — Parse brief from natural language + tokens
-
-Extract from the message:
+Parse from message:
 
 | Signal | Extract | Default if missing |
 |---|---|---|
-| Objective / campaign type | `OUTCOME_XXX` | `OUTCOME_SALES` |
-| Country / location | geo_locations countries | Ask in review card |
-| Daily budget | amount in dollars | Ask in review card |
-| Destination URL | link | None (omit if not present) |
-| CTA | call_to_action type | `SHOP_NOW` |
-| Gender | genders | all |
-| Age range | age_min / age_max | 18 / 65 |
-| Assets | uploaded_assets array | from tokens |
+| Objective | `OUTCOME_XXX` | `OUTCOME_SALES` |
+| Country | geo_locations | Ad account country |
+| Daily budget | amount | Account minimum × 2 |
+| Destination URL | link | None |
+| CTA | call_to_action type | Based on objective |
+| Assets | uploaded_assets array | From tokens |
 
-Parse each token:
-- `[Uploaded image: FILENAME, image_hash: HASH]` → `{ filename, type: "image", image_hash: HASH }`
-- `[Uploaded video: FILENAME, video_id: ID]` → `{ filename, type: "video", video_id: ID }`
+Parse tokens: `[Uploaded image: FILENAME, image_hash: HASH]` → `{ filename, type: "image", image_hash: HASH }`
 
-If country or budget is missing from the brief, add a single line below the review card: "Please also confirm: **Country** and **Daily budget**." Do NOT show a separate wizard step.
-
-### A-2 — Show ONE review card
+Show Stage 1 pre-filled with all 3 stages visible:
 
 ```setupcard
-{"phase":1,"title":"Campaign & Targeting","subtitle":"Review before creating","items":[
-  {"label":"Campaign","value":"[Objective] — [Date]","detail":"Will be created PAUSED","icon":"target","editable":true},
-  {"label":"Destination","value":"[WhatsApp / Website URL / Lead Form]","detail":"[URL or phone if applicable]","icon":"target","editable":true},
-  {"label":"Audience","value":"[Country] · Ages 18–65","detail":"Broad targeting · Advantage+ placements","icon":"sparkles","editable":true},
-  {"label":"Daily Budget","value":"[Amount + currency]/day","detail":"= [cents] cents","icon":"dollar","editable":true},
-  {"label":"Creatives","value":"[N] image(s)/video(s) ready","icon":"sparkles"},
-  {"label":"CTA","value":"[SHOP_NOW / WHATSAPP_MESSAGE / LEARN_MORE]","editable":true}
+{"phase":1,"status":"active","title":"Stage 1: Strategy","items":[
+  {"label":"Goal","value":"[Objective]","icon":"target","editable":true},
+  {"label":"Location","value":"[Country]","icon":"target","editable":true},
+  {"label":"Budget","value":"[Amount + currency]/day","icon":"dollar","editable":true},
+  {"label":"Page","value":"[Page Name]","icon":"shield","editable":true},
+  {"label":"CTA","value":"[CTA type]","icon":"sparkles","editable":true},
+  {"label":"Creatives","value":"[N] file(s) ready","icon":"sparkles"}
 ]}
 ```
 
-End with quick replies (NOT plain text):
+```setupcard
+{"phase":2,"status":"pending","title":"Stage 2: Audience","subtitle":"Complete Stage 1 first","items":[]}
+```
+
+```setupcard
+{"phase":3,"status":"pending","title":"Stage 3: Creative","subtitle":"[N] file(s) ready — will configure after audience","items":[]}
+```
 
 ```quickreplies
-["OK, proceed", "我想改預算", "我想改目標地區", "我想改 Audience"]
+["✅ Confirm Stage 1", "Change location", "Change budget", "Rebuild"]
 ```
 
-### A-3 — On "yes"
+### PATH B — Boost Mode
 
-Run in sequence:
-1. `create_campaign(name, objective, status: "PAUSED", special_ad_categories: [])` → save `campaign_id`
-2. `create_ad_set(campaign_id, name: "[Objective] Ad Set — [Date]", optimization_goal, billing_event: "IMPRESSIONS", bid_strategy: "LOWEST_COST_WITHOUT_CAP", daily_budget: [cents], status: "PAUSED", targeting: {"geo_locations":{"countries":["XX"]},"age_min":18,"age_max":65,"targeting_optimization":"none"})` → save `adset_id`
+Call `get_page_posts(page_id)` immediately.
 
-If page_id — use the only page, or the first page if multiple (user can change in Ads Manager).
+Show post picker as dropdown (many posts):
 
-3. `update_workflow_context({ data: { campaign_id, campaign_objective, optimization_goal, conversion_destination, adset_id, page_id, bulk_mode: true, uploaded_assets: [...] } })`
-4. Proceed to Phase 2 — Creative Assembly. Load `load_skill("creative-assembly")`.
-
----
-
-## PATH B — Post Boost (Existing Post)
-
-**Trigger:** User message contains "boost", "boost my post", "promote a post", "existing post", "promote this post", or similar.
-
-### B-1 — Fetch and show post picker + ask country+budget together
-
-Call `get_page_posts(page_id)` immediately (use the only page, or ask which page if 2+).
-
-Show posts as options:
 ```options
-{"title":"Which post do you want to boost?","options":[
-  {"id":"PAGE_ID_POST_ID","title":"Post preview…","description":"Posted [date]"}
+{"title":"Which post do you want to boost?","layout":"dropdown","options":[
+  {"id":"PAGEID_POSTID","title":"[Post text preview — 60 chars]","description":"Posted [date] · [likes] likes"},
+  ...
 ]}
 ```
 
-In the **same message** below the picker, add one line:
-> "Also: **Which country** should this reach, and what's your **daily budget**?"
-
-### B-2 — Show ONE review card (after user replies)
+After user picks post, show Stage 1 pre-filled:
 
 ```setupcard
-{"phase":1,"title":"Boost Setup","subtitle":"Review before boosting","items":[
-  {"label":"Post","value":"[Post preview — first 60 chars]","icon":"sparkles"},
-  {"label":"Objective","value":"Engagement (Boost)","icon":"target"},
-  {"label":"Audience","value":"[Country] · Ages 18–65 · Broad targeting","icon":"sparkles","editable":true},
-  {"label":"Daily Budget","value":"[Amount + currency]/day","icon":"dollar","editable":true},
+{"phase":1,"status":"active","title":"Stage 1: Boost Setup","items":[
+  {"label":"Post","value":"[Post preview — 60 chars]","icon":"sparkles"},
+  {"label":"Goal","value":"Engagement","icon":"target"},
+  {"label":"Location","value":"[Country]","icon":"target","editable":true},
+  {"label":"Budget","value":"[Amount + currency]/day","icon":"dollar","editable":true},
+  {"label":"Duration","value":"7 days","icon":"sparkles","editable":true},
   {"label":"Page","value":"[Page Name]","icon":"shield"}
 ]}
 ```
 
-```quickreplies
-["OK, proceed", "我想改預算", "我想改目標地區"]
+```setupcard
+{"phase":2,"status":"pending","title":"Stage 2: Audience","subtitle":"Complete Stage 1 first","items":[]}
 ```
 
-### B-3 — On "yes"
+```setupcard
+{"phase":3,"status":"pending","title":"Stage 3: Creative","subtitle":"Skipped — using existing post","items":[]}
+```
 
-1. `create_campaign(name: "Boost — [Date]", objective: "OUTCOME_ENGAGEMENT", status: "PAUSED", special_ad_categories: [])` → save `campaign_id`
-2. `create_ad_set(...)` with same smart defaults → save `adset_id`
-3. `update_workflow_context({ data: { campaign_id, campaign_objective: "OUTCOME_ENGAGEMENT", optimization_goal: "POST_ENGAGEMENT", adset_id, page_id, boost_mode: true, object_story_id: "[PAGE_ID_POST_ID]" } })`
-4. Proceed to Phase 2 — Creative Assembly. Load `load_skill("creative-assembly")`.
+```quickreplies
+["✅ Confirm Stage 1", "Change budget", "Change duration", "Rebuild"]
+```
 
----
+For duration edits:
+```quickreplies
+["3 days", "7 days", "14 days", "30 days"]
+```
 
-## PATH C — Guided (No Materials)
+### PATH C — Guided (no materials)
 
-**Trigger:** User says "create campaign", "create an ad", "run an ad", "launch an ad", "I want to advertise" — no images/videos attached, no boost intent.
+**First response** — show 3 stages + objective picker:
 
-### C-1 — Objective card (first message)
+```setupcard
+{"phase":1,"status":"active","title":"Stage 1: Strategy","subtitle":"Choose your campaign goal","items":[]}
+```
+
+```setupcard
+{"phase":2,"status":"pending","title":"Stage 2: Audience","subtitle":"Complete Stage 1 first","items":[]}
+```
+
+```setupcard
+{"phase":3,"status":"pending","title":"Stage 3: Creative","subtitle":"Complete Stage 2 first","items":[]}
+```
 
 ```options
 {"title":"What's your campaign goal?","options":[
@@ -160,75 +158,277 @@ In the **same message** below the picker, add one line:
   {"id":"OUTCOME_LEADS","title":"Leads","description":"Collect leads via forms, Messenger, or WhatsApp"},
   {"id":"OUTCOME_TRAFFIC","title":"Traffic","description":"Send people to your website or app"},
   {"id":"OUTCOME_AWARENESS","title":"Awareness","description":"Reach people likely to remember your ads"},
-  {"id":"OUTCOME_ENGAGEMENT","title":"Engagement","description":"More likes, comments, shares, or video views"},
-  {"id":"OUTCOME_APP_PROMOTION","title":"App Promotion","description":"Get more app installs or in-app actions"}
+  {"id":"OUTCOME_ENGAGEMENT","title":"Engagement","description":"More likes, comments, shares, or video views"}
 ]}
 ```
 
-### C-2 — ONE combined follow-up (after user picks objective)
+**After user picks objective** — propose COMPLETE Stage 1 with smart defaults.
 
-Ask all remaining must-haves in a single message. Example for Sales:
-
-> Got it — **Sales campaign**. A few quick details:
->
-> 1. **Where do people go?** Website URL, WhatsApp number, or Lead Form?
-> 2. **Which country** are you targeting?
-> 3. **Daily budget?** (e.g. HKD 200/day)
-
-Also show existing audiences if any were found in FIRST ACTIONS:
-
-```options
-{"title":"Audience (optional — default: Broad)","options":[
-  {"id":"broad","title":"Broad Targeting","description":"Ages 18–65, all interests · Recommended for new campaigns","tag":"Default"},
-  {"id":"AUDIENCE_ID_1","title":"[Custom audience name]","description":"[type] · [size if known]"},
-  {"id":"AUDIENCE_ID_2","title":"[Saved audience name]","description":"[targeting summary]"},
-  {"id":"new","title":"Build New Audience","description":"Create a custom or lookalike audience"}
-]}
+For Messages/Leads objectives, ask destination first:
+```quickreplies
+["WhatsApp", "Messenger", "Instagram DM"]
+```
+or for Leads:
+```quickreplies
+["WhatsApp", "Lead Form", "Website"]
 ```
 
-If no custom/saved audiences exist, skip the options card — just use broad targeting by default.
-If user picks "Build New Audience", save current progress to workflow_context and `transfer_to_agent("audience_strategist")`.
-
-For Awareness / Engagement: skip destination question (not required).
-For Traffic: ask URL + country + budget.
-For Leads: ask WhatsApp / Lead Form / Website + country + budget.
-
-If user picks **Website**: silently call `get_pixels()`. If a pixel exists, use it. If not, use `optimization_goal: "LINK_CLICKS"`.
-
-**SMART PARSING**: If the user answers all fields in one line (e.g. "WhatsApp, HK, HK$100"), parse ALL values and go straight to the review card. Do NOT ask follow-up questions for info already provided.
-
-### C-3 — ONE review card (MANDATORY — always show this)
-
-**CRITICAL: You MUST always render this `setupcard` block after collecting the required info. Never skip it. Never replace it with plain text.**
+Then show full Stage 1 with everything pre-filled:
 
 ```setupcard
-{"phase":1,"title":"Campaign & Targeting","subtitle":"Review before creating","items":[
-  {"label":"Campaign","value":"[Objective] — [Date]","detail":"Will be created PAUSED","icon":"target","editable":true},
-  {"label":"Destination","value":"[WhatsApp / Website URL / Lead Form]","detail":"[URL or phone if applicable]","icon":"target","editable":true},
-  {"label":"Audience","value":"[Country] · Ages 18–65","detail":"Broad targeting · Advantage+ placements","icon":"sparkles","editable":true},
-  {"label":"Daily Budget","value":"[Amount + currency]/day","icon":"dollar","editable":true},
+{"phase":1,"status":"active","title":"Stage 1: Strategy","items":[
+  {"label":"Goal","value":"[Objective] ([Destination])","icon":"target","editable":true},
+  {"label":"Location","value":"[Account country]","icon":"target","editable":true},
+  {"label":"Budget","value":"[Smart default + currency]/day","icon":"dollar","editable":true},
+  {"label":"Page","value":"[Page Name]","icon":"shield","editable":true},
+  {"label":"CTA","value":"[Auto CTA]","icon":"sparkles","editable":true}
+]}
+```
+
+```setupcard
+{"phase":2,"status":"pending","title":"Stage 2: Audience","subtitle":"Complete Stage 1 first","items":[]}
+```
+
+```setupcard
+{"phase":3,"status":"pending","title":"Stage 3: Creative","subtitle":"Complete Stage 2 first","items":[]}
+```
+
+```quickreplies
+["✅ Confirm Stage 1", "Change location", "Change budget", "Rebuild"]
+```
+
+**SMART PARSING**: If user provides multiple details in one message (e.g. "Sales campaign, WhatsApp, HK, $200/day"), parse ALL values and pre-fill everything. Go straight to the review card.
+
+### Handling Stage 1 Edits
+
+When user clicks edit or says "Change location":
+```quickreplies
+["Hong Kong", "Taiwan", "Singapore", "Malaysia", "United States", "United Kingdom", "Other..."]
+```
+
+When user says "Change budget":
+```quickreplies
+["HK$100/day", "HK$200/day", "HK$500/day", "HK$1,000/day", "Other..."]
+```
+
+Use the account's currency for budget quickreplies.
+
+After any edit, re-show the updated Stage 1 setupcard with the change applied.
+
+---
+
+## STAGE 1 → STAGE 2 TRANSITION
+
+When user confirms Stage 1 ("✅ Confirm Stage 1" or similar affirmation):
+
+Save Stage 1 data to workflow context:
+```
+update_workflow_context({ data: {
+  creation_stage: "stage2",
+  campaign_objective: "[OUTCOME_XXX]",
+  optimization_goal: "[goal]",
+  conversion_destination: "[destination]",
+  country: "[XX]",
+  daily_budget_cents: [amount in cents],
+  page_id: "[page_id]",
+  cta_type: "[CTA]",
+  campaign_name: "[Objective] — [Today's Date]",
+  // PATH A only:
+  bulk_mode: true/false,
+  uploaded_assets: [...],
+  // PATH B only:
+  boost_mode: true/false,
+  object_story_id: "[PAGEID_POSTID]",
+  boost_duration_days: 7
+}})
+```
+
+Then proceed to Stage 2 (Audience) below.
+
+---
+
+## STAGE 2: Audience
+
+Show all 3 stages with Stage 1 done:
+
+```setupcard
+{"phase":1,"status":"done","collapsed":true,"title":"Stage 1: Strategy ✅","subtitle":"[Objective] · [Destination] · [Country] · [Budget]/day","items":[
+  {"label":"Goal","value":"[Objective] ([Destination])","icon":"target"},
+  {"label":"Location","value":"[Country]","icon":"target"},
+  {"label":"Budget","value":"[Amount + currency]/day","icon":"dollar"},
   {"label":"Page","value":"[Page Name]","icon":"shield"}
 ]}
 ```
 
-```quickreplies
-["OK, proceed", "我想改預算", "我想改目標地區", "我想揀 Audience"]
+```setupcard
+{"phase":2,"status":"active","title":"Stage 2: Audience","subtitle":"Choose your targeting strategy","items":[]}
 ```
 
-### C-4 — On "yes" / "OK, proceed"
+```setupcard
+{"phase":3,"status":"pending","title":"Stage 3: Creative","subtitle":"Complete Stage 2 first","items":[]}
+```
 
-1. `create_campaign(...)` → save `campaign_id`
-2. `create_ad_set(...)` with smart defaults + pixel_id if website destination → save `adset_id`
-3. `update_workflow_context({ data: { campaign_id, campaign_objective, optimization_goal, conversion_destination, adset_id, page_id, whatsapp_phone_number: "[if WhatsApp]", pixel_id: "[if website+pixel]" } })`
-4. Proceed to Phase 2 — Creative Assembly. Load `load_skill("creative-assembly")`.
+Then show audience options. Build the options dynamically based on what audiences exist in the account:
+
+**If saved/custom audiences exist:**
+
+```options
+{"title":"How would you like to target?","options":[
+  {"id":"broad","title":"Broad (Advantage+)","description":"Let Meta AI find your best customers — recommended for new campaigns","tag":"Recommended"},
+  {"id":"saved","title":"Use Saved Audience","description":"Pick from your [N] existing audiences"},
+  {"id":"custom","title":"Build Custom Targeting","description":"Define interests, demographics, behaviors with AI help"},
+  {"id":"lookalike","title":"Lookalike Audience","description":"Find people similar to your existing customers"}
+]}
+```
+
+**If NO saved/custom audiences exist:**
+
+```options
+{"title":"How would you like to target?","options":[
+  {"id":"broad","title":"Broad (Advantage+)","description":"Let Meta AI find your best customers — recommended for new campaigns","tag":"Recommended"},
+  {"id":"custom","title":"Build Custom Targeting","description":"Define interests, demographics, behaviors with AI help"},
+  {"id":"lookalike","title":"Lookalike Audience","description":"Find people similar to your existing customers"}
+]}
+```
+
+### Audience Sub-flow: Broad
+
+User picks "Broad":
+
+```setupcard
+{"phase":2,"status":"active","title":"Stage 2: Audience","items":[
+  {"label":"Strategy","value":"Broad (Advantage+)","icon":"sparkles"},
+  {"label":"Age Range","value":"18–65","icon":"target"},
+  {"label":"Placements","value":"Advantage+ (all platforms)","icon":"target"}
+]}
+```
+
+```quickreplies
+["✅ Confirm Stage 2", "Change strategy", "Rebuild"]
+```
+
+### Audience Sub-flow: Saved Audience
+
+User picks "Use Saved Audience":
+
+Show existing audiences as a searchable dropdown:
+
+```options
+{"title":"Select an audience","layout":"dropdown","options":[
+  {"id":"AUDIENCE_ID_1","title":"[Custom audience name]","description":"[type] · ~[size] people · Updated [date]"},
+  {"id":"AUDIENCE_ID_2","title":"[Saved audience name]","description":"[targeting summary]"},
+  ...
+]}
+```
+
+After user picks:
+
+```setupcard
+{"phase":2,"status":"active","title":"Stage 2: Audience","items":[
+  {"label":"Audience","value":"[Audience name]","icon":"sparkles"},
+  {"label":"Type","value":"[Custom / Saved / Lookalike]","icon":"target"},
+  {"label":"Size","value":"~[N] people","icon":"target"}
+]}
+```
+
+```quickreplies
+["✅ Confirm Stage 2", "Choose different audience", "Rebuild"]
+```
+
+### Audience Sub-flow: Build Custom
+
+User picks "Build Custom":
+
+Transfer to audience_strategist: `transfer_to_agent("audience_strategist")`
+
+Before transferring, save current progress:
+```
+update_workflow_context({ data: { ...current, creation_stage: "stage2_custom_audience" } })
+```
+
+The audience_strategist will:
+1. Ask user to describe their ideal customer (via quickreplies)
+2. Call `targeting_search()` + `targeting_suggestions()`
+3. Build targeting spec
+4. Save to workflow_context: `{ targeting_spec: {...}, audience_description: "..." }`
+5. Transfer back to executor
+
+When executor receives control back, read workflow_context for the targeting spec and show:
+
+```setupcard
+{"phase":2,"status":"active","title":"Stage 2: Audience","items":[
+  {"label":"Targeting","value":"[Summary — e.g. Women 25-40, Beauty & Skincare]","icon":"sparkles"},
+  {"label":"Interests","value":"[Interest list]","icon":"target"},
+  {"label":"Est. Reach","value":"~[N] people","icon":"target"}
+]}
+```
+
+```quickreplies
+["✅ Confirm Stage 2", "Adjust targeting", "Use Broad instead", "Rebuild"]
+```
+
+### Audience Sub-flow: Lookalike
+
+User picks "Lookalike":
+
+Show source audiences as dropdown:
+
+```options
+{"title":"Select source audience","layout":"dropdown","options":[
+  {"id":"AUD_1","title":"[Custom audience name]","description":"[type] · ~[size] people"},
+  ...
+]}
+```
+
+After source selected, ask percentage:
+
+```quickreplies
+["1% — Most similar", "3% — Balanced", "5% — Broader", "10% — Widest"]
+```
+
+After percentage selected, call `create_lookalike_audience(source_audience_id, country, percentage)`.
+
+```setupcard
+{"phase":2,"status":"active","title":"Stage 2: Audience","items":[
+  {"label":"Type","value":"Lookalike","icon":"sparkles"},
+  {"label":"Source","value":"[Source audience name]","icon":"target"},
+  {"label":"Percentage","value":"[X]%","icon":"target"},
+  {"label":"Est. Size","value":"~[N] people","icon":"target"}
+]}
+```
+
+```quickreplies
+["✅ Confirm Stage 2", "Change percentage", "Rebuild"]
+```
 
 ---
 
-## Recovery Rule
+## STAGE 2 → STAGE 3 TRANSITION
 
-If `get_workflow_context()` shows `campaign_id` but no `adset_id`:
-→ Skip PATH detection. Skip campaign creation. Go directly to creating the ad set.
-→ Ask only: "Which country and what daily budget?" → show review card → create_ad_set → transfer.
+When user confirms Stage 2:
+
+Update workflow context:
+```
+update_workflow_context({ data: {
+  ...current,
+  creation_stage: "stage3",
+  audience_type: "broad" | "saved" | "custom" | "lookalike",
+  // For saved:
+  audience_id: "[ID]",
+  // For custom:
+  targeting_spec: { interests: [...], demographics: {...} },
+  // For lookalike:
+  lookalike_audience_id: "[ID]",
+  lookalike_source_id: "[ID]",
+  lookalike_percentage: 1
+}})
+```
+
+Then transfer to creative-assembly for Stage 3:
+
+```
+load_skill("creative-assembly")
+```
 
 ---
 
@@ -237,25 +437,17 @@ If `get_workflow_context()` shows `campaign_id` but no `adset_id`:
 | Destination | optimization_goal |
 |---|---|
 | Website (purchase) | `OFFSITE_CONVERSIONS` |
-| Website (lead) | `OFFSITE_CONVERSIONS` |
 | Website (traffic) | `LINK_CLICKS` |
-| WhatsApp / Messenger / Instagram DM | `CONVERSATIONS` |
+| WhatsApp / Messenger / IG DM | `CONVERSATIONS` |
 | Lead Form | `LEAD_GENERATION` |
-| Phone Calls | `CALL` |
 | App | `APP_INSTALLS` |
 | Post Boost | `POST_ENGAGEMENT` |
 
 ---
 
-## Targeting spec — Broad (default)
+## Recovery Rule
 
-```json
-{
-  "geo_locations": {"countries": ["HK"]},
-  "age_min": 18,
-  "age_max": 65,
-  "targeting_optimization": "none"
-}
-```
-
-Budget is always in **CENTS**: $200/day = 20000.
+If `get_workflow_context()` already has data:
+- `creation_stage: "stage2"` → Skip Stage 1, go to Stage 2
+- `creation_stage: "stage3"` → Skip Stage 1+2, transfer to creative-assembly
+- `campaign_id` exists but no `adset_id` → Something was partially created in a previous session. Show recovery options.

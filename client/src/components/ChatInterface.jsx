@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, Square, Paperclip, CheckCircle2, XCircle, ArrowUpRight, BarChart3, Target, TrendingDown, Search, FileText, DollarSign, AlertTriangle, Zap, X, Upload, Image, Film, TrendingUp, ChevronRight, Shield, Sparkles, Download, Bookmark, LayoutGrid, ChevronDown } from 'lucide-react';
-import { CreationWizard } from './CreationWizard';
+// CreationWizard removed — campaign creation now happens in chat via agent structured blocks
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -430,6 +430,8 @@ const badgeLabel = (opt) => {
 };
 
 const OptionCards = ({ data, onSend, isAnswered, selectedTitle }) => {
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [dropdownSearch, setDropdownSearch] = useState('');
   if (!data?.options) return null;
 
   // Collapsed state: show a single chip with the selected option
@@ -443,8 +445,60 @@ const OptionCards = ({ data, onSend, isAnswered, selectedTitle }) => {
     );
   }
 
+  // Dropdown layout — for long lists (audiences, videos, posts)
+  if (data.layout === 'dropdown') {
+    const filtered = data.options.filter(opt =>
+      !dropdownSearch || opt.title.toLowerCase().includes(dropdownSearch.toLowerCase())
+      || (opt.description || '').toLowerCase().includes(dropdownSearch.toLowerCase())
+    );
+    return (
+      <MetaCard title={data.title || 'Select an option'} subtitle={data.subtitle || null}>
+        <div className="px-4 py-3">
+          {/* Dropdown trigger */}
+          <button onClick={() => setDropdownOpen(v => !v)}
+            className="w-full flex items-center justify-between px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg hover:border-blue-300 transition-colors text-left">
+            <span className="text-[13px] text-slate-500">Select...</span>
+            <ChevronDown size={14} className={`text-slate-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Dropdown list */}
+          {dropdownOpen && (
+            <div className="mt-1.5 border border-slate-200 rounded-lg bg-white shadow-lg max-h-64 overflow-hidden flex flex-col">
+              {/* Search input */}
+              {data.options.length > 5 && (
+                <div className="px-3 py-2 border-b border-slate-100">
+                  <input type="text" value={dropdownSearch} onChange={(e) => setDropdownSearch(e.target.value)}
+                    placeholder="Search..." autoFocus
+                    className="w-full text-[13px] text-slate-700 outline-none placeholder:text-slate-400" />
+                </div>
+              )}
+              <div className="overflow-y-auto">
+                {filtered.length === 0 && (
+                  <p className="px-4 py-3 text-[12px] text-slate-400">No matches found</p>
+                )}
+                {filtered.map((opt, i) => {
+                  const desc = opt.description || opt.desc;
+                  return (
+                    <button key={i} onClick={() => { setDropdownOpen(false); setDropdownSearch(''); onSend?.(`I choose: ${opt.title}`); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-medium text-slate-800">{opt.title}</p>
+                        {desc && <p className="text-[11px] text-slate-400 mt-0.5 truncate">{desc}</p>}
+                      </div>
+                      {opt.tag && <span className="text-[9px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full shrink-0">{opt.tag}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </MetaCard>
+    );
+  }
+
   const count = data.options.length;
-  // 1–3 short options: 3-col grid. 4+ options: full-width list (more readable for campaign creation steps)
+  // 1–3 short options: 3-col grid. 4+ options: full-width list
   const useGrid = count <= 3;
 
   return (
@@ -616,50 +670,64 @@ const CopyVariations = ({ data, onSend }) => {
 
 // ── Setup Card (campaign/ad set review — collapsible phase card) ─────────────
 const SetupCard = ({ data, onSend }) => {
-  const [collapsed, setCollapsed] = useState(false);
-  if (!data?.items) return null;
+  const status = data.status || 'active'; // "done" | "active" | "pending"
+  const [collapsed, setCollapsed] = useState(data.collapsed ?? (status === 'done' || status === 'pending'));
+  if (!data?.items?.length && !data.subtitle && status !== 'pending') return null;
   const phase = data.phase || 1;
-  const phaseLabels = { 1: 'Campaign & Targeting', 2: 'Creative', 3: 'Review & Launch' };
-  const phaseColors = { 1: 'blue', 2: 'purple', 3: 'emerald' };
-  const color = phaseColors[phase] || 'blue';
+
+  // Status-driven styling
+  const statusStyles = {
+    done:    { border: 'border-emerald-200', bg: 'bg-emerald-50/30', headerBg: 'hover:bg-emerald-50/50', badge: 'border-emerald-400 bg-emerald-50 text-emerald-600', badgeIcon: '✓', text: 'text-slate-700', chevron: 'text-emerald-400' },
+    active:  { border: 'border-blue-200', bg: 'bg-white', headerBg: 'hover:bg-blue-50/30', badge: 'border-blue-400 bg-blue-50 text-blue-600', badgeIcon: String(phase), text: 'text-slate-800', chevron: 'text-blue-400' },
+    pending: { border: 'border-slate-100', bg: 'bg-slate-50/50', headerBg: '', badge: 'border-slate-200 bg-slate-50 text-slate-400', badgeIcon: String(phase), text: 'text-slate-400', chevron: 'text-slate-300' },
+  };
+  const s = statusStyles[status] || statusStyles.active;
+
+  // Icon color based on status
+  const iconCls = status === 'pending' ? 'text-slate-300' : status === 'done' ? 'text-emerald-400' : 'text-slate-400';
+  const dotColor = status === 'pending' ? 'bg-slate-200' : status === 'done' ? 'bg-emerald-400' : 'bg-blue-400';
 
   return (
-    <div className="my-3 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+    <div className={`my-2 border rounded-xl overflow-hidden shadow-sm transition-all ${s.border} ${s.bg} ${status === 'pending' ? 'opacity-60' : ''}`}>
       {/* Phase header — clickable to collapse */}
-      <button onClick={() => setCollapsed(v => !v)}
-        className="w-full flex items-center justify-between px-4 py-3 border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+      <button onClick={() => status !== 'pending' && setCollapsed(v => !v)}
+        className={`w-full flex items-center justify-between px-4 py-2.5 transition-colors ${status === 'pending' ? 'cursor-default' : `cursor-pointer ${s.headerBg}`}
+          ${!collapsed && data.items?.length ? 'border-b border-slate-100' : ''}`}>
         <div className="flex items-center gap-2.5">
-          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border
-            ${collapsed ? `border-emerald-400 bg-emerald-50 text-emerald-600` : `border-${color}-400 bg-${color}-50 text-${color}-600`}`}>
-            {collapsed ? '✓' : phase}
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border ${s.badge}`}>
+            {s.badgeIcon}
           </div>
           <div className="text-left">
-            <p className="text-sm font-semibold text-slate-800">{data.title || phaseLabels[phase]}</p>
-            {data.subtitle && <p className="text-[11px] text-slate-400">{data.subtitle}</p>}
+            <p className={`text-[13px] font-semibold ${s.text}`}>{data.title || `Stage ${phase}`}</p>
+            {(collapsed || status === 'pending') && data.subtitle && (
+              <p className="text-[11px] text-slate-400">{data.subtitle}</p>
+            )}
           </div>
         </div>
-        <ChevronRight size={16} className={`text-slate-400 transition-transform ${collapsed ? '' : 'rotate-90'}`} />
+        {status !== 'pending' && (
+          <ChevronDown size={14} className={`${s.chevron} transition-transform ${collapsed ? '-rotate-90' : ''}`} />
+        )}
       </button>
 
       {/* Expandable settings rows */}
-      {!collapsed && (
+      {!collapsed && data.items?.length > 0 && (
         <div className="divide-y divide-slate-50">
           {data.items.map((item, i) => (
-            <div key={i} className="flex items-start gap-3 px-4 py-3 group">
+            <div key={i} className="flex items-start gap-3 px-4 py-2.5 group">
               <div className="w-5 flex items-center justify-center shrink-0 mt-0.5">
-                {item.icon === 'target' ? <Target size={14} className="text-slate-400" /> :
-                 item.icon === 'dollar' ? <DollarSign size={14} className="text-slate-400" /> :
-                 item.icon === 'shield' ? <Shield size={14} className="text-slate-400" /> :
-                 item.icon === 'sparkles' ? <Sparkles size={14} className="text-slate-400" /> :
-                 <div className={`w-1.5 h-1.5 rounded-full bg-${color}-400`} />}
+                {item.icon === 'target' ? <Target size={13} className={iconCls} /> :
+                 item.icon === 'dollar' ? <DollarSign size={13} className={iconCls} /> :
+                 item.icon === 'shield' ? <Shield size={13} className={iconCls} /> :
+                 item.icon === 'sparkles' ? <Sparkles size={13} className={iconCls} /> :
+                 <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">{item.label}</p>
-                <p className="text-[13px] font-semibold text-slate-800 mt-0.5">{item.value}</p>
+                <p className={`text-[10px] font-medium uppercase tracking-wide ${status === 'done' ? 'text-slate-400' : 'text-slate-400'}`}>{item.label}</p>
+                <p className={`text-[13px] font-semibold mt-0.5 ${status === 'done' ? 'text-slate-600' : 'text-slate-800'}`}>{item.value}</p>
                 {item.detail && <p className="text-[11px] text-slate-400 mt-0.5">{item.detail}</p>}
               </div>
-              {item.editable && (
-                <button onClick={() => onSend?.(`我想改${item.label}`)}
+              {item.editable && status === 'active' && (
+                <button onClick={(e) => { e.stopPropagation(); onSend?.(`I want to change ${item.label}`); }}
                   className="opacity-0 group-hover:opacity-100 text-[10px] text-blue-500 hover:text-blue-700 font-medium px-2 py-1 rounded-md hover:bg-blue-50 transition-all shrink-0">
                   Edit
                 </button>
@@ -1789,7 +1857,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
-export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, creationSummary = {}, activityLog = [], onSend, onStop, suggestedActions = [], adAccountId, onSaveItem, folders = [], activeSkill = null, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas, onStartCreation }) => {
+export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = [], onSend, onStop, suggestedActions = [], adAccountId, onSaveItem, folders = [], activeSkill = null, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas }) => {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState([]); // { id, file, preview, status, progress, result }
   const [isDragOver, setIsDragOver] = useState(false);
@@ -2002,15 +2070,6 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, 
       return;
     }
 
-    // Detect creation intent → show wizard instead of sending to agent
-    const isCreateIntent = /\b(create|launch|new|start)\b.*\b(campaign|ad|ads)\b/i.test(t)
-      || (/建立|新增|開/.test(t) && /廣告|campaign|ad/i.test(t));
-    if (onStartCreation && !creationStep && isCreateIntent) {
-      onStartCreation();
-      setInput('');
-      return;
-    }
-
     const doneAttachments = attachments.filter(a => a.status === 'done');
 
     if (!t && !doneAttachments.length) return;
@@ -2064,7 +2123,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, 
     setInput('');
     setAttachments([]);
     inputRef.current?.focus();
-  }, [input, isTyping, onSend, attachments, slashSkills, onStartCreation, creationStep]);
+  }, [input, isTyping, onSend, attachments, slashSkills]);
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
@@ -2104,25 +2163,8 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, 
         </div>
       )}
 
-      {/* ── Creation Wizard (renders above everything when active) ── */}
-      {creationStep && (
-        <CreationWizard
-          step={creationStep}
-          summary={creationSummary}
-          onSend={handleSend}
-          preUploadedFiles={attachments.filter(a => a.status === 'done' && (a.result?.image_hash || a.result?.video_id)).map(a => ({
-            name: a.file.name,
-            preview: a.preview,
-            type: a.file.type,
-            image_hash: a.result?.image_hash,
-            video_id: a.result?.video_id,
-          }))}
-          onUploadFiles={addFiles}
-        />
-      )}
-
-      {/* Empty State — hidden when wizard is active */}
-      {isEmptyState && !creationStep && (
+      {/* Empty State */}
+      {isEmptyState && (
         <div className="flex-1 flex flex-col px-8 overflow-y-auto">
           <div className="flex-[0_0_18%]" />
 
@@ -2144,26 +2186,14 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, 
 
           <div className="w-full max-w-3xl mx-auto grid grid-cols-2 lg:grid-cols-3 gap-3 mt-8 pb-8">
             {suggestedActions.map((action) => (
-              action.label === 'Create Campaign' ? (
-                <button key={action.label} onClick={() => onStartCreation?.()}
-                  className="flex flex-col bg-white border border-slate-200/80 rounded-2xl px-5 py-4 text-left hover:border-blue-200 hover:bg-blue-50/20 hover:shadow-md transition-all duration-200 group">
-                  <Zap size={28} className="text-blue-500" />
-                  <p className="text-[14px] font-bold text-slate-900 leading-snug mt-3">{action.label}</p>
-                  <p className="text-[12px] text-slate-400 leading-relaxed mt-1.5 flex-1">{action.desc}</p>
-                  <div className="flex items-center gap-1 mt-3 text-[11px] font-semibold text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                    Start <ArrowUpRight size={11} />
-                  </div>
-                </button>
-              ) : (
-                <ActionCard key={action.label} {...action} onSend={handleSend} disabled={isTyping} />
-              )
+              <ActionCard key={action.label} {...action} onSend={handleSend} disabled={isTyping} />
             ))}
           </div>
         </div>
       )}
 
       {/* Chat messages */}
-      {(!isEmptyState || creationStep) && (
+      {!isEmptyState && (
         <>
           <div className="flex-1 overflow-y-auto">
             <div className="max-w-3xl mx-auto px-4 pt-6 pb-2">

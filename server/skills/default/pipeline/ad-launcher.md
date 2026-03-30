@@ -1,19 +1,26 @@
 ---
 name: ad-launcher
-description: Review & Launch — Step 3 of 3. Review card (HARD STOP), create ad, silent preflight, preview, activate on "go live". No Pixel/UTM step. Max 2 user confirmations.
+description: Execution phase — All 3 stages confirmed. Show final review, create campaign + ad set + creative + ad, preflight, preview, activate. Max 2 user confirmations (review + go live).
 layer: pipeline
 depends_on: [creative-assembly]
 leads_to: []
 ---
 
-# SS4 — Ad Launcher (Step 3 of 3)
+# Ad Launcher — Execution Phase
+
+All 3 stages are complete. This phase:
+1. Shows final review card
+2. Creates campaign → ad set → creative → ad (all PAUSED)
+3. Runs preflight check
+4. Shows ad preview
+5. Activates on user confirmation
 
 ## Golden Rules
 
-1. **Max 2 user confirmations**: review card ("yes to create") + go live ("yes to activate").
-2. **No Pixel / UTM step** — skip entirely. User adds tracking in Ads Manager later.
-3. **Silent preflight** — if all checks pass, show nothing, just proceed to preview.
-4. **Never guess** — read all IDs from `get_workflow_context()`.
+1. **Max 2 user confirmations**: review ("yes to create") + go live ("yes to activate").
+2. **No Pixel / UTM step** — skip entirely.
+3. **Silent preflight** — if all checks pass, don't show anything, just proceed to preview.
+4. **Never guess IDs** — read everything from `get_workflow_context()`.
 
 ---
 
@@ -23,71 +30,189 @@ leads_to: []
 get_workflow_context()
 ```
 
-Detect mode from workflow state:
-- `creative_ids` array length ≥ 2 → **BULK LAUNCH MODE** (see section below)
-- Otherwise → **STANDARD FLOW** (below)
+Read ALL settings from workflow context:
+- `campaign_objective`, `optimization_goal`, `conversion_destination`
+- `country`, `daily_budget_cents`, `page_id`, `cta_type`, `campaign_name`
+- `audience_type`, `audience_id`, `targeting_spec`, `lookalike_audience_id`
+- `bulk_mode`, `uploaded_assets`, `boost_mode`, `object_story_id`
+- `ad_format`, `creative_specs`
+
+Detect mode:
+- `creative_specs` array length >= 2 → **BULK MODE**
+- `boost_mode: true` → **BOOST MODE**
+- Otherwise → **STANDARD MODE**
 
 ---
 
-## STANDARD FLOW
+## Step 1 — Final Review Card (HARD STOP)
 
-### Step 1 — Review Card (HARD STOP)
-
-Show all settings from workflow context. Ask for explicit confirmation before ANY create tool call.
+Show all 3 stages as done, plus a final review:
 
 ```setupcard
-{"phase":3,"title":"Final Review — Ready to Create?","subtitle":"All settings from Phase 1 & 2","items":[
+{"phase":1,"status":"done","collapsed":true,"title":"Stage 1: Strategy ✅","subtitle":"[Objective] · [Country] · [Budget]/day","items":[]}
+```
+
+```setupcard
+{"phase":2,"status":"done","collapsed":true,"title":"Stage 2: Audience ✅","subtitle":"[Audience summary]","items":[]}
+```
+
+```setupcard
+{"phase":3,"status":"done","collapsed":true,"title":"Stage 3: Creative ✅","subtitle":"[Format] · [N] creative(s)","items":[]}
+```
+
+Then show the full review:
+
+```setupcard
+{"phase":3,"title":"Final Review — Ready to Create?","subtitle":"Everything will be created PAUSED first","items":[
   {"label":"Campaign","value":"[Name] · [Objective]","detail":"Will be created PAUSED","icon":"target"},
   {"label":"Destination","value":"[WhatsApp / Website URL / Lead Form]","icon":"target"},
   {"label":"Page","value":"[Page Name]","icon":"shield"},
-  {"label":"Creative","value":"[Format] · [Asset name — NOT raw hash or ID]","icon":"sparkles"},
-  {"label":"Audience","value":"[Country] · Ages 18–65 · Broad targeting","icon":"sparkles"},
-  {"label":"Budget","value":"[AMOUNT + CURRENCY]/day","icon":"dollar"}
+  {"label":"Audience","value":"[Audience summary — Broad / audience name / targeting summary]","icon":"sparkles"},
+  {"label":"Budget","value":"[AMOUNT + CURRENCY]/day","icon":"dollar"},
+  {"label":"Creative","value":"[Format] · [N] creative(s) · [filename(s)]","icon":"sparkles"},
+  {"label":"Ad Copy","value":"[Selected headline — first 40 chars]","icon":"target"}
 ]}
 ```
 
-Ask: **"Should I create this ad?"**
+**"Should I create this ad?"**
 
-Do NOT call any create tool until user says yes / confirm / looks good / proceed.
+```quickreplies
+["✅ Yes, create it", "Cancel", "Rebuild"]
+```
+
+Do NOT call any create tool until user confirms.
 
 ---
 
-### Step 2 — Create Ad
+## Step 2 — Create Everything
+
+On user confirmation, execute in sequence:
+
+### 2a — Create Campaign
 
 ```
+create_campaign(
+  name: "[campaign_name]",
+  objective: "[campaign_objective]",
+  status: "PAUSED",
+  special_ad_categories: []
+)
+```
+→ Save `campaign_id`.
+
+### 2b — Create Ad Set
+
+Build targeting spec from workflow context:
+
+**Broad audience:**
+```json
+{
+  "geo_locations": {"countries": ["[country]"]},
+  "age_min": 18, "age_max": 65,
+  "targeting_optimization": "none"
+}
+```
+
+**Saved audience** — use `audience_id` directly in the ad set's `targeting` field.
+
+**Custom targeting** — use `targeting_spec` from workflow.
+
+**Lookalike** — use `lookalike_audience_id` in custom_audiences.
+
+```
+create_ad_set(
+  campaign_id: "[campaign_id]",
+  name: "[Objective] Ad Set — [Today's Date]",
+  optimization_goal: "[optimization_goal]",
+  billing_event: "IMPRESSIONS",
+  bid_strategy: "LOWEST_COST_WITHOUT_CAP",
+  daily_budget: [daily_budget_cents],
+  status: "PAUSED",
+  targeting: [built targeting object]
+)
+```
+→ Save `adset_id`.
+
+### 2c — Create Creative(s)
+
+For each entry in `creative_specs`:
+
+Build `object_story_spec` using the reference formats from creative-assembly.md.
+
+```
+create_ad_creative(
+  name: "[filename] Creative — [Today's Date]",
+  object_story_spec: [JSON string]
+)
+```
+→ Save `creative_id` (or `creative_ids` for bulk).
+
+**For Boost mode:** Use `object_story_id` directly:
+```json
+{"page_id": "[page_id]", "object_story_id": "[object_story_id]"}
+```
+
+Show progress inline:
+> ✅ Campaign created
+> ✅ Ad Set created
+> ✅ Creative created
+
+For video assets: call `get_ad_video_status(video_id)` first. If not ready, wait.
+
+### 2d — Create Ad(s)
+
+**Standard/Boost:**
+```
 create_ad(
-  adset_id: [from workflow],
+  adset_id: "[adset_id]",
   name: "[Campaign Name] — Ad",
-  creative_id: [from workflow],
+  creative_id: "[creative_id]",
   status: "PAUSED"
 )
 ```
 
+**Bulk:**
+```
+create_ads_bulk({ ads: creative_ids.map((id, i) => ({
+  adset_id: "[adset_id]",
+  name: "[Campaign Name] — Ad [i+1]",
+  creative_id: id,
+  status: "PAUSED"
+}))})
+```
+
+Show bulk result as table:
+| # | Creative | Status |
+|---|---|---|
+| 1 | [filename] | ✅ Created |
+| 2 | [filename] | ✅ Created |
+
+If any fail: "Creative [N] failed — continue without it or retry?"
+
 ---
 
-### Step 3 — Preflight (run immediately after create_ad, no user prompt)
+## Step 3 — Preflight (silent if clean)
 
 ```
-preflight_check(campaign_id: [from workflow])
+preflight_check(campaign_id: "[campaign_id]")
 ```
 
-- **All pass** → do NOT render a preflight block — proceed directly to preview (silent)
-- **Any FAIL** → HALT. Show failures as a `steps` block. Tell user what to fix and offer to route back.
-- **Warnings only** → brief inline note, ask to confirm before continuing.
+- **All pass** → Silent. Proceed to preview.
+- **FAIL** → HALT. Show failures as `steps` block. Tell user what to fix.
+- **Warnings only** → Brief inline note, ask to confirm.
 
 ---
 
-### Step 4 — Preview (run immediately after clean preflight)
+## Step 4 — Preview
 
 **Normal mode (real ad_id):**
 
 Call both in parallel:
 ```
-get_ad_preview(ad_id: [new ad_id], ad_format: "MOBILE_FEED_STANDARD")
-get_ad_preview(ad_id: [new ad_id], ad_format: "DESKTOP_FEED_STANDARD")
+get_ad_preview(ad_id: "[ad_id]", ad_format: "MOBILE_FEED_STANDARD")
+get_ad_preview(ad_id: "[ad_id]", ad_format: "DESKTOP_FEED_STANDARD")
 ```
 
-Output as:
 ```adpreview
 [
   {"format": "MOBILE_FEED_STANDARD", "html": "[body from first call]"},
@@ -95,142 +220,69 @@ Output as:
 ]
 ```
 
-**Dev mode fallback (ad_id starts with DEV_AD_):**
+**For bulk mode:** Preview first ad only, note "Showing preview for creative 1 of [N]."
 
-`get_ad_preview` will return `_dev_mode_fallback: true`. Instead of an iframe preview, build a local preview from the creative spec in workflow context:
+**Dev mode fallback** (ad_id starts with `DEV_AD_`):
 
-1. Get the image URL: call `get_ad_images()`, match by `image_hash` from the creative spec, use the `url` field
-2. Show a draft preview using a `setupcard`:
+Show draft preview as setupcard with image URL from `get_ad_images()`:
 
 ```setupcard
-{"phase":3,"title":"Ad Preview (Draft)","subtitle":"⚠️ Development Mode — 正式 Preview 需要 Live Mode","items":[
-  {"label":"Image","value":"[filename from uploaded_assets]","icon":"sparkles"},
-  {"label":"Headline","value":"[headline from chosen copy variation]","icon":"target"},
-  {"label":"Primary Text","value":"[full primary text]","icon":"target"},
-  {"label":"CTA","value":"[CTA type, e.g. WHATSAPP_MESSAGE]","icon":"target"},
-  {"label":"Destination","value":"[URL or WhatsApp number]","icon":"target"},
-  {"label":"Page","value":"[Page name]","icon":"shield"}
+{"phase":3,"title":"Ad Preview (Draft)","subtitle":"Development Mode — real preview available in Live Mode","items":[
+  {"label":"Image","value":"[filename]","icon":"sparkles"},
+  {"label":"Headline","value":"[headline]","icon":"target"},
+  {"label":"Primary Text","value":"[copy preview — first 60 chars]","icon":"target"},
+  {"label":"CTA","value":"[CTA type]","icon":"target"}
 ]}
 ```
 
-If image URL is available, also output the image as markdown: `![Ad Preview](IMAGE_URL)`
+---
 
-Ask: **"⚠️ App 仲係 Development Mode。Campaign 同 Ad Set 已經建立好。轉做 Live Mode 之後，Creative 同 Ad 就可以正式發佈。"**
+## Step 5 — Go Live
+
+Ask: **"Ready to go live?"**
 
 ```quickreplies
-["我知道了", "點樣轉 Live Mode？", "我想改 Ad Copy"]
+["🚀 Launch now", "Keep paused", "Edit something"]
 ```
+
+On "Launch now":
+
+```
+update_campaign(campaign_id: "[campaign_id]", status: "ACTIVE")
+update_ad_set(ad_set_id: "[adset_id]", status: "ACTIVE")
+update_ad(ad_id: "[ad_id]", status: "ACTIVE")
+```
+
+For bulk: activate all ads.
 
 ---
 
-### Step 5 — Activate (only after explicit "yes")
+## Step 6 — Handoff
+
+Update workflow and transfer back:
 
 ```
-update_campaign(campaign_id: "[from workflow]", status: "ACTIVE")
-update_ad_set(ad_set_id: "[adset_id from workflow]", status: "ACTIVE")
-update_ad(ad_id: "[from workflow]", status: "ACTIVE")
+update_workflow_context({ data: {
+  ad_id: "[id]",
+  ad_ids: [...],  // bulk
+  activation_status: "ACTIVE",
+  clear_task: true
+}})
 ```
 
----
+Transfer back to root: `transfer_to_agent("ad_manager")`
 
-### Step 6 — Handoff
-
-1. `update_workflow_context({ data: { ad_id: "[id]", activation_status: "ACTIVE", clear_task: true } })`
-2. Transfer back to root: `transfer_to_agent("ad_manager")`.
-
-Root agent delivers the final success summary and quick replies.
-
----
-
-## BULK LAUNCH MODE
-
-**Trigger:** `get_workflow_context()` returns `creative_ids` as an array with length ≥ 2.
-
-### BL-1 — Review Card (one card for all N ads)
-
-```setupcard
-{"phase":3,"title":"Bulk Launch — [N] Ads Ready","subtitle":"All ads will be created together","items":[
-  {"label":"Campaign","value":"[Name] · [Objective]","detail":"PAUSED until go live","icon":"target"},
-  {"label":"Ad Set","value":"[Country] · Ages 18–65 · [Budget]/day","icon":"sparkles"},
-  {"label":"Creatives","value":"[N] creatives ready","detail":"[comma list of filenames]","icon":"sparkles"},
-  {"label":"Format","value":"[IMAGE / VIDEO / mixed]","icon":"sparkles"},
-  {"label":"Status","value":"Will launch ACTIVE after confirmation","icon":"shield"}
-]}
-```
-
-Ask: **"Should I create all [N] ads and launch the campaign?"**
-
-Do NOT call any tool until user confirms.
-
-### BL-2 — On "yes" → create_ads_bulk
-
-```
-create_ads_bulk({ ads: creative_ids.map((id, i) => ({
-  adset_id: [adset_id from workflow],
-  name: "[Campaign Name] — Ad [i+1]",
-  creative_id: id,
-  status: "PAUSED"
-}))})
-```
-
-Show compact result:
-| # | Creative | Status |
-|---|---|---|
-| 1 | [filename] | ✅ Created |
-| 2 | [filename] | ❌ Failed — [error] |
-
-If any failed: "Continue without failed ads, or abort?"
-
-### BL-3 — Preflight (silent if clean)
-
-```
-preflight_check(campaign_id: [from workflow])
-```
-- All pass → silent, proceed to preview
-- Failures → show steps block, HALT
-- Warnings only → brief inline note, ask to confirm
-
-### BL-4 — Preview (first creative only)
-
-```
-get_ad_preview(ad_id: [ad_ids[0] from bulk result], ad_format: "MOBILE_FEED_STANDARD")
-```
-
-Render as `adpreview` block. Add: "Showing preview for creative 1 of [N]. All ads use the same format."
-
-Ask: **"✅ Pre-flight passed. Ready to go live? This will activate all [N] ads."**
-
-### BL-5 — Activate (only after explicit "yes")
-
-```
-update_campaign(campaign_id: [from workflow], status: "ACTIVE")
-update_ad_set(ad_set_id: [from workflow], status: "ACTIVE")
-```
-Then for each ad_id in the bulk result:
-```
-update_ad(ad_id: "[id]", status: "ACTIVE")
-```
-
-### BL-6 — Handoff
-
-1. `update_workflow_context({ data: { ad_ids: [...], activation_status: "ACTIVE", clear_task: true } })`
-2. Transfer back to root: `transfer_to_agent("ad_manager")`.
-
----
-
-## What ad_manager shows after handoff
-
-When `ad_manager` receives the transfer back from `ad_launcher`:
+Root agent shows success:
 
 ```metrics
 [
   {"label": "Campaign", "value": "[Name]", "trend": "up"},
   {"label": "Status", "value": "✅ Live", "trend": "up"},
   {"label": "Daily Budget", "value": "[Amount + Currency]"},
-  {"label": "Objective", "value": "[Objective]"}
+  {"label": "Ads", "value": "[N] active"}
 ]
 ```
 
 ```quickreplies
-["Check campaign status in 24h", "Create A/B test", "Save as template", "Build a retargeting audience"]
+["Check performance in 24h", "Create another campaign", "Build a retargeting audience"]
 ```

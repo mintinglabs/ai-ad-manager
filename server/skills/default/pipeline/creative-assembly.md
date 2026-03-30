@@ -1,19 +1,20 @@
 ---
 name: creative-assembly
-description: Creative Assembly — Step 2 of 3. Three paths: PATH A skips upload (assets already in context), PATH B is invisible boost creative, PATH C is guided upload+copy. Always auto-generates copy — never asks user to type manually.
+description: Stage 3 (Creative) — Collect creative materials and ad copy. For Brief/Bulk mode, assets are already uploaded. For Boost, skip entirely. For Guided, ask user to upload. Always auto-generate copy. Transfer to ad-launcher for execution.
 layer: pipeline
 depends_on: [campaign-setup]
 leads_to: [ad-launcher]
 ---
 
-# SS3 — Creative Builder (Step 2 of 3)
+# Creative Assembly — Stage 3 (Creative)
 
 ## Golden Rules
 
-1. **Check path first** — read `get_workflow_context()` before doing anything.
-2. **PATH B is invisible** — zero user messages for boost. Create creative immediately, transfer.
-3. **Never ask the user to type ad copy** — always auto-generate and let them pick.
-4. **Never re-ask** for IDs or settings already in workflow state.
+1. **Show all 3 stages** — Stage 1 & 2 as `status:"done"` collapsed, Stage 3 as `status:"active"`.
+2. **Never ask user to type ad copy** — Always auto-generate 3 variations and let user pick.
+3. **Analyze visuals before writing copy** — Call `analyze_creative_visual()` to understand what's in the image/video.
+4. **No API calls for campaign/ad_set** — Just collect creative info. Execution in ad-launcher.
+5. **PATH B (Boost) is instant** — Zero user interaction, skip straight to ad-launcher.
 
 ---
 
@@ -23,189 +24,188 @@ leads_to: [ad-launcher]
 get_workflow_context()
 ```
 
-Then detect path from workflow state:
+Detect path from workflow state:
+- `bulk_mode: true` AND `uploaded_assets` → **PATH A (Brief/Bulk)**
+- `boost_mode: true` → **PATH B (Boost)** — skip to ad-launcher immediately
+- Otherwise → **PATH C (Guided)**
 
 ---
 
-## PATH A — Brief Mode (bulk_mode: true)
+## Show 3-Stage Progress
 
-**Trigger:** `get_workflow_context()` returns `bulk_mode: true` AND `uploaded_assets` array with length ≥ 1.
+Every response in Stage 3 must show all 3 stages. Build Stage 1 and 2 summaries from workflow_context:
 
-### A-1 — Skip format selection and upload entirely
-
-Assets are already uploaded. Go straight to visual analysis.
-
-### A-1.5 — Analyze uploaded visuals (MANDATORY)
-
-Before writing ANY copy, you MUST understand what's in the uploaded images/videos:
-
-1. Call `get_ad_images()` to get image URLs for the uploaded hashes. Match `image_hash` from the uploaded tokens to the results — each image has a `url` field.
-2. For videos: construct the URL as `https://graph.facebook.com/VIDEO_ID/thumbnails` or use the video_id directly.
-3. Call `analyze_creative_visual(media_urls, context)` with the resolved URLs and campaign context (objective, destination, product/brand name).
-
-The tool reads:
-- For images: visual elements, mood, text overlays, brand signals, color palette
-- For videos: hook quality, pacing, audio cues, scene transitions
-
-**Use the analysis output to inform ALL copy variations.** The copy MUST reference what's visible in the image/video (e.g. if the image shows a neon-lit beauty clinic, the copy should reference beauty/skincare, not generic text).
-
-**NEVER generate copy based only on the filename.**
-
-### A-2 — Generate ALL copyvariations in ONE response
-
-For each asset in `uploaded_assets`, produce one `copyvariations` block.
-Use the **visual analysis results**, campaign objective, conversion_destination, and any product/brand context from the brief.
-
-**CRITICAL: Write FULL primary text (50-125 words).** This is the final draft the user approves — not a summary or tagline. Each variation should be a complete, publication-ready ad copy paragraph.
-
-Example output:
-
-```copyvariations
-{"label":"Creative 1 — dress_red.png","variations":[
-  {"id":"A","primary":"Full 50-125 word ad copy that references the visual elements from the image analysis. Include product benefits, emotional hooks, and end with a natural CTA. This is what will actually appear in the Facebook/Instagram ad.","headline":"Short Headline (max 40 chars)","cta":"SHOP_NOW"},
-  {"id":"B","primary":"Different angle — same visual references but different emotional tone or benefit focus. Still 50-125 words of complete, ready-to-publish copy.","headline":"Different Angle Headline","cta":"SHOP_NOW"},
-  {"id":"C","primary":"Third variation — perhaps more direct/urgency-driven. Reference specific visual elements the analysis found. Full paragraph.","headline":"Third Option Headline","cta":"SHOP_NOW"}
+```setupcard
+{"phase":1,"status":"done","collapsed":true,"title":"Stage 1: Strategy ✅","subtitle":"[Objective] · [Country] · [Budget]/day","items":[
+  {"label":"Goal","value":"[Objective] ([Destination])","icon":"target"},
+  {"label":"Location","value":"[Country]","icon":"target"},
+  {"label":"Budget","value":"[Budget]/day","icon":"dollar"}
 ]}
 ```
 
-(Repeat for each asset in one message.)
+```setupcard
+{"phase":2,"status":"done","collapsed":true,"title":"Stage 2: Audience ✅","subtitle":"[Audience type] · [Summary]","items":[
+  {"label":"Strategy","value":"[Broad / Saved audience name / Custom targeting / Lookalike]","icon":"sparkles"}
+]}
+```
 
-Then ask in one line: **"Which variation for each creative? Reply e.g. '1,2,1' or 'all A'."**
+```setupcard
+{"phase":3,"status":"active","title":"Stage 3: Creative","subtitle":"[Current step]","items":[...]}
+```
 
-### A-3 — Parse user selection
+---
+
+## PATH A — Brief/Bulk Mode (assets pre-uploaded)
+
+Assets are already uploaded (`uploaded_assets` in workflow context). Skip upload entirely.
+
+### A-1 — Multi-image format choice
+
+If `uploaded_assets.length >= 2`:
+
+```options
+{"title":"I see [N] images. How should I use them?","options":[
+  {"id":"carousel","title":"Carousel Ad","description":"1 ad with [N] scrollable cards — great for showcasing multiple products"},
+  {"id":"separate","title":"[N] Separate Ads","description":"A/B test which image performs best"}
+]}
+```
+
+If only 1 asset, skip this step.
+
+### A-2 — Visual analysis + copy generation
+
+Call `get_ad_images()` to get image URLs by `image_hash`. For videos, use video_id.
+
+Call `analyze_creative_visual(media_urls, context)` with the resolved URLs and campaign context (objective, destination, product/brand).
+
+**CRITICAL: Use the visual analysis to write copy.** Copy MUST reference what's in the image (e.g. if image shows a beauty product, copy must be about beauty, not generic).
+
+### A-3 — Generate copyvariations
+
+For each asset (or for the carousel), produce a `copyvariations` block.
+
+**Write FULL primary text (50–125 words per variation).** Not a tagline — this is the final ad copy.
+
+```copyvariations
+{"label":"Creative 1 — [filename]","variations":[
+  {"id":"A","primary":"Full 50-125 word ad copy referencing visual analysis...","headline":"Headline (max 40 chars)","cta":"[CTA from workflow]"},
+  {"id":"B","primary":"Different angle or tone...","headline":"Alt Headline","cta":"[CTA]"},
+  {"id":"C","primary":"Third variation...","headline":"Third Headline","cta":"[CTA]"}
+]}
+```
+
+Update Stage 3 card:
+
+```setupcard
+{"phase":3,"status":"active","title":"Stage 3: Creative","items":[
+  {"label":"Creatives","value":"[N] image(s) ready ✓","icon":"sparkles"},
+  {"label":"Ad Copy","value":"Pick a variation below","icon":"target"}
+]}
+```
+
+Ask: **"Which variation for each creative? Reply e.g. 'A, B, A' or 'all A'."**
+
+```quickreplies
+["Use A for all", "Use B for all", "Use C for all"]
+```
+
+### A-4 — Parse selection
 
 | Reply | Meaning |
 |---|---|
-| `1,2,1` or `A,B,A` | Per-creative choice (1=A, 2=B, 3=C) |
-| `all A` or `all 1` | Same variation for every creative |
-| Single digit or letter | Same variation for every creative |
-
-### A-4 — Create creatives in sequence
-
-For each asset with the chosen variation:
-```
-create_ad_creative(
-  name: "[filename] Creative [i+1] — [Today's Date]",
-  object_story_spec: [built from image_hash or video_id, page_id, chosen copy, CTA]
-)
-```
-
-Show compact inline status:
-> ✅ Creative 1 created — dress_red.png
-> ❌ Creative 2 failed — [error message]
-
-If one fails: continue with remaining. At end ask: "Creative [N] failed — continue without it or retry?"
-
-For video assets: call `get_ad_video_status(video_id)` first. If not ready, create image creatives first, then revisit video once status = "ready".
+| `A,B,A` or `1,2,1` | Per-creative choice |
+| `all A` or `all 1` | Same for all |
+| Single letter/digit | Same for all |
 
 ### A-5 — Save and transfer
 
 ```
 update_workflow_context({ data: {
-  creative_ids: ["ID1","ID2",...],
-  creative_id: "ID1",
-  creative_names: ["filename — Creative 1", ...],
-  ad_format: "IMAGE",
-  bulk_mode: true
+  ...current,
+  creation_stage: "execution",
+  ad_format: "IMAGE" | "VIDEO" | "CAROUSEL",
+  creative_specs: [
+    { asset_index: 0, variation: "A", primary_text: "...", headline: "...", cta: "..." },
+    ...
+  ]
 }})
 ```
 
-Proceed to Phase 3 — Review & Launch. Load `load_skill("ad-launcher")`.
+Transfer to ad-launcher: `load_skill("ad-launcher")`
 
 ---
 
-## PATH B — Post Boost (boost_mode: true)
+## PATH B — Boost Mode (zero interaction)
 
-**Trigger:** `get_workflow_context()` returns `boost_mode: true` AND `object_story_id` is set.
+Boost mode uses the existing post as creative. Nothing to configure.
 
-### B-1 — Zero user interaction
-
-Do NOT show any message to the user. Immediately:
+Immediately transfer to ad-launcher:
 
 ```
-create_ad_creative(
-  name: "Boost Creative — [Today's Date]",
-  object_story_spec: {
-    "page_id": "[page_id from workflow]",
-    "object_story_id": "[object_story_id from workflow]"
-  }
-)
+update_workflow_context({ data: { ...current, creation_stage: "execution", ad_format: "EXISTING_POST" } })
 ```
 
-### B-2 — Save and transfer immediately
-
-```
-update_workflow_context({ data: { creative_id: "[id]", ad_format: "EXISTING_POST" } })
-```
-
-Proceed to Phase 3 — Review & Launch. Load `load_skill("ad-launcher")`.
+`load_skill("ad-launcher")`
 
 ---
 
-## PATH C — Guided (standard creation)
-
-**Trigger:** No `bulk_mode` and no `boost_mode` in workflow state.
+## PATH C — Guided (no materials)
 
 ### C-1 — Format selection
+
+```setupcard
+{"phase":3,"status":"active","title":"Stage 3: Creative","subtitle":"Choose your ad format","items":[]}
+```
 
 ```options
 {"title":"Choose your ad format","options":[
   {"id":"IMAGE","title":"Single Image","description":"One static image — best for simple, clear messaging"},
   {"id":"VIDEO","title":"Single Video","description":"Video ad — best for storytelling and engagement"},
-  {"id":"CAROUSEL","title":"Carousel","description":"2–10 scrollable cards — best for showcasing multiple products"},
+  {"id":"CAROUSEL","title":"Carousel","description":"2–10 scrollable cards — showcase multiple products"},
   {"id":"EXISTING_POST","title":"Boost Existing Post","description":"Promote a post already on your Page"}
 ]}
 ```
 
-### C-2 — Media upload
+If user picks EXISTING_POST, switch to boost mode: fetch posts, let user pick, then update workflow as boost_mode and transfer to ad-launcher.
 
-**IMAGE:**
-Upload image → `upload_ad_image()` → returns `image_hash`. Show filename to user, NOT the raw hash.
+### C-2 — Upload prompt
 
-Or offer: "Choose from existing library" → `get_ad_images()`.
-
-Specs: 1080×1080 (1:1) for Feed, 1080×1920 (9:16) for Stories/Reels. Max 30MB. JPG or PNG.
-
-**VIDEO:**
-Upload file (MP4/MOV) or paste URL → `upload_ad_video()`.
-After upload, immediately call `get_ad_video_status(video_id)`.
-- If "ready" → proceed.
-- If NOT ready → "Video is processing, I'll check again shortly." Poll until ready. Offer re-upload after 10 min.
-Do NOT proceed until video status = "ready".
-
-Or offer: "Choose from existing videos" → `get_ad_videos()`.
-
-**CAROUSEL:**
-Collect 2–10 cards. For each card: image upload + headline (max 40 chars) + destination URL.
-
-**EXISTING_POST:**
-`get_page_posts(page_id)` → show posts as options:
-```options
-{"title":"Which post do you want to promote?","options":[
-  {"id":"PAGE_ID_POST_ID","title":"Post preview…","description":"Posted [date]"}
-]}
-```
-Use `"pageId_postId"` as `object_story_id`. Skip copy generation — post has its own content.
-
-### C-3 — Auto-generate copy (IMAGE and VIDEO only)
-
-**Immediately** after media is ready — do NOT wait to be asked:
-
-First, call `analyze_creative_visual(media_urls, context)` on the uploaded media to understand what's in the image/video. Then generate 3 variations using the **visual analysis results**, campaign objective, conversion_destination, and any product/brand context.
-
-**Write FULL primary text (50-125 words per variation).** This is the final draft — not a summary.
-
-```copyvariations
-{"label":"Ad Copy Options","variations":[
-  {"id":"A","primary":"Full 50-125 word ad copy referencing the visual analysis results...","headline":"Headline (max 40 chars)","cta":"SHOP_NOW"},
-  {"id":"B","primary":"Different angle, different tone...","headline":"Alt Headline","cta":"SHOP_NOW"},
-  {"id":"C","primary":"Third option...","headline":"Third Headline","cta":"SHOP_NOW"}
+```setupcard
+{"phase":3,"status":"active","title":"Stage 3: Creative","items":[
+  {"label":"Format","value":"[Selected format]","icon":"sparkles"},
+  {"label":"Upload","value":"Drop your [image/video] below ↓","icon":"target"}
 ]}
 ```
 
-Ask: "Which variation? You can also reply with edits."
+```quickreplies
+["Browse existing images", "Browse existing videos"]
+```
 
-**Language:** HK → Traditional Chinese/Cantonese. TW → Traditional Chinese. CN → Simplified Chinese.
+For "Browse existing images": call `get_ad_images()` → show as dropdown.
+For "Browse existing videos": call `get_ad_videos()` → show as dropdown.
+
+Specs reminder (only if needed):
+- Image: 1080×1080 (1:1) Feed, 1080×1920 (9:16) Stories. Max 30MB. JPG/PNG.
+- Video: MP4/MOV. Max 4GB.
+- Carousel: 2–10 images, each with headline + URL.
+
+### C-3 — After upload received
+
+User uploads file → frontend sends message with `[Uploaded image: FILENAME, image_hash: HASH]` or `[Uploaded video: FILENAME, video_id: ID]`.
+
+For video: call `get_ad_video_status(video_id)`. If not "ready", show "Video processing..." and poll.
+
+For carousel: keep asking for more images until user has 2–10, then proceed.
+
+### C-4 — Visual analysis + copy generation (same as A-2/A-3)
+
+Analyze uploaded visual → generate 3 copyvariations → user picks.
+
+**Language rules:**
+- HK → Traditional Chinese / Cantonese
+- TW → Traditional Chinese
+- CN → Simplified Chinese
+- Otherwise → English
 
 **Tone by industry:**
 | Industry | Tone |
@@ -214,91 +214,61 @@ Ask: "Which variation? You can also reply with edits."
 | F&B / Food | Sensory, cravings-focused, urgency |
 | Healthcare / Wellness | Trust-building, benefit-focused |
 | Tech / SaaS | Feature-driven, problem-solving |
-| Finance / Insurance / Real Estate | Authority, ROI-focused |
 | Retail / E-commerce | Offer-led, urgency, social proof |
-| Footwear / Sportswear | Performance-driven, aspirational |
 
-For WhatsApp/Messenger: copy must invite conversation. End with soft CTA (e.g. "Send us a message to find out more").
+For WhatsApp/Messenger destination: copy must invite conversation. End with soft CTA.
 
-### C-4 — Create creative
+### C-5 — Save and transfer (same as A-5)
 
+Save creative_specs to workflow_context, transfer to ad-launcher.
+
+---
+
+## Stage 3 Confirmation
+
+After user picks copy variation(s), show final Stage 3 summary:
+
+```setupcard
+{"phase":3,"status":"active","title":"Stage 3: Creative","items":[
+  {"label":"Format","value":"[IMAGE / VIDEO / CAROUSEL]","icon":"sparkles"},
+  {"label":"Creative","value":"[filename(s)]","icon":"sparkles"},
+  {"label":"Copy","value":"Variation [X] selected","icon":"target"},
+  {"label":"Headline","value":"[Selected headline]","icon":"target"},
+  {"label":"CTA","value":"[CTA type]","icon":"target"}
+]}
 ```
-create_ad_creative(
-  name: "[Format] Creative — [Today's Date]",
-  object_story_spec: [JSON string — see formats below]
-)
+
+```quickreplies
+["✅ Confirm Stage 3", "Change copy", "Rebuild"]
 ```
+
+On confirm → save to workflow_context and transfer to ad-launcher.
+
+---
+
+## object_story_spec Reference (for ad-launcher to use)
 
 **IMAGE — Website:**
 ```json
-{
-  "page_id": "PAGE_ID",
-  "link_data": {
-    "image_hash": "IMAGE_HASH",
-    "link": "https://yoursite.com",
-    "message": "Primary text here",
-    "name": "Headline here",
-    "call_to_action": {"type": "SHOP_NOW", "value": {"link": "https://yoursite.com"}}
-  }
-}
+{"page_id":"PAGE_ID","link_data":{"image_hash":"HASH","link":"URL","message":"Primary","name":"Headline","call_to_action":{"type":"SHOP_NOW","value":{"link":"URL"}}}}
 ```
 
 **IMAGE — WhatsApp:**
 ```json
-{
-  "page_id": "PAGE_ID",
-  "link_data": {
-    "image_hash": "IMAGE_HASH",
-    "message": "Primary text here",
-    "name": "Headline here",
-    "call_to_action": {
-      "type": "WHATSAPP_MESSAGE",
-      "value": {"whatsapp_phone_number": "+85298765432"}
-    }
-  }
-}
+{"page_id":"PAGE_ID","link_data":{"image_hash":"HASH","message":"Primary","name":"Headline","call_to_action":{"type":"WHATSAPP_MESSAGE","value":{"whatsapp_phone_number":"+852..."}}}}
 ```
 
 **VIDEO — Website:**
 ```json
-{
-  "page_id": "PAGE_ID",
-  "video_data": {
-    "video_id": "VIDEO_ID",
-    "title": "Headline here",
-    "message": "Primary text here",
-    "call_to_action": {"type": "SHOP_NOW", "value": {"link": "https://yoursite.com"}}
-  }
-}
+{"page_id":"PAGE_ID","video_data":{"video_id":"ID","title":"Headline","message":"Primary","call_to_action":{"type":"SHOP_NOW","value":{"link":"URL"}}}}
 ```
 
 **CAROUSEL:**
 ```json
-{
-  "page_id": "PAGE_ID",
-  "link_data": {
-    "message": "Primary text here",
-    "child_attachments": [
-      {"link": "https://yoursite.com/p1", "image_hash": "HASH1", "name": "Card 1", "call_to_action": {"type": "SHOP_NOW"}},
-      {"link": "https://yoursite.com/p2", "image_hash": "HASH2", "name": "Card 2", "call_to_action": {"type": "SHOP_NOW"}}
-    ],
-    "call_to_action": {"type": "SHOP_NOW"}
-  }
-}
+{"page_id":"PAGE_ID","link_data":{"message":"Primary","child_attachments":[{"link":"URL","image_hash":"HASH","name":"Card headline","call_to_action":{"type":"SHOP_NOW"}}],"call_to_action":{"type":"SHOP_NOW"}}}
 ```
 
 **EXISTING_POST:**
 ```json
-{
-  "page_id": "PAGE_ID",
-  "object_story_id": "PAGE_ID_POST_ID"
-}
+{"page_id":"PAGE_ID","object_story_id":"PAGEID_POSTID"}
 ```
-
-### C-5 — Save and transfer
-
-```
-update_workflow_context({ data: { creative_id: "[id]", ad_format: "[format]" } })
-```
-
-Proceed to Phase 3 — Review & Launch. Load `load_skill("ad-launcher")`.
