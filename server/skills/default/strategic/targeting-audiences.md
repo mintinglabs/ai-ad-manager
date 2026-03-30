@@ -173,7 +173,7 @@ For Facebook Page videos, use `"type":"page"`. For Instagram videos, use `"type"
 
 **Step 1 — Data type:** EMAIL / PHONE / MIXED (emails + phones + names)
 
-**Step 2 — Source:** USER_PROVIDED_ONLY / PARTNER_PROVIDED_ONLY / BOTH
+**Step 2 — Source:** USER_PROVIDED_ONLY / PARTNER_PROVIDED_ONLY / BOTH_USER_AND_PARTNER_PROVIDED
 
 **Step 3 — Create the audience shell** with subtype="CUSTOM", customer_file_source. Then show upload instructions:
 

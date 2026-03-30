@@ -1410,7 +1410,7 @@ const audienceTools = pick(
   'get_custom_audiences', 'get_saved_audiences', 'get_custom_audience',
   'get_reach_estimate', 'get_delivery_estimate',
   'targeting_search', 'targeting_browse', 'targeting_suggestions', 'targeting_validation',
-  'create_custom_audience', 'create_lookalike_audience',
+  'create_custom_audience', 'create_lookalike_audience', 'create_saved_audience',
   'get_pages', 'get_pixels', 'get_page_videos', 'get_ig_media', 'get_connected_instagram_accounts',
   'get_workflow_context', 'update_workflow_context', 'load_skill'
 );
