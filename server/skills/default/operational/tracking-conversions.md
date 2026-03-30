@@ -13,39 +13,21 @@ safety:
 
 # Tracking & Conversions
 
-## API Endpoints
+## Available Tools
 
-### Pixels
+- `get_pixels()` — list all pixels for the ad account
+- `get_pixel_stats(pixel_id)` — get pixel event statistics
+- `create_pixel(name)` — create a new tracking pixel
+- `update_pixel(pixel_id, name?)` — update pixel settings
+- `send_conversion_event(pixel_id, event_name, action_source, user_data, custom_data, test_event_code?)` — send server-side event via CAPI
+- `get_custom_conversions()` — list custom conversions
+- `create_custom_conversion(name, pixel_id, custom_event_type, rule)` — create custom conversion
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/pixels?adAccountId=act_XXX` | List all pixels for an ad account |
-| GET | `/api/pixels/:id` | Get a single pixel |
-| POST | `/api/pixels` | Create a new pixel |
-| PATCH | `/api/pixels/:id` | Update pixel settings |
-| GET | `/api/pixels/:id/stats` | Get pixel event stats |
-| POST | `/api/pixels/:id/events` | Send server-side events via Conversions API |
+## 7-Step Pixel Setup Wizard
 
-### Custom Conversions
+### Step 1: Check Existing Setup
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/conversions?adAccountId=act_XXX` | List custom conversions |
-| POST | `/api/conversions` | Create a custom conversion |
-| PATCH | `/api/conversions/:id` | Update a custom conversion |
-| DELETE | `/api/conversions/:id` | Delete a custom conversion |
-
-## Execution Workflow
-
-Every write operation MUST follow this four-step pattern.
-
-### 7-Step Pixel Setup Wizard
-
-#### Step 1: Check Existing Setup (READ)
-
-```
-GET /api/pixels?adAccountId=act_XXX
-```
+Call `get_pixels()`.
 
 ```metrics
 Ad Account: act_XXX
@@ -57,7 +39,7 @@ Existing Pixels: 1
 
 If no pixels exist, proceed to Step 2. If a pixel exists, skip to Step 3.
 
-#### Step 2: Create Pixel (CONFIRM + EXECUTE)
+### Step 2: Create Pixel
 
 ```steps
 Action: CREATE pixel
@@ -67,11 +49,7 @@ Name: "My Website Pixel"
 
 Ask: **"Should I proceed?"**
 
-After confirmation, create the pixel and provide the base code:
-
-```
-POST /api/pixels
-```
+After confirmation, call `create_pixel(name)` and provide the base code:
 
 ```html
 <!-- Meta Pixel Code -->
@@ -89,7 +67,7 @@ Name: "My Website Pixel"
 Status: Active
 ```
 
-#### Step 3: Choose Event Type
+### Step 3: Choose Event Type
 
 Present options for the user to select:
 
@@ -97,7 +75,7 @@ Present options for the user to select:
 ["Track Purchases (e-commerce)", "Track Leads (lead gen)", "Track Page Views only (awareness)", "Custom event"]
 ```
 
-#### Step 4: Send Test Event (READ + CONFIRM + EXECUTE)
+### Step 4: Send Test Event
 
 **SAFETY CHECK**: Always use `test_event_code` for the first event. Never send directly to production.
 
@@ -117,29 +95,9 @@ Data:
 
 Ask: **"Should I proceed?"**
 
-After confirmation:
+After confirmation, call `send_conversion_event(pixel_id, event_name, action_source, user_data, custom_data, test_event_code)`.
 
-```
-POST /api/pixels/:id/events
-```
-
-Body:
-```json
-{
-  "data": [{
-    "event_name": "Purchase",
-    "event_time": 1711000000,
-    "action_source": "website",
-    "user_data": { "em": ["hashed_email"] },
-    "custom_data": { "currency": "USD", "value": 99.99 },
-    "event_source_url": "https://example.com/thank-you",
-    "event_id": "test_order_001"
-  }],
-  "test_event_code": "TEST12345"
-}
-```
-
-#### Step 5: Verify in Events Manager
+### Step 5: Verify in Events Manager
 
 ```metrics
 Test Event Sent Successfully
@@ -152,7 +110,7 @@ Instruct the user: "Check Events Manager > Test Events to verify the event appea
 
 Ask: **"Did the event appear in Events Manager?"**
 
-#### Step 6: Create Custom Conversion (Optional)
+### Step 6: Create Custom Conversion (Optional)
 
 If the user wants value-based rules:
 
@@ -168,11 +126,9 @@ Default Value: $100
 
 Ask: **"Should I proceed?"**
 
-```
-POST /api/conversions
-```
+Call `create_custom_conversion(name, pixel_id, custom_event_type, rule)`.
 
-#### Step 7: Next Actions
+### Step 7: Next Actions
 
 ```quickreplies
 ["Send another test event", "Create custom conversion", "Create website audience from pixel", "Set up campaign with this pixel", "Remove test_event_code for production"]
@@ -180,11 +136,7 @@ POST /api/conversions
 
 ### Sending Production Events (After Testing)
 
-**Step 1 READ** -- Verify pixel stats show test events were received.
-
-```
-GET /api/pixels/:id/stats
-```
+**Step 1 READ** -- Call `get_pixel_stats(pixel_id)` to verify test events were received.
 
 ```metrics
 Pixel: 123456789
@@ -208,21 +160,13 @@ event_id: order_12345 (for deduplication)
 
 Ask: **"Should I proceed?"**
 
-**Step 3 EXECUTE** -- Send without `test_event_code`.
+**Step 3 EXECUTE** -- Call `send_conversion_event()` without `test_event_code`.
 
-**Step 4 VERIFY** -- Check pixel stats.
-
-```
-GET /api/pixels/:id/stats
-```
+**Step 4 VERIFY** -- Call `get_pixel_stats(pixel_id)` to confirm.
 
 ### Creating a Custom Conversion
 
-**Step 1 READ** -- Check existing custom conversions.
-
-```
-GET /api/conversions?adAccountId=act_XXX
-```
+**Step 1 READ** -- Call `get_custom_conversions()` to check existing.
 
 ```metrics
 Ad Account: act_XXX
@@ -244,15 +188,11 @@ Default Value: $100
 
 Ask: **"Should I proceed?"**
 
-**Step 3 EXECUTE** then **Step 4 VERIFY** as above.
+**Step 3 EXECUTE** -- Call `create_custom_conversion(name, pixel_id, custom_event_type, rule)`. Then verify.
 
 ### Deleting a Custom Conversion
 
-**Step 1 READ** -- Check if the conversion is used in any ad set optimization.
-
-```
-GET /api/conversions/:id
-```
+**Step 1 READ** -- Call `get_custom_conversions()` to check if the conversion is used in any ad set optimization.
 
 **Step 2 CONFIRM** -- Warn about impact.
 

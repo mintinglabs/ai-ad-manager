@@ -1533,8 +1533,15 @@ const executorTools = pick(
 
 // Technical Guard — pixel, CAPI, conversion tracking health
 const technicalTools = pick(
-  'get_pixels', 'get_custom_conversions', 'create_custom_conversion',
-  'get_ad_account_details', 'get_pages', 'get_page_posts',
+  // Pixel lifecycle
+  'get_pixels', 'get_pixel_stats', 'create_pixel', 'update_pixel',
+  // CAPI events
+  'send_conversion_event',
+  // Custom conversions
+  'get_custom_conversions', 'create_custom_conversion',
+  // Context
+  'get_ad_account_details', 'get_pages',
+  // Shared
   'get_workflow_context', 'update_workflow_context', 'load_skill'
 );
 
