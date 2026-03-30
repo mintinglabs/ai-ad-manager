@@ -484,14 +484,15 @@ async function analyzePerformance(_, c) {
 
   emitProgress('Fetching 30-day campaign data...');
 
-  // Single API call: 30-day daily breakdown at campaign level
+  // Single API call with pagination: 30-day daily breakdown at campaign level
   const [dailyRows, adSets] = await Promise.all([
-    meta.getObjectInsights(token, adAccountId, {
+    meta.fetchAll(`/${adAccountId}/insights`, token, {
       level: 'campaign',
       fields: FIELDS,
       time_range: JSON.stringify({ since: fmt(since30), until: fmt(yesterday) }),
       time_increment: 1,
-    }),
+      limit: 500,
+    }, { maxPages: 10 }),
     meta.getAdSets(token, adAccountId),
   ]);
 

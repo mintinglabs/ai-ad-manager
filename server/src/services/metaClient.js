@@ -8,7 +8,7 @@ export const metaApi = axios.create({ baseURL: `${BASE_URL}/${API_VERSION}`, tim
 
 // ─── Pagination Helper ───────────────────────────────────────────────
 
-async function fetchAll(url, token, params = {}, { maxPages = Infinity } = {}) {
+export async function fetchAll(url, token, params = {}, { maxPages = Infinity } = {}) {
   let results = [];
   let nextUrl = url;
   let isFullUrl = false;
