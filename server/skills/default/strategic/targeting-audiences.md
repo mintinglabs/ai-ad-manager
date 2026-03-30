@@ -414,4 +414,8 @@ Then quickreplies:
 
 ## Handoff
 
-After audience work, transfer back to ad_manager. Suggest next actions based on what was created.
+**If mid-creation** (workflow_context has `creation_stage: "stage2_custom_audience"`):
+Save targeting spec to workflow_context and transfer back to **executor** (`transfer_to_agent("executor")`), not ad_manager. The executor will resume the 3-stage creation flow at Stage 2 confirmation.
+
+**Otherwise** (normal audience work):
+Transfer back to ad_manager. Suggest next actions based on what was created.

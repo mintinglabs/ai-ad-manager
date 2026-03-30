@@ -30,6 +30,18 @@ leads_to: [creative-assembly]
 | Placements | Advantage+ (omit publisher_platforms) |
 | CTA | Based on objective (Sales→SHOP_NOW, Messages→WHATSAPP_MESSAGE, Leads→SIGN_UP, Traffic→LEARN_MORE) |
 
+## Data-Informed Defaults (optional enhancement)
+
+If workflow_context contains `insights_summary` or `top_performing` data (from a previous analyst session), use it to inform Stage 1 defaults:
+
+- **Budget**: If past campaigns in the same objective have avg daily spend, suggest that as default instead of minimum × 2.
+- **Audience hint**: If a specific audience consistently outperforms, mention it in Stage 2 as a recommendation tag.
+- **CTA**: If a specific CTA outperforms for this objective, default to it.
+
+Show a subtle note when data-informed: `"💡 Based on your past campaign performance"` as `detail` on the relevant item.
+
+This is optional — if no historical data exists, fall back to standard smart defaults.
+
 ---
 
 ## FIRST ACTIONS (parallel, no preamble)
@@ -39,9 +51,9 @@ get_workflow_context()
 get_ad_account_details()
 get_minimum_budgets()
 get_pages()
-get_custom_audiences()
-get_saved_audiences()
 ```
+
+**Do NOT call `get_custom_audiences()` or `get_saved_audiences()` here.** Defer those to Stage 2 when the user actually reaches the audience step. This keeps Stage 1 fast.
 
 Then detect path:
 
@@ -90,8 +102,10 @@ Show Stage 1 pre-filled with all 3 stages visible:
 ```
 
 ```quickreplies
-["✅ Confirm Stage 1", "Change location", "Change budget", "Rebuild"]
+["✅ Confirm Stage 1", "Rebuild"]
 ```
+
+Items with `editable:true` already have inline Edit buttons — no need for "Change location"/"Change budget" quickreplies.
 
 ### PATH B — Boost Mode
 
@@ -128,7 +142,7 @@ After user picks post, show Stage 1 pre-filled:
 ```
 
 ```quickreplies
-["✅ Confirm Stage 1", "Change budget", "Change duration", "Rebuild"]
+["✅ Confirm Stage 1", "Rebuild"]
 ```
 
 For duration edits:
@@ -194,14 +208,14 @@ Then show full Stage 1 with everything pre-filled:
 ```
 
 ```quickreplies
-["✅ Confirm Stage 1", "Change location", "Change budget", "Rebuild"]
+["✅ Confirm Stage 1", "Rebuild"]
 ```
 
 **SMART PARSING**: If user provides multiple details in one message (e.g. "Sales campaign, WhatsApp, HK, $200/day"), parse ALL values and pre-fill everything. Go straight to the review card.
 
 ### Handling Stage 1 Edits
 
-When user clicks edit or says "Change location":
+When user clicks the inline Edit button on a field or says "Change location":
 ```quickreplies
 ["Hong Kong", "Taiwan", "Singapore", "Malaysia", "United States", "United Kingdom", "Other..."]
 ```
@@ -248,6 +262,12 @@ Then proceed to Stage 2 (Audience) below.
 ---
 
 ## STAGE 2: Audience
+
+**FIRST**, fetch audience data now (deferred from Stage 1 for speed):
+```
+get_custom_audiences()
+get_saved_audiences()
+```
 
 Show all 3 stages with Stage 1 done:
 
@@ -304,24 +324,26 @@ User picks "Broad":
 ```
 
 ```quickreplies
-["✅ Confirm Stage 2", "Change strategy", "Rebuild"]
+["✅ Confirm Stage 2", "Rebuild"]
 ```
 
 ### Audience Sub-flow: Saved Audience
 
 User picks "Use Saved Audience":
 
-Show existing audiences as a searchable dropdown:
+Show audiences **inline** inside the Stage 2 setupcard using `type:"select"` items. This keeps the audience list inside the card — no separate options block needed:
 
-```options
-{"title":"Select an audience","layout":"dropdown","options":[
-  {"id":"AUDIENCE_ID_1","title":"[Custom audience name]","description":"[type] · ~[size] people · Updated [date]"},
-  {"id":"AUDIENCE_ID_2","title":"[Saved audience name]","description":"[targeting summary]"},
-  ...
+```setupcard
+{"phase":2,"status":"active","title":"Stage 2: Audience","items":[
+  {"label":"Strategy","value":"Saved Audience","icon":"sparkles"},
+  {"label":"Audience","value":"Select an audience...","icon":"target","type":"select","options":[
+    {"id":"AUDIENCE_ID_1","title":"[Custom audience name]","description":"[type] · ~[size] people · Updated [date]"},
+    {"id":"AUDIENCE_ID_2","title":"[Saved audience name]","description":"[targeting summary]"}
+  ]}
 ]}
 ```
 
-After user picks:
+After user picks an audience from the inline dropdown, update the card with the selection:
 
 ```setupcard
 {"phase":2,"status":"active","title":"Stage 2: Audience","items":[
@@ -332,7 +354,7 @@ After user picks:
 ```
 
 ```quickreplies
-["✅ Confirm Stage 2", "Choose different audience", "Rebuild"]
+["✅ Confirm Stage 2", "Rebuild"]
 ```
 
 ### Audience Sub-flow: Build Custom
@@ -364,19 +386,21 @@ When executor receives control back, read workflow_context for the targeting spe
 ```
 
 ```quickreplies
-["✅ Confirm Stage 2", "Adjust targeting", "Use Broad instead", "Rebuild"]
+["✅ Confirm Stage 2", "Rebuild"]
 ```
 
 ### Audience Sub-flow: Lookalike
 
 User picks "Lookalike":
 
-Show source audiences as dropdown:
+Show source audiences inline in the Stage 2 card:
 
-```options
-{"title":"Select source audience","layout":"dropdown","options":[
-  {"id":"AUD_1","title":"[Custom audience name]","description":"[type] · ~[size] people"},
-  ...
+```setupcard
+{"phase":2,"status":"active","title":"Stage 2: Audience","items":[
+  {"label":"Type","value":"Lookalike","icon":"sparkles"},
+  {"label":"Source","value":"Select source audience...","icon":"target","type":"select","options":[
+    {"id":"AUD_1","title":"[Custom audience name]","description":"[type] · ~[size] people"}
+  ]}
 ]}
 ```
 
@@ -398,7 +422,7 @@ After percentage selected, call `create_lookalike_audience(source_audience_id, c
 ```
 
 ```quickreplies
-["✅ Confirm Stage 2", "Change percentage", "Rebuild"]
+["✅ Confirm Stage 2", "Rebuild"]
 ```
 
 ---
@@ -445,9 +469,26 @@ load_skill("creative-assembly")
 
 ---
 
+## Edit Stage (going back)
+
+When user clicks "Edit" on a completed stage or says "I want to edit Stage [N]":
+
+- **Edit Stage 1** (while in Stage 2): Reset `creation_stage` to `"stage1"`, re-show Stage 1 as `status:"active"` with all values pre-filled and editable. Stage 2/3 revert to `"pending"`.
+- **Edit Stage 1 or 2** (while in Stage 3): Same pattern — reset the stage and re-show. All later stages revert to `"pending"`.
+
+```
+update_workflow_context({ data: { ...current, creation_stage: "stage1" } })
+```
+
+Then re-render from that stage as if the user just arrived, but with all fields pre-filled from the existing workflow context.
+
+---
+
 ## Recovery Rule
 
 If `get_workflow_context()` already has data:
-- `creation_stage: "stage2"` → Skip Stage 1, go to Stage 2
+- `creation_stage: "stage2"` AND `targeting_spec` exists → Returning from audience_strategist. Skip Stage 1, show Stage 2 with targeting already filled (show the confirmation card, not the strategy picker).
+- `creation_stage: "stage2"` AND no `targeting_spec` → Skip Stage 1, show Stage 2 audience strategy picker.
 - `creation_stage: "stage3"` → Skip Stage 1+2, transfer to creative-assembly
+- `creation_stage: "stage2_custom_audience"` → Transfer to audience_strategist
 - `campaign_id` exists but no `adset_id` → Something was partially created in a previous session. Show recovery options.

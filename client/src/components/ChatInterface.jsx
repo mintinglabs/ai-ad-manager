@@ -668,6 +668,50 @@ const CopyVariations = ({ data, onSend }) => {
   );
 };
 
+// ── Inline Select (dropdown inside SetupCard items) ──────────────────────────
+const InlineSelect = ({ item, onSend }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef(null);
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+  const filtered = (item.options || []).filter(o =>
+    !search || o.title?.toLowerCase().includes(search.toLowerCase()) || o.description?.toLowerCase().includes(search.toLowerCase())
+  );
+  return (
+    <div ref={ref} className="relative mt-1">
+      <button onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-3 py-2 text-left text-[13px] font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-300 hover:bg-blue-50/30 transition-colors">
+        <span className="truncate">{item.value || 'Select...'}</span>
+        <ChevronDown size={14} className={`text-slate-400 transition-transform shrink-0 ml-2 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-[240px] overflow-hidden">
+          {item.options.length > 5 && (
+            <div className="p-2 border-b border-slate-100">
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..."
+                className="w-full px-2.5 py-1.5 text-[12px] border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-300" autoFocus />
+            </div>
+          )}
+          <div className="overflow-y-auto max-h-[200px]">
+            {filtered.map((o, i) => (
+              <button key={o.id || i} onClick={() => { setOpen(false); onSend?.(o.title || o.id); }}
+                className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0">
+                <p className="text-[13px] font-medium text-slate-800 truncate">{o.title}</p>
+                {o.description && <p className="text-[11px] text-slate-400 truncate">{o.description}</p>}
+              </button>
+            ))}
+            {filtered.length === 0 && <p className="text-[12px] text-slate-400 px-3 py-3 text-center">No matches</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Setup Card (campaign/ad set review — collapsible phase card) ─────────────
 const SetupCard = ({ data, onSend }) => {
   const status = data.status || 'active'; // "done" | "active" | "pending"
@@ -704,9 +748,17 @@ const SetupCard = ({ data, onSend }) => {
             )}
           </div>
         </div>
-        {status !== 'pending' && (
-          <ChevronDown size={14} className={`${s.chevron} transition-transform ${collapsed ? '-rotate-90' : ''}`} />
-        )}
+        <div className="flex items-center gap-2">
+          {status === 'done' && (
+            <span onClick={(e) => { e.stopPropagation(); onSend?.(`I want to edit Stage ${phase}`); }}
+              className="text-[10px] text-emerald-500 hover:text-emerald-700 font-medium px-2 py-0.5 rounded hover:bg-emerald-50 transition-all">
+              Edit
+            </span>
+          )}
+          {status !== 'pending' && (
+            <ChevronDown size={14} className={`${s.chevron} transition-transform ${collapsed ? '-rotate-90' : ''}`} />
+          )}
+        </div>
       </button>
 
       {/* Expandable settings rows */}
@@ -723,7 +775,11 @@ const SetupCard = ({ data, onSend }) => {
               </div>
               <div className="flex-1 min-w-0">
                 <p className={`text-[10px] font-medium uppercase tracking-wide ${status === 'done' ? 'text-slate-400' : 'text-slate-400'}`}>{item.label}</p>
-                <p className={`text-[13px] font-semibold mt-0.5 ${status === 'done' ? 'text-slate-600' : 'text-slate-800'}`}>{item.value}</p>
+                {item.type === 'select' && item.options?.length && status === 'active' ? (
+                  <InlineSelect item={item} onSend={onSend} status={status} />
+                ) : (
+                  <p className={`text-[13px] font-semibold mt-0.5 ${status === 'done' ? 'text-slate-600' : 'text-slate-800'}`}>{item.value}</p>
+                )}
                 {item.detail && <p className="text-[11px] text-slate-400 mt-0.5">{item.detail}</p>}
               </div>
               {item.editable && status === 'active' && (

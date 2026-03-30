@@ -78,6 +78,13 @@ Call `get_ad_images()` to get image URLs by `image_hash`. For videos, use video_
 
 Call `analyze_creative_visual(media_urls, context)` with the resolved URLs and campaign context (objective, destination, product/brand).
 
+**Optional: Creative Strategist consultation** — If the user has existing running ads in the account, consider transferring to creative_strategist for differentiation advice:
+```
+update_workflow_context({ data: { ...current, creation_stage: "stage3_creative_review" } })
+transfer_to_agent("creative_strategist")
+```
+The creative_strategist will compare the new visual against existing ads and save suggestions to workflow_context. On return, use `creative_analysis` and `creative_suggestions` to inform copy generation. Skip this if the user has no running ads or if it would slow down the flow unnecessarily.
+
 **CRITICAL: Use the visual analysis to write copy.** Copy MUST reference what's in the image (e.g. if image shows a beauty product, copy must be about beauty, not generic).
 
 ### A-3 — Generate copyvariations
@@ -239,10 +246,20 @@ After user picks copy variation(s), show final Stage 3 summary:
 ```
 
 ```quickreplies
-["✅ Confirm Stage 3", "Change copy", "Rebuild"]
+["✅ Confirm Stage 3", "Rebuild"]
 ```
 
 On confirm → save to workflow_context and transfer to ad-launcher.
+
+---
+
+## Edit Stage (going back from Stage 3)
+
+If user clicks "Edit" on Stage 1 or Stage 2 header (or says "I want to edit Stage 1/2"):
+
+1. Update workflow_context: `creation_stage: "stage1"` or `"stage2"`
+2. Transfer back to campaign-setup: `load_skill("campaign-setup")`
+3. The campaign-setup recovery rule will detect the stage and resume with fields pre-filled.
 
 ---
 

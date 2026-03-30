@@ -64,7 +64,9 @@ Then show the full review:
 
 ```setupcard
 {"phase":3,"title":"Final Review — Ready to Create?","subtitle":"Everything will be created PAUSED first","items":[
-  {"label":"Campaign","value":"[Name] · [Objective]","detail":"Will be created PAUSED","icon":"target"},
+  {"label":"Campaign Name","value":"[campaign_name]","icon":"target","editable":true},
+  {"label":"Ad Set Name","value":"[Objective] Ad Set — [Today's Date]","icon":"target","editable":true},
+  {"label":"Ad Name","value":"[campaign_name] — Ad","icon":"target","editable":true},
   {"label":"Destination","value":"[WhatsApp / Website URL / Lead Form]","icon":"target"},
   {"label":"Page","value":"[Page Name]","icon":"shield"},
   {"label":"Audience","value":"[Audience summary — Broad / audience name / targeting summary]","icon":"sparkles"},
@@ -74,10 +76,14 @@ Then show the full review:
 ]}
 ```
 
+Users can click Edit on Campaign Name / Ad Set Name / Ad Name to rename before creation.
+
+When user edits a name: update `workflow_context` with the new name and re-show the review card with the change applied.
+
 **"Should I create this ad?"**
 
 ```quickreplies
-["✅ Yes, create it", "Cancel", "Rebuild"]
+["✅ Yes, create it", "Cancel"]
 ```
 
 Do NOT call any create tool until user confirms.
