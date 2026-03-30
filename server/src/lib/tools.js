@@ -1,4 +1,6 @@
 import { FunctionTool } from '@google/adk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import axios from 'axios';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -330,6 +332,68 @@ function updateAdCreative({ creative_id, ...updates }, c) {
 }
 function deleteAdCreative({ creative_id }, c) {
   return meta.deleteAdCreative(ctx(c).token, creative_id);
+}
+
+// ─── Creative Visual Analysis (Gemini Vision) ──────────────────────────────
+async function analyzeCreativeVisual({ image_urls, context }, _c) {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
+  if (!apiKey) return { error: 'GEMINI_API_KEY not configured' };
+
+  let urls;
+  try { urls = typeof image_urls === 'string' ? JSON.parse(image_urls) : image_urls; } catch { urls = [image_urls]; }
+  if (!Array.isArray(urls) || urls.length === 0) return { error: 'No image URLs provided' };
+
+  // Fetch images as base64 (max 5 to control cost)
+  const imageParts = [];
+  for (const url of urls.slice(0, 5)) {
+    try {
+      const resp = await axios.get(url, { responseType: 'arraybuffer', timeout: 10000 });
+      const mime = resp.headers['content-type'] || 'image/jpeg';
+      imageParts.push({ inlineData: { data: Buffer.from(resp.data).toString('base64'), mimeType: mime } });
+    } catch (e) {
+      console.warn(`[analyze_visual] Failed to fetch image: ${url} — ${e.message}`);
+    }
+  }
+  if (imageParts.length === 0) return { error: 'Could not fetch any images' };
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+  const prompt = `You are a senior Meta Ads creative analyst. Analyze these ad creative images and return a JSON object with:
+
+{
+  "images": [
+    {
+      "index": 1,
+      "visual_elements": "What's in the image — product, person, text overlay, background, colors",
+      "text_overlay": "Any text visible on the image (exact text if readable)",
+      "hook_quality": "strong/medium/weak — would this stop the scroll in a feed?",
+      "hook_reason": "Why the hook is strong/weak",
+      "mood": "Professional/Playful/Urgent/Luxurious/etc",
+      "cta_visibility": "Is there a visible call-to-action? How prominent?",
+      "format_fit": "Best suited for: feed/story/reels/carousel card",
+      "issues": ["Any problems: text too small, cluttered, low contrast, etc"],
+      "suggestions": ["Specific improvement recommendations"]
+    }
+  ],
+  "overall": {
+    "brand_consistency": "Are the images consistent in style/color/tone?",
+    "format_recommendation": "Best ad format for these assets",
+    "strongest_asset": "Which image index is strongest and why"
+  }
+}
+
+${context ? `Ad context: ${context}` : ''}
+Return ONLY valid JSON, no markdown.`;
+
+  try {
+    const result = await model.generateContent([prompt, ...imageParts]);
+    const text = result.response.text();
+    // Try to parse as JSON, return raw if fails
+    try { return JSON.parse(text); } catch { return { analysis: text }; }
+  } catch (e) {
+    return { error: `Vision analysis failed: ${e.message}` };
+  }
 }
 
 // ─── Assets ─────────────────────────────────────────────────────────────────
@@ -1145,6 +1209,10 @@ const adTools = [
   T('delete_ad_creative', 'Delete an ad creative.', deleteAdCreative,
     obj({ creative_id: str('Creative ID') }, ['creative_id'])),
 
+  // ── Creative Visual Analysis ────────────────────────────────────────────
+  T('analyze_creative_visual', 'Analyze ad creative images using AI vision. Fetches images by URL, analyzes visual elements, hook quality, text overlays, mood, CTA visibility, and returns structured recommendations. Max 5 images per call.', analyzeCreativeVisual,
+    obj({ image_urls: { type: 'array', items: { type: 'string' }, description: 'Array of image URLs to analyze (max 5)' }, context: str('Optional context about the ad — product, target audience, campaign goal') }, ['image_urls'])),
+
   // ── Assets ──────────────────────────────────────────────────────────────
   T('get_ad_images', 'List all ad images in the account.', getAdImages),
   T('get_ad_videos', 'List all ad videos in the account.', getAdVideos),
@@ -1420,6 +1488,7 @@ const creativeTools = pick(
   'get_ad_creatives', 'get_ad_creative', 'get_ad_preview',
   'get_ad_images', 'get_ad_videos', 'get_ads',
   'get_pages', 'get_page_posts', 'get_page_videos',
+  'analyze_creative_visual',
   'get_workflow_context', 'update_workflow_context', 'load_skill'
 );
 

@@ -85,6 +85,26 @@ Emit blocks back-to-back, NO text between:
 2. `comparison` — Bar chart: 每個 creative 嘅 CTR (a_label="上週", b_label="本週")
 3. Campaign table (markdown): 狀態 | 素材名稱 | 格式 | CTR | Freq | 年齡 | 建議
 
+## Visual Analysis Workflow
+
+When auditing creative quality, use `analyze_creative_visual()` to get AI-powered visual analysis:
+
+1. From `get_ad_creatives()` results, extract `image_url` or `thumbnail_url` for each creative
+2. Call `analyze_creative_visual({ image_urls: [...urls], context: "product/audience/goal context" })`
+3. Returns per-image analysis: visual_elements, text_overlay, hook_quality (strong/medium/weak), mood, cta_visibility, format_fit, issues, suggestions
+4. Returns overall: brand_consistency, format_recommendation, strongest_asset
+
+**When to use:**
+- During Hook Rate analysis (Signal 1) — correlate CTR data with visual hook quality
+- During Format Diversity check (Signal 3) — assess if visuals suit their placement
+- When user asks "點解呢個素材唔 work" — show evidence-based visual critique
+- When recommending creative refreshes — identify specific visual issues to fix
+
+**Integration with 5-Signal audit:**
+- Weak hook_quality + low CTR → confirms creative is the problem (not audience)
+- Strong hook_quality + low CTR → likely audience/targeting issue → refer to Audience Strategist
+- Issues found (text too small, low contrast) → actionable fix recommendations in steps block
+
 ## Preview Workflow
 
 When user asks to preview an ad:

@@ -130,6 +130,7 @@ function toolCallLabel(name, args) {
     update_ad_set:           () => 'Updating ad set',
     update_ad:               () => 'Updating ad',
     analyze_performance:     () => 'Analyzing campaign performance',
+    analyze_creative_visual: () => 'Analyzing creative visuals',
     load_skill:              () => `Loading skill "${args.skill_name || ''}"`,
     get_workflow_context:    () => 'Reading workflow state',
     update_workflow_context: () => 'Saving progress',
