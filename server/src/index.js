@@ -28,11 +28,19 @@ app.use(cors({ origin: true }));
 app.use(express.json({ limit: '50mb' }));
 
 app.get('/api/ping', (_req, res) => res.json({ ok: true }));
-app.get('/api/debug', (_req, res) => res.json({
-  hasGeminiKey: !!process.env.GEMINI_API_KEY,
-  hasGenaiKey: !!process.env.GOOGLE_GENAI_API_KEY,
-  nodeVersion: process.version,
-}));
+app.get('/api/debug', async (_req, res) => {
+  const { rootTools, analystTools } = await import('./lib/tools.js');
+  res.json({
+    version: '2024-03-30-v3',
+    hasGeminiKey: !!process.env.GEMINI_API_KEY,
+    hasGenaiKey: !!process.env.GOOGLE_GENAI_API_KEY,
+    nodeVersion: process.version,
+    rootToolCount: rootTools.length,
+    rootToolNames: rootTools.map(t => t.name),
+    analystToolCount: analystTools.length,
+    analystToolNames: analystTools.map(t => t.name),
+  });
+});
 
 // Auth route is public (no token required — it issues tokens)
 app.use('/api/auth', authRouter);
