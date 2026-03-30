@@ -1,5 +1,5 @@
 import { LlmAgent, Runner, InMemorySessionService } from '@google/adk';
-import { adTools, analystTools, audienceTools, creativeTools, executorTools, technicalTools } from '../lib/tools.js';
+import { rootTools, analystTools, audienceTools, creativeTools, executorTools, technicalTools } from '../lib/tools.js';
 import { buildInstruction, buildAnalystInstruction, buildAudienceInstruction, buildCreativeInstruction, buildExecutorInstruction, buildTechnicalInstruction } from '../lib/instructions.js';
 
 // ── 5 Sub-agents ─────────────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ const agent = new LlmAgent({
   name: 'ad_manager',
   model: 'gemini-2.5-pro',
   instruction: buildInstruction(),
-  tools: adTools,
+  tools: rootTools,
   subAgents: [analystAgent, audienceAgent, creativeAgent, executorAgent, technicalAgent],
 });
 

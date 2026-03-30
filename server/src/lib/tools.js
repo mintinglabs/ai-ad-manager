@@ -1458,4 +1458,14 @@ const technicalTools = pick(
   'get_workflow_context', 'update_workflow_context', 'load_skill'
 );
 
-export { adTools, analystTools, audienceTools, creativeTools, executorTools, technicalTools };
+// Root orchestrator — ONLY exploration + routing. NO insights/analysis tools.
+const rootTools = pick(
+  // Explore intent (list objects)
+  'get_campaigns', 'get_ad_sets', 'get_ads',
+  'get_campaign_ad_sets', 'get_campaign_ads', 'get_ad_set_ads',
+  'get_ad_account_details',
+  // Shared
+  'get_workflow_context', 'update_workflow_context', 'load_skill'
+);
+
+export { adTools, rootTools, analystTools, audienceTools, creativeTools, executorTools, technicalTools };
