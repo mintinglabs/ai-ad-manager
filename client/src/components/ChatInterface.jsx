@@ -1777,8 +1777,8 @@ const AccountConnector = ({ token, onLogin, selectedAccount, selectedBusiness, o
   const [level, setLevel] = useState('platforms'); // 'platforms' | 'business' | 'accounts'
   const [activeBiz, setActiveBiz] = useState(null);
   const ref = useRef(null);
-  const { businesses, loading: bizLoading } = useBusinesses(token);
-  const { accounts, loading: accLoading } = useAdAccounts(token, activeBiz?.id);
+  const { businesses, isLoading: bizLoading } = useBusinesses();
+  const { adAccounts: accounts, isLoading: accLoading } = useAdAccounts(activeBiz?.id);
 
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); } };
