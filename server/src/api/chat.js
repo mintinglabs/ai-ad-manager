@@ -142,7 +142,8 @@ function toolCallLabel(name, args) {
         technical_guard: 'Checking tracking health...',
         ad_manager: 'Finishing up...',
       };
-      return labels[args.agent_name] || `Moving to ${args.agent_name || 'next step'}`;
+      const target = args.agentName || args.agent_name;
+      return labels[target] || `Moving to ${target || 'next step'}`;
     },
   };
   return (map[name] || (() => name.replace(/_/g, ' ')))();
@@ -296,7 +297,7 @@ router.post('/', async (req, res) => {
               const args = part.functionCall.args || {};
               const label = toolCallLabel(name, args);
               const payload = { type: 'tool_call', name, label };
-              if (name === 'transfer_to_agent') payload.target = args.agent_name;
+              if (name === 'transfer_to_agent') payload.target = args.agentName || args.agent_name;
               sse(res, payload);
               console.log(`[chat] tool call: ${name}`);
               // Send workflow context updates to client
