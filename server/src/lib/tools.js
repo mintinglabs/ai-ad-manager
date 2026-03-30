@@ -1520,6 +1520,7 @@ const executorTools = pick(
   'get_ad_images', 'get_ad_videos', 'get_page_posts', 'get_page_videos', 'get_ig_media',
   'upload_ad_image', 'upload_ad_video', 'get_ad_video_status',
   'create_ad_creative', 'update_ad_creative',
+  'analyze_creative_visual',
   // Ad CRUD
   'create_ad', 'create_ads_bulk', 'update_ad', 'delete_ad', 'copy_ad',
   'get_ads', 'get_ad', 'get_ad_leads',

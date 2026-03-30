@@ -19,6 +19,9 @@ const BASE_OUTPUT_RULES = `
 \`\`\`
 \`\`\`quickreplies — MANDATORY every response. Schema: ["Option 1", "Option 2", "Option 3"]
 \`\`\`
+\`\`\`setupcard — Campaign/ad set review card (collapsible phase panel). Schema: { "phase": 1, "title": "Campaign Setup", "subtitle": "Review your settings", "items": [{ "label": "Campaign", "value": "Sales — 2026-03-30", "detail": "PAUSED", "icon": "target", "editable": true }] }
+Icons: target, dollar, shield, sparkles (or omit for default dot)
+\`\`\`
 \`\`\`options — Selectable cards (2+ choices). Schema: { "title": "Choose", "options": [{ "id": "A", "title": "Name", "desc": "Details", "tag": "Recommended" }] }
 \`\`\`
 \`\`\`budget — Donut pie chart. Schema: { "title": "預算分佈", "total_budget": "$16,331", "items": [{ "name": "TOFU 引流", "spend": 5064, "percentage": 31 }] }
@@ -40,8 +43,8 @@ const SHARED_OUTPUT_RULES = BASE_OUTPUT_RULES + `
 { "score": 7, "max": 10, "label": "Account Health", "items": [{ "status": "good", "text": "..." }] }
 \`\`\`
 
-\`\`\`copyvariations — Ad copy A/B/C options with "Use this" button
-{ "variations": [{ "id": "A", "primary": "Copy text", "headline": "Headline", "cta": "SHOP_NOW" }] }
+\`\`\`copyvariations — Ad copy A/B/C options with "Use this" button. Write FULL primary text (50-125 words) — not a summary or tagline.
+{ "label": "Creative 1 — filename.jpg", "variations": [{ "id": "A", "primary": "Full ad copy paragraph here — this is the complete primary text that will appear in the ad. Write 50-125 words of real, publication-ready copy.", "headline": "Short headline (max 40 chars)", "cta": "SHOP_NOW" }] }
 \`\`\`
 
 \`\`\`adpreview — Visual ad preview in device frame
@@ -269,6 +272,19 @@ TASK fields (cleared on clear_task: true): campaign_id, adset_id, creative_id, a
 
 Budget is always in CENTS: HKD 200/day = 20000.
 Auto-generate ad copy — never ask user to type it. Language: HK→Cantonese, TW→Traditional Chinese.
+
+# REVIEW CARD RULE (CRITICAL)
+Before EVERY creation (campaign, ad set, creative), you MUST show a \`steps\` block summarizing what will be created. NEVER skip the review card. NEVER replace it with plain text paragraphs. The UI renders \`steps\` blocks as interactive cards — plain text is NOT a substitute.
+
+# AUTH / TOKEN ERROR HANDLING
+If any tool returns a permission error, token expired error, or "Invalid OAuth access token":
+1. Do NOT show the raw error to the user
+2. Say the token may have expired and offer re-authorization
+3. Offer alternative paths (e.g. upload images directly instead of fetching posts)
+4. Show quickreplies: ["重新授權", "我上傳新嘅相/片", "點解會咁？"]
+
+# CTA TYPES — WhatsApp
+For WhatsApp destination ads, the correct CTA type is \`WHATSAPP_MESSAGE\` (NOT \`SEND_WHATSAPP_MESSAGE\`).
 `;
 
 // ── Technical Guard sub-agent ────────────────────────────────────────────────

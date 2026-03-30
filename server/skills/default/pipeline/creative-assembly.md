@@ -33,21 +33,38 @@ Then detect path from workflow state:
 
 ### A-1 — Skip format selection and upload entirely
 
-Assets are already uploaded. Go straight to copy generation.
+Assets are already uploaded. Go straight to visual analysis.
+
+### A-1.5 — Analyze uploaded visuals (MANDATORY)
+
+Before writing ANY copy, you MUST understand what's in the uploaded images/videos:
+
+1. Call `get_ad_images()` to get image URLs for the uploaded hashes. Match `image_hash` from the uploaded tokens to the results — each image has a `url` field.
+2. For videos: construct the URL as `https://graph.facebook.com/VIDEO_ID/thumbnails` or use the video_id directly.
+3. Call `analyze_creative_visual(media_urls, context)` with the resolved URLs and campaign context (objective, destination, product/brand name).
+
+The tool reads:
+- For images: visual elements, mood, text overlays, brand signals, color palette
+- For videos: hook quality, pacing, audio cues, scene transitions
+
+**Use the analysis output to inform ALL copy variations.** The copy MUST reference what's visible in the image/video (e.g. if the image shows a neon-lit beauty clinic, the copy should reference beauty/skincare, not generic text).
+
+**NEVER generate copy based only on the filename.**
 
 ### A-2 — Generate ALL copyvariations in ONE response
 
-For each asset in `uploaded_assets`, produce one `copyvariations` block prefixed with a markdown header.
-Use the filename, campaign objective, conversion_destination, and any product/brand context from the brief.
+For each asset in `uploaded_assets`, produce one `copyvariations` block.
+Use the **visual analysis results**, campaign objective, conversion_destination, and any product/brand context from the brief.
+
+**CRITICAL: Write FULL primary text (50-125 words).** This is the final draft the user approves — not a summary or tagline. Each variation should be a complete, publication-ready ad copy paragraph.
 
 Example output:
 
-**Creative 1 — dress_red.png**
 ```copyvariations
 {"label":"Creative 1 — dress_red.png","variations":[
-  {"id":"A","primary":"…","headline":"…","cta":"SHOP_NOW"},
-  {"id":"B","primary":"…","headline":"…","cta":"SHOP_NOW"},
-  {"id":"C","primary":"…","headline":"…","cta":"SHOP_NOW"}
+  {"id":"A","primary":"Full 50-125 word ad copy that references the visual elements from the image analysis. Include product benefits, emotional hooks, and end with a natural CTA. This is what will actually appear in the Facebook/Instagram ad.","headline":"Short Headline (max 40 chars)","cta":"SHOP_NOW"},
+  {"id":"B","primary":"Different angle — same visual references but different emotional tone or benefit focus. Still 50-125 words of complete, ready-to-publish copy.","headline":"Different Angle Headline","cta":"SHOP_NOW"},
+  {"id":"C","primary":"Third variation — perhaps more direct/urgency-driven. Reference specific visual elements the analysis found. Full paragraph.","headline":"Third Option Headline","cta":"SHOP_NOW"}
 ]}
 ```
 
@@ -174,13 +191,15 @@ Use `"pageId_postId"` as `object_story_id`. Skip copy generation — post has it
 
 **Immediately** after media is ready — do NOT wait to be asked:
 
-Generate 3 variations using the filename, campaign objective, conversion_destination, and any product/brand context.
+First, call `analyze_creative_visual(media_urls, context)` on the uploaded media to understand what's in the image/video. Then generate 3 variations using the **visual analysis results**, campaign objective, conversion_destination, and any product/brand context.
+
+**Write FULL primary text (50-125 words per variation).** This is the final draft — not a summary.
 
 ```copyvariations
 {"label":"Ad Copy Options","variations":[
-  {"id":"A","primary":"…","headline":"…","cta":"SHOP_NOW"},
-  {"id":"B","primary":"…","headline":"…","cta":"SHOP_NOW"},
-  {"id":"C","primary":"…","headline":"…","cta":"SHOP_NOW"}
+  {"id":"A","primary":"Full 50-125 word ad copy referencing the visual analysis results...","headline":"Headline (max 40 chars)","cta":"SHOP_NOW"},
+  {"id":"B","primary":"Different angle, different tone...","headline":"Alt Headline","cta":"SHOP_NOW"},
+  {"id":"C","primary":"Third option...","headline":"Third Headline","cta":"SHOP_NOW"}
 ]}
 ```
 
@@ -233,7 +252,7 @@ create_ad_creative(
     "message": "Primary text here",
     "name": "Headline here",
     "call_to_action": {
-      "type": "SEND_WHATSAPP_MESSAGE",
+      "type": "WHATSAPP_MESSAGE",
       "value": {"whatsapp_phone_number": "+85298765432"}
     }
   }

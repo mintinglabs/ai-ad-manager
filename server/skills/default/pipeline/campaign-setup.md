@@ -38,7 +38,11 @@ get_workflow_context()
 get_ad_account_details()
 get_minimum_budgets()
 get_pages()
+get_custom_audiences()
+get_saved_audiences()
 ```
+
+The audience calls fetch existing audiences so the user can pick one instead of always using broad targeting.
 
 Then detect the path:
 
@@ -71,18 +75,22 @@ If country or budget is missing from the brief, add a single line below the revi
 
 ### A-2 — Show ONE review card
 
-```steps
-{"title":"Campaign Setup — Please confirm","steps":[
-  {"label":"Campaign","description":"[Objective] — [Date] · PAUSED","priority":"high"},
-  {"label":"Destination","description":"[URL if present, else 'To be set in Ads Manager']","priority":"high"},
-  {"label":"Audience","description":"[Country] · Ages 18–65 · Broad targeting","priority":"high"},
-  {"label":"Daily Budget","description":"[Amount + currency, or 'Please confirm']","priority":"high"},
-  {"label":"Creatives","description":"[N] image(s)/video(s) ready to launch","priority":"high"},
-  {"label":"CTA","description":"[CTA — default SHOP_NOW]","priority":"medium"}
+```setupcard
+{"phase":1,"title":"Campaign & Targeting","subtitle":"Review before creating","items":[
+  {"label":"Campaign","value":"[Objective] — [Date]","detail":"Will be created PAUSED","icon":"target","editable":true},
+  {"label":"Destination","value":"[WhatsApp / Website URL / Lead Form]","detail":"[URL or phone if applicable]","icon":"target","editable":true},
+  {"label":"Audience","value":"[Country] · Ages 18–65","detail":"Broad targeting · Advantage+ placements","icon":"sparkles","editable":true},
+  {"label":"Daily Budget","value":"[Amount + currency]/day","detail":"= [cents] cents","icon":"dollar","editable":true},
+  {"label":"Creatives","value":"[N] image(s)/video(s) ready","icon":"sparkles"},
+  {"label":"CTA","value":"[SHOP_NOW / WHATSAPP_MESSAGE / LEARN_MORE]","editable":true}
 ]}
 ```
 
-End with: **"Looks right? Reply 'yes' to create the campaign & ad set — or edit anything above."**
+End with quick replies (NOT plain text):
+
+```quickreplies
+["OK, proceed", "我想改預算", "我想改目標地區", "我想改 Audience"]
+```
 
 ### A-3 — On "yes"
 
@@ -117,17 +125,19 @@ In the **same message** below the picker, add one line:
 
 ### B-2 — Show ONE review card (after user replies)
 
-```steps
-{"title":"Boost Setup — Please confirm","steps":[
-  {"label":"Post","description":"[Post preview — first 60 chars]","priority":"high"},
-  {"label":"Objective","description":"OUTCOME_ENGAGEMENT (Boost)","priority":"high"},
-  {"label":"Audience","description":"[Country] · Ages 18–65 · Broad targeting","priority":"high"},
-  {"label":"Daily Budget","description":"[Amount + currency]","priority":"high"},
-  {"label":"Page","description":"[Page Name]","priority":"medium"}
+```setupcard
+{"phase":1,"title":"Boost Setup","subtitle":"Review before boosting","items":[
+  {"label":"Post","value":"[Post preview — first 60 chars]","icon":"sparkles"},
+  {"label":"Objective","value":"Engagement (Boost)","icon":"target"},
+  {"label":"Audience","value":"[Country] · Ages 18–65 · Broad targeting","icon":"sparkles","editable":true},
+  {"label":"Daily Budget","value":"[Amount + currency]/day","icon":"dollar","editable":true},
+  {"label":"Page","value":"[Page Name]","icon":"shield"}
 ]}
 ```
 
-End with: **"Looks right? Reply 'yes' to create & boost."**
+```quickreplies
+["OK, proceed", "我想改預算", "我想改目標地區"]
+```
 
 ### B-3 — On "yes"
 
@@ -165,27 +175,47 @@ Ask all remaining must-haves in a single message. Example for Sales:
 > 2. **Which country** are you targeting?
 > 3. **Daily budget?** (e.g. HKD 200/day)
 
+Also show existing audiences if any were found in FIRST ACTIONS:
+
+```options
+{"title":"Audience (optional — default: Broad)","options":[
+  {"id":"broad","title":"Broad Targeting","description":"Ages 18–65, all interests · Recommended for new campaigns","tag":"Default"},
+  {"id":"AUDIENCE_ID_1","title":"[Custom audience name]","description":"[type] · [size if known]"},
+  {"id":"AUDIENCE_ID_2","title":"[Saved audience name]","description":"[targeting summary]"},
+  {"id":"new","title":"Build New Audience","description":"Create a custom or lookalike audience"}
+]}
+```
+
+If no custom/saved audiences exist, skip the options card — just use broad targeting by default.
+If user picks "Build New Audience", save current progress to workflow_context and `transfer_to_agent("audience_strategist")`.
+
 For Awareness / Engagement: skip destination question (not required).
 For Traffic: ask URL + country + budget.
 For Leads: ask WhatsApp / Lead Form / Website + country + budget.
 
 If user picks **Website**: silently call `get_pixels()`. If a pixel exists, use it. If not, use `optimization_goal: "LINK_CLICKS"`.
 
-### C-3 — ONE review card
+**SMART PARSING**: If the user answers all fields in one line (e.g. "WhatsApp, HK, HK$100"), parse ALL values and go straight to the review card. Do NOT ask follow-up questions for info already provided.
 
-```steps
-{"title":"Campaign Setup — Please confirm","steps":[
-  {"label":"Campaign","description":"[Objective] — [Date] · PAUSED","priority":"high"},
-  {"label":"Destination","description":"[Destination + URL / number / form name]","priority":"high"},
-  {"label":"Audience","description":"[Country] · Ages 18–65 · Broad targeting","priority":"high"},
-  {"label":"Daily Budget","description":"[Amount + currency]","priority":"high"},
-  {"label":"Page","description":"[Page Name]","priority":"medium"}
+### C-3 — ONE review card (MANDATORY — always show this)
+
+**CRITICAL: You MUST always render this `setupcard` block after collecting the required info. Never skip it. Never replace it with plain text.**
+
+```setupcard
+{"phase":1,"title":"Campaign & Targeting","subtitle":"Review before creating","items":[
+  {"label":"Campaign","value":"[Objective] — [Date]","detail":"Will be created PAUSED","icon":"target","editable":true},
+  {"label":"Destination","value":"[WhatsApp / Website URL / Lead Form]","detail":"[URL or phone if applicable]","icon":"target","editable":true},
+  {"label":"Audience","value":"[Country] · Ages 18–65","detail":"Broad targeting · Advantage+ placements","icon":"sparkles","editable":true},
+  {"label":"Daily Budget","value":"[Amount + currency]/day","icon":"dollar","editable":true},
+  {"label":"Page","value":"[Page Name]","icon":"shield"}
 ]}
 ```
 
-End with: **"Looks right? Reply 'yes' to create the campaign & ad set."**
+```quickreplies
+["OK, proceed", "我想改預算", "我想改目標地區", "我想揀 Audience"]
+```
 
-### C-4 — On "yes"
+### C-4 — On "yes" / "OK, proceed"
 
 1. `create_campaign(...)` → save `campaign_id`
 2. `create_ad_set(...)` with smart defaults + pixel_id if website destination → save `adset_id`

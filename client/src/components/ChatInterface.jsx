@@ -158,7 +158,7 @@ export const parseMarkdownTable = (text) => {
   let textBuf = [];
   let i = 0;
 
-  const RICH_BLOCKS = ['adlib', 'metrics', 'options', 'insights', 'score', 'copyvariations', 'steps', 'quickreplies', 'funnel', 'comparison', 'budget', 'trend', 'adpreview'];
+  const RICH_BLOCKS = ['adlib', 'metrics', 'options', 'insights', 'score', 'copyvariations', 'steps', 'quickreplies', 'funnel', 'comparison', 'budget', 'trend', 'adpreview', 'setupcard'];
 
   while (i < lines.length) {
     const trimmed = lines[i].trim();
@@ -532,26 +532,32 @@ const ScoreCard = ({ data }) => {
   );
 };
 
-// ── Copy Variations (A/B selectable ad copy) ─────────────────────────────────
+// ── Copy Variations (A/B selectable ad copy — full-text layout) ──────────────
 const CopyVariations = ({ data, onSend }) => {
   if (!data?.variations) return null;
   return (
-    <MetaCard title="Ad Copy Variations" subtitle={`${data.variations.length} options`} badge="Creative">
+    <MetaCard title={data.label || 'Ad Copy Variations'} subtitle={`${data.variations.length} options`} badge="Creative">
       <div className="divide-y divide-slate-100">
         {data.variations.map((v, i) => (
-          <div key={i} className="flex items-start gap-4 px-4 py-3.5 hover:bg-slate-50/50 transition-colors">
-            <span className="w-7 h-7 rounded-full bg-[#1877F2] flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5">{v.id}</span>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <p className="text-[13px] font-semibold text-slate-800">{v.headline}</p>
-                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full border border-slate-200 bg-slate-50 text-slate-500 uppercase tracking-wide">{v.cta?.replace(/_/g, ' ') || 'CTA'}</span>
+          <div key={i} className="px-4 py-4 hover:bg-slate-50/30 transition-colors">
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center gap-2.5">
+                <span className="w-7 h-7 rounded-full bg-[#1877F2] flex items-center justify-center text-white text-xs font-bold shrink-0">{v.id}</span>
+                <p className="text-[14px] font-bold text-slate-800">{v.headline}</p>
               </div>
-              <p className="text-xs text-slate-500 leading-relaxed">{v.primary}</p>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full border border-slate-200 bg-slate-50 text-slate-500 uppercase tracking-wide">{v.cta?.replace(/_/g, ' ') || 'CTA'}</span>
+                <button onClick={() => onSend?.(`Use copy variation ${v.id}: "${v.headline}"`)}
+                  className="text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-[#1877F2] text-white hover:bg-[#1565C0] transition-colors">
+                  Use this
+                </button>
+              </div>
             </div>
-            <button onClick={() => onSend?.(`Use copy variation ${v.id}: "${v.headline}"`)}
-              className="shrink-0 text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-[#1877F2] text-white hover:bg-[#1565C0] transition-colors mt-0.5">
-              Use this
-            </button>
+            {/* Full primary text — no truncation */}
+            <div className="ml-[38px]">
+              <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mb-1">Primary Text</p>
+              <p className="text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap">{v.primary}</p>
+            </div>
           </div>
         ))}
       </div>
@@ -559,18 +565,79 @@ const CopyVariations = ({ data, onSend }) => {
   );
 };
 
+// ── Setup Card (campaign/ad set review — collapsible phase card) ─────────────
+const SetupCard = ({ data, onSend }) => {
+  const [collapsed, setCollapsed] = useState(false);
+  if (!data?.items) return null;
+  const phase = data.phase || 1;
+  const phaseLabels = { 1: 'Campaign & Targeting', 2: 'Creative', 3: 'Review & Launch' };
+  const phaseColors = { 1: 'blue', 2: 'purple', 3: 'emerald' };
+  const color = phaseColors[phase] || 'blue';
+
+  return (
+    <div className="my-3 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+      {/* Phase header — clickable to collapse */}
+      <button onClick={() => setCollapsed(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+        <div className="flex items-center gap-2.5">
+          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border
+            ${collapsed ? `border-emerald-400 bg-emerald-50 text-emerald-600` : `border-${color}-400 bg-${color}-50 text-${color}-600`}`}>
+            {collapsed ? '✓' : phase}
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-semibold text-slate-800">{data.title || phaseLabels[phase]}</p>
+            {data.subtitle && <p className="text-[11px] text-slate-400">{data.subtitle}</p>}
+          </div>
+        </div>
+        <ChevronRight size={16} className={`text-slate-400 transition-transform ${collapsed ? '' : 'rotate-90'}`} />
+      </button>
+
+      {/* Expandable settings rows */}
+      {!collapsed && (
+        <div className="divide-y divide-slate-50">
+          {data.items.map((item, i) => (
+            <div key={i} className="flex items-start gap-3 px-4 py-3 group">
+              <div className="w-5 flex items-center justify-center shrink-0 mt-0.5">
+                {item.icon === 'target' ? <Target size={14} className="text-slate-400" /> :
+                 item.icon === 'dollar' ? <DollarSign size={14} className="text-slate-400" /> :
+                 item.icon === 'shield' ? <Shield size={14} className="text-slate-400" /> :
+                 item.icon === 'sparkles' ? <Sparkles size={14} className="text-slate-400" /> :
+                 <div className={`w-1.5 h-1.5 rounded-full bg-${color}-400`} />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">{item.label}</p>
+                <p className="text-[13px] font-semibold text-slate-800 mt-0.5">{item.value}</p>
+                {item.detail && <p className="text-[11px] text-slate-400 mt-0.5">{item.detail}</p>}
+              </div>
+              {item.editable && (
+                <button onClick={() => onSend?.(`我想改${item.label}`)}
+                  className="opacity-0 group-hover:opacity-100 text-[10px] text-blue-500 hover:text-blue-700 font-medium px-2 py-1 rounded-md hover:bg-blue-50 transition-all shrink-0">
+                  Edit
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Steps List (prioritized actions) ─────────────────────────────────────────
 const StepsList = ({ data }) => {
-  if (!Array.isArray(data)) return null;
+  // Handle both array format and { title, steps: [...] } object format
+  const items = Array.isArray(data) ? data : (data?.steps || null);
+  if (!Array.isArray(items)) return null;
+  const cardTitle = (!Array.isArray(data) && data?.title) || 'Recommended Actions';
   const priorityConfig = {
     high:   { dot: 'bg-red-500', label: 'Urgent', labelCls: 'text-red-600 bg-red-50 border-red-100' },
     medium: { dot: 'bg-amber-400', label: 'This week', labelCls: 'text-amber-600 bg-amber-50 border-amber-100' },
     low:    { dot: 'bg-emerald-500', label: 'Opportunity', labelCls: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
   };
   return (
-    <MetaCard title="Recommended Actions" subtitle="Prioritized by impact" badge="Action Plan">
+    <MetaCard title={cardTitle} subtitle="Prioritized by impact" badge="Action Plan">
       <div className="divide-y divide-slate-100">
-        {data.map((step, i) => {
+        {items.map((step, i) => {
           const cfg = priorityConfig[step.priority] || { dot: 'bg-slate-300', label: step.priority, labelCls: 'text-slate-500 bg-slate-50 border-slate-200' };
           return (
             <div key={i} className="flex items-start gap-3.5 px-4 py-3.5">
@@ -580,10 +647,10 @@ const StepsList = ({ data }) => {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-[13px] font-semibold text-slate-800">{step.title}</p>
-                  <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${cfg.labelCls}`}>{cfg.label}</span>
+                  <p className="text-[13px] font-semibold text-slate-800">{step.title || step.label}</p>
+                  {step.priority && <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${cfg.labelCls}`}>{cfg.label}</span>}
                 </div>
-                {step.reason && <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{step.reason}</p>}
+                {(step.reason || step.description) && <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{step.reason || step.description}</p>}
               </div>
             </div>
           );
@@ -1207,6 +1274,7 @@ export const RichContent = ({ text, onSend }) => {
           case 'score': return <ScoreCard key={i} data={seg.data} />;
           case 'copyvariations': return <CopyVariations key={i} data={seg.data} onSend={onSend} />;
           case 'steps': return <StepsList key={i} data={seg.data} />;
+          case 'setupcard': return <SetupCard key={i} data={seg.data} onSend={onSend} />;
           case 'quickreplies': return <QuickRepliesCard key={i} data={seg.data} onSend={onSend} />;
           case 'funnel': return <FunnelCard key={i} data={seg.data} />;
           case 'comparison': return <ComparisonCard key={i} data={seg.data} />;
@@ -1344,6 +1412,7 @@ const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem, folder
                   case 'score': return <ScoreCard key={i} data={seg.data} />;
                   case 'copyvariations': return <CopyVariations key={i} data={seg.data} onSend={onSend} />;
                   case 'steps': return <StepsList key={i} data={seg.data} />;
+                  case 'setupcard': return <SetupCard key={i} data={seg.data} onSend={onSend} />;
                   case 'quickreplies': return <QuickRepliesCard key={i} data={seg.data} onSend={onSend} />;
                   case 'funnel': return <FunnelCard key={i} data={seg.data} />;
                   case 'comparison': return <ComparisonCard key={i} data={seg.data} />;

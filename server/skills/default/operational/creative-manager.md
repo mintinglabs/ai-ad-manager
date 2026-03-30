@@ -46,7 +46,7 @@ For each ACTIVE creative (linked to a running ad), evaluate:
 ### 5. Copy Quality Signals
 - Check if headline, primary text, and CTA are present
 - Check text length: primary text < 50 chars → may lack context; > 300 chars → may get truncated
-- Check CTA type matches campaign goal (e.g., SHOP_NOW for purchase, SEND_WHATSAPP_MESSAGE for conversations)
+- Check CTA type matches campaign goal (e.g., SHOP_NOW for purchase, WHATSAPP_MESSAGE for conversations)
 
 ## Output Format
 

@@ -35,14 +35,14 @@ Detect mode from workflow state:
 
 Show all settings from workflow context. Ask for explicit confirmation before ANY create tool call.
 
-```steps
-{"title":"Campaign Review — Ready to Create?","steps":[
-  {"label":"Campaign","description":"[Name] · [Objective] · PAUSED","priority":"high"},
-  {"label":"Destination","description":"[Destination + URL / WhatsApp number / form name]","priority":"high"},
-  {"label":"Page","description":"[Page Name]","priority":"high"},
-  {"label":"Creative","description":"[Format] · [Asset name — NOT raw hash or ID]","priority":"high"},
-  {"label":"Audience","description":"[Country] · Ages 18–65 · Broad targeting","priority":"high"},
-  {"label":"Budget","description":"[AMOUNT + CURRENCY]/day","priority":"high"}
+```setupcard
+{"phase":3,"title":"Final Review — Ready to Create?","subtitle":"All settings from Phase 1 & 2","items":[
+  {"label":"Campaign","value":"[Name] · [Objective]","detail":"Will be created PAUSED","icon":"target"},
+  {"label":"Destination","value":"[WhatsApp / Website URL / Lead Form]","icon":"target"},
+  {"label":"Page","value":"[Page Name]","icon":"shield"},
+  {"label":"Creative","value":"[Format] · [Asset name — NOT raw hash or ID]","icon":"sparkles"},
+  {"label":"Audience","value":"[Country] · Ages 18–65 · Broad targeting","icon":"sparkles"},
+  {"label":"Budget","value":"[AMOUNT + CURRENCY]/day","icon":"dollar"}
 ]}
 ```
 
@@ -122,13 +122,13 @@ Root agent delivers the final success summary and quick replies.
 
 ### BL-1 — Review Card (one card for all N ads)
 
-```steps
-{"title":"Bulk Launch — [N] Ads Ready","steps":[
-  {"label":"Campaign","description":"[Name] · [Objective] · PAUSED","priority":"high"},
-  {"label":"Ad Set","description":"[Country] · Ages 18–65 · [Budget]/day","priority":"high"},
-  {"label":"Creatives","description":"[N] creatives ready: [comma list of filenames]","priority":"high"},
-  {"label":"Format","description":"[IMAGE / VIDEO / mixed]","priority":"high"},
-  {"label":"Status","description":"Will launch ACTIVE after confirmation","priority":"high"}
+```setupcard
+{"phase":3,"title":"Bulk Launch — [N] Ads Ready","subtitle":"All ads will be created together","items":[
+  {"label":"Campaign","value":"[Name] · [Objective]","detail":"PAUSED until go live","icon":"target"},
+  {"label":"Ad Set","value":"[Country] · Ages 18–65 · [Budget]/day","icon":"sparkles"},
+  {"label":"Creatives","value":"[N] creatives ready","detail":"[comma list of filenames]","icon":"sparkles"},
+  {"label":"Format","value":"[IMAGE / VIDEO / mixed]","icon":"sparkles"},
+  {"label":"Status","value":"Will launch ACTIVE after confirmation","icon":"shield"}
 ]}
 ```
 
