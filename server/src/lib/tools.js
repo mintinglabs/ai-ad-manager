@@ -259,6 +259,13 @@ function getAd({ ad_id }, c) {
 }
 function createAd(args, c) {
   const params = { ...args };
+  // Dev mode fallback: if creative_id starts with DEV_CREATIVE_, skip real API call
+  if (params.creative_id?.startsWith('DEV_CREATIVE_')) {
+    const fakeAdId = `DEV_AD_${Date.now()}`;
+    console.warn(`[tool] createAd: dev mode creative detected — returning draft ad ${fakeAdId}`);
+    return { id: fakeAdId, name: params.name, status: 'DRAFT', _dev_mode_fallback: true,
+      _message: 'Ad saved as draft. Switch app to Live mode to publish.' };
+  }
   // Convert creative_id string to the creative object Meta API expects
   if (params.creative_id && !params.creative) {
     params.creative = JSON.stringify({ creative_id: params.creative_id });
@@ -316,16 +323,35 @@ function getAdCreatives(_, c) {
 function getAdCreative({ creative_id }, c) {
   return meta.getAdCreative(ctx(c).token, creative_id);
 }
-function createAdCreative(args, c) {
+async function createAdCreative(args, c) {
   const params = { ...args };
   // Parse object_story_spec from JSON string if needed
   if (typeof params.object_story_spec === 'string') {
     try { params.object_story_spec = JSON.parse(params.object_story_spec); } catch {}
   }
+  const specObj = params.object_story_spec; // keep parsed copy for fallback
   if (params.object_story_spec && typeof params.object_story_spec === 'object') {
     params.object_story_spec = JSON.stringify(params.object_story_spec);
   }
-  return meta.createAdCreative(ctx(c).token, ctx(c).adAccountId, params);
+  try {
+    return await meta.createAdCreative(ctx(c).token, ctx(c).adAccountId, params);
+  } catch (err) {
+    const metaErr = err.response?.data?.error;
+    // Dev mode fallback: subcode 1885183 = "app is in development mode"
+    if (metaErr?.error_subcode === 1885183) {
+      const fakeId = `DEV_CREATIVE_${Date.now()}`;
+      console.warn(`[tool] createAdCreative: dev mode blocked — returning draft creative ${fakeId}`);
+      return {
+        id: fakeId,
+        name: params.name,
+        status: 'DRAFT',
+        _dev_mode_fallback: true,
+        _message: 'App is in development mode. Creative saved as draft — switch to Live mode to publish. Campaign and ad set are already created.',
+        _creative_spec: specObj,
+      };
+    }
+    throw err; // re-throw non-dev-mode errors for safe() to handle
+  }
 }
 function updateAdCreative({ creative_id, ...updates }, c) {
   return meta.updateAdCreative(ctx(c).token, creative_id, updates);

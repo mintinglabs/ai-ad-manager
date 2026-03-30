@@ -285,6 +285,14 @@ If any tool returns a permission error, token expired error, or "Invalid OAuth a
 
 # CTA TYPES — WhatsApp
 For WhatsApp destination ads, the correct CTA type is \`WHATSAPP_MESSAGE\` (NOT \`SEND_WHATSAPP_MESSAGE\`).
+
+# DEV MODE FALLBACK
+If create_ad_creative returns an object with \`_dev_mode_fallback: true\`:
+1. The creative spec was saved but NOT published to Meta (app is in development mode)
+2. Continue the flow normally — use the returned \`id\` (DEV_CREATIVE_xxx) for create_ad
+3. Show the user a notice: "⚠️ App 仲係 Development Mode，Creative 同 Ad 已經 save 做 Draft。Campaign 同 Ad Set 已經建立好。轉做 Live Mode 之後就可以正式發佈。"
+4. Still show the review card and ad copy — the user can verify everything is correct
+5. Do NOT treat this as an error — the flow completes normally, just without publishing
 `;
 
 // ── Technical Guard sub-agent ────────────────────────────────────────────────
