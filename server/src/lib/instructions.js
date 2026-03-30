@@ -52,6 +52,9 @@ The UI renders special code blocks as interactive cards:
 \`\`\`
 
 Rules: Max 1-2 sentences between blocks. ALWAYS end with quickreplies. Dollar amounts from insights API are already in currency — do NOT divide by 100. Only daily_budget and bid_amount are in cents.
+
+# DUAL-PANEL OUTPUT — Chat vs Canvas
+The UI has a Chat panel (left) and Canvas panel (right). Canvas blocks (metrics, budget, comparison, trend, funnel, adpreview) + markdown tables are STRIPPED from chat and shown only in canvas. BUT any regular text you write appears in BOTH panels. To avoid duplication: write all chat text/blocks FIRST, then emit canvas blocks at the END with no surrounding text.
 `;
 
 // ── Root orchestrator (~80 lines — intent classifier + routing) ──────────────
@@ -142,17 +145,36 @@ Decision tree (first match wins):
 - 🚀 爆發增長模式 — CPA < -20% AND CTR stable/rising
 Edge: no prev data → use baseline only. No CPA (awareness) → use CPM. < $10 spend → skip.
 
-# OUTPUT — Chat then Canvas
-**Chat (stream in order):**
-1. ### 🚦 Executive Briefing — dominant diagnostic + account totals. OUTPUT FIRST.
-2. ### 🧠 Strategic Deep-Dive — causal analysis per goal group with #### sub-headers.
-3. ### ⚡ Action Plan — steps block with campaign names + numbers.
-4. insights block — top 3 findings.
-5. quickreplies — 4 diagnostic-aware buttons.
+# OUTPUT FORMAT — Two Panels, Zero Redundancy
+The UI has two panels: Chat (left) and Canvas (right). Canvas appears when you emit canvas blocks. CRITICAL: text written BETWEEN or AROUND canvas blocks appears in BOTH panels. To avoid duplication, write ALL text first, then ALL canvas blocks together at the end.
 
-**Canvas (AFTER chat):**
-- metrics block, budget block (spend donut by goal), comparison block (WoW)
-- Goal summary table + per-campaign detail table sorted by severity (🚨→🚀)
+## CHAT PANEL (stream first — user reads this immediately)
+Write in this exact order, nothing else:
+
+1. **One-paragraph Executive Summary** — 2-3 sentences max. State the dominant diagnostic status, total spend, and the single most important finding with numbers. No heading needed, just bold the status emoji + label inline.
+
+2. **Bullet-point Insights** — 3-5 bullets, each one line. Format: "• [Campaign name]: [status emoji] [specific metric] ([WoW change])"
+
+3. \`\`\`insights block — top 3 severity-coded findings with action buttons.
+
+4. \`\`\`steps block — 2-4 prioritized actions with campaign names + numbers.
+
+5. \`\`\`quickreplies — 4 diagnostic-aware follow-up buttons.
+
+## CANVAS PANEL (emit AFTER all chat content — appears as detailed report)
+Emit these blocks back-to-back with NO text between them (only minimal 1-line headers like "### Performance Report" are OK):
+
+1. \`\`\`metrics block — Spend + 3 goal-relevant KPIs with WoW change
+2. \`\`\`budget block — spend allocation donut by goal/campaign
+3. \`\`\`comparison block — WoW bar chart per goal
+4. Markdown table: Goal summary (one row per goal with columns: Goal | Spend | Results | Cost/Result | Status | WoW)
+5. Markdown table: Per-campaign detail sorted by severity (🚨→🚀) with columns: Campaign | Goal | Spend | Results | CPA | CTR | Freq | Status
+
+## ANTI-DUPLICATION RULES
+- NEVER repeat the executive summary text in the canvas section
+- NEVER put explanatory paragraphs between canvas blocks — they show in both panels
+- Canvas tables ARE the deep-dive — no need for a separate "Strategic Deep-Dive" text section
+- Keep chat text concise (under 300 words). The canvas carries the data detail.
 
 # AFTER ANALYSIS
 Transfer back to ad_manager.

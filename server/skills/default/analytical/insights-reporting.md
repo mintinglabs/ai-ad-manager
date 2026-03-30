@@ -93,42 +93,30 @@ result_count      = current period primary results (0 vs >0)
 
 ---
 
-## Output Format
+## Output Format — Two Panels, Zero Redundancy
 
-### Chat (left panel) — stream in order:
+Text appears in BOTH panels. Canvas blocks (metrics, budget, comparison) + tables appear ONLY in canvas. Write all text first, then canvas blocks at the end.
 
-**1. 🚦 Executive Briefing** — OUTPUT IMMEDIATELY with account totals + dominant diagnostic. Don't wait to compute every campaign.
+### Chat (left panel) — stream first:
+1. **One-paragraph summary** — 2-3 sentences: dominant status + total spend + key finding with numbers
+2. **Bullet insights** — 3-5 one-line bullets: "• [Campaign]: [status] [metric] ([WoW change])"
+3. `insights` block — top 3 severity-coded findings
+4. `steps` block — 2-4 prioritized actions
+5. `quickreplies` — 4 diagnostic-aware buttons
 
-Example: "### 🚦 ⚔️ 流量競爭加劇 執行官簡報\n**本週總支出 $16,331，WhatsApp 對話成本升至 $181/conv（30天基準：$148，偏離 +22%）。**"
+### Canvas (right panel) — emit AFTER all text, no text between blocks:
+1. `metrics` block (Spend + 3 KPIs)
+2. `budget` block (spend donut by goal)
+3. `comparison` block (WoW bar chart)
+4. Goal summary table (Goal | Spend | Results | Cost/Result | Status | WoW)
+5. Per-campaign table sorted by severity 🚨→🚀
 
-**2. 🧠 Strategic Deep-Dive** — Causal analysis per scenario. No length limit. Use #### sub-headers.
-- A: spend_share vs result_share per goal, funnel imbalances
-- B: evidence chain for Creative Decay vs Auction Pressure
-- C: vampire ads quantified, excess cost calculated
-- D: per-winner scaling estimate, frequency headroom
-
-**3. ⚡ Action Plan** — `steps` block with specific campaign names + numbers.
-
-**4. `insights` block** — top 3 severity-coded findings with action buttons.
-
-**5. `quickreplies`** — 4 buttons mapped to dominant diagnostic status.
-
-### Canvas (right panel) — emit AFTER chat:
-
-- `metrics` block (Spend + 3 goal-relevant KPIs)
-- `budget` block (spend allocation donut by goal)
-- `comparison` block (WoW per goal)
-- Goal summary table (one row per goal with Status column)
-- Per-campaign detail table sorted by severity: 🚨→⚠️→⚔️→⚖️→🚀
-
-### Global Rules
-
+### Rules
 - WhatsApp/Messaging: NEVER show ROAS
-- Every metric must include WoW % change (🟢/🟡/🔴)
-- Strip campaign name prefixes — show meaningful part only
-- Dynamic quickreplies based on diagnostic status, not generic
-- Data freshness: note 48h attribution window at report bottom
-- Never gate data with clarifying questions — show results first
+- Every metric includes WoW % (🟢/🟡/🔴)
+- Strip campaign name prefixes
+- Dynamic quickreplies based on diagnostic, not generic
+- Note 48h attribution window at report bottom
 
 ---
 
