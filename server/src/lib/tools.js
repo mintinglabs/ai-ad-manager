@@ -1418,7 +1418,8 @@ const audienceTools = pick(
 // Creative Strategist — hook analysis, copy pivots, format recommendations (read-only audit)
 const creativeTools = pick(
   'get_ad_creatives', 'get_ad_creative', 'get_ad_preview',
-  'get_ad_images', 'get_ad_videos', 'get_page_posts', 'get_page_videos',
+  'get_ad_images', 'get_ad_videos', 'get_ads',
+  'get_pages', 'get_page_posts', 'get_page_videos',
   'get_workflow_context', 'update_workflow_context', 'load_skill'
 );
 
