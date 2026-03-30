@@ -47,7 +47,7 @@ export const Dashboard = ({
 
   const {
     sessions, activeSessionId, createNewChat, switchSession, deleteSession,
-    messages, isTyping, thinkingText, creationStep, creationSummary, activityLog, sendMessage, stopGeneration, notification,
+    messages, isTyping, thinkingText, creationStep, creationSummary, activityLog, sendMessage, stopGeneration, startCreation, notification,
     savedItems, saveItem, deleteSavedItem,
     folders, createFolder, deleteFolder, renameFolder, reorderFolders,
   } = useChatSessions({ token, adAccountId, accountName: selectedAccount?.name, language: chatLanguage });
@@ -233,6 +233,7 @@ export const Dashboard = ({
                 setActiveView({ type: viewMap[view] || 'chat' });
               }}
               onOpenCanvas={handleOpenCanvas}
+              onStartCreation={startCreation}
             />
           )}
         </div>

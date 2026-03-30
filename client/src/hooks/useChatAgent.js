@@ -261,6 +261,12 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
     }
   }, [token, adAccountId, isTyping, language]);
 
+  // Allow frontend to trigger the wizard immediately (before any API call)
+  const startCreation = useCallback(() => {
+    setCreationStep({ current: 1, total: 3, label: 'Campaign & Targeting' });
+    setCreationSummary({});
+  }, []);
+
   return {
     messages,
     isTyping,
@@ -273,6 +279,7 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
     resetChat,
     loadSession,
     notification,
+    startCreation,
     sessionId: sessionIdRef.current,
   };
 };

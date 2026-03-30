@@ -306,6 +306,7 @@ export const useChatSessions = ({ token, adAccountId, accountName, language = 'e
     activityLog: agent.activityLog,
     sendMessage,
     stopGeneration: agent.stopGeneration,
+    startCreation: agent.startCreation,
     notification: saveNotification || agent.notification,
     // Saved items
     savedItems,

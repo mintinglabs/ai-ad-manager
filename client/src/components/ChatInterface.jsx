@@ -1789,10 +1789,11 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
-export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, creationSummary = {}, activityLog = [], onSend, onStop, suggestedActions = [], adAccountId, onSaveItem, folders = [], activeSkill = null, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas }) => {
+export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, creationSummary = {}, activityLog = [], onSend, onStop, suggestedActions = [], adAccountId, onSaveItem, folders = [], activeSkill = null, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas, onStartCreation }) => {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState([]); // { id, file, preview, status, progress, result }
   const [isDragOver, setIsDragOver] = useState(false);
+  const [fileError, setFileError] = useState(null); // validation error toast
   const [slashSkills, setSlashSkills] = useState([]); // multiple one-off skills from /command
   const endRef   = useRef(null);
   const inputRef = useRef(null);
@@ -1855,9 +1856,43 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, 
     const files = Array.from(fileList);
     const isDoc = (f) => f.name.match(/\.(pdf|txt|doc|docx)$/i);
 
+    // ── Format & size validation ──────────────────────────────────────
+    const ALLOWED_IMAGE = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const ALLOWED_VIDEO = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'];
+    const MAX_IMAGE_MB = 30;
+    const MAX_VIDEO_MB = 4096; // 4 GB
+
+    const rejected = [];
+    const validMedia = [];
+
+    for (const file of files) {
+      if (isDoc(file)) continue; // docs handled below
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
+      const sizeMB = file.size / (1024 * 1024);
+
+      if (isImage && !ALLOWED_IMAGE.includes(file.type)) {
+        rejected.push(`${file.name}: unsupported image format (use JPG, PNG, WebP, or GIF)`);
+      } else if (isImage && sizeMB > MAX_IMAGE_MB) {
+        rejected.push(`${file.name}: image too large (${sizeMB.toFixed(1)}MB, max ${MAX_IMAGE_MB}MB)`);
+      } else if (isVideo && !ALLOWED_VIDEO.includes(file.type)) {
+        rejected.push(`${file.name}: unsupported video format (use MP4, MOV, AVI, or MKV)`);
+      } else if (isVideo && sizeMB > MAX_VIDEO_MB) {
+        rejected.push(`${file.name}: video too large (${(sizeMB / 1024).toFixed(1)}GB, max 4GB)`);
+      } else if (isImage || isVideo) {
+        validMedia.push(file);
+      } else if (!isDoc(file)) {
+        rejected.push(`${file.name}: unsupported file type`);
+      }
+    }
+
+    if (rejected.length) {
+      setFileError(rejected.join('\n'));
+      setTimeout(() => setFileError(null), 6000);
+    }
+
     // Media files — upload to Meta
-    const mediaFiles = files.filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
-    const mediaAttachments = mediaFiles.map(file => {
+    const mediaAttachments = validMedia.map(file => {
       const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
       const preview = file.type.startsWith('image/') ? URL.createObjectURL(file) : null;
       return { id, file, preview, status: 'queued', progress: 0, result: null };
@@ -1967,6 +2002,14 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, 
       return;
     }
 
+    // Detect creation intent → show wizard instead of sending to agent
+    const isCreateIntent = /\b(create|launch|new|start)\b.*\b(campaign|ad|ads)\b/i.test(t)
+      || /建立|新增|開|launch|create/.test(t) && /(廣告|campaign|ad)/i.test(t);
+    if (onStartCreation && !creationStep && isCreateIntent) {
+      onStartCreation();
+      return;
+    }
+
     const doneAttachments = attachments.filter(a => a.status === 'done');
 
     if (!t && !doneAttachments.length) return;
@@ -2042,6 +2085,24 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, 
         </div>
       )}
 
+      {/* File validation error toast */}
+      {fileError && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 max-w-md animate-in slide-in-from-top-2">
+          <div className="bg-red-50 border border-red-200 rounded-xl shadow-lg px-4 py-3 flex items-start gap-3">
+            <AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-red-700 mb-1">File not supported</p>
+              {fileError.split('\n').map((line, i) => (
+                <p key={i} className="text-[11px] text-red-600 leading-relaxed">{line}</p>
+              ))}
+            </div>
+            <button onClick={() => setFileError(null)} className="text-red-400 hover:text-red-600 shrink-0">
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Subtle inline hint when no account connected */}
 
       {/* Empty State */}
@@ -2067,7 +2128,13 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, 
 
           <div className="w-full max-w-3xl mx-auto grid grid-cols-2 lg:grid-cols-3 gap-3 mt-8 pb-8">
             {suggestedActions.map((action) => (
-              <ActionCard key={action.label} {...action} onSend={handleSend} disabled={isTyping} />
+              <ActionCard key={action.label} {...action} onSend={(prompt) => {
+                if (action.label === 'Create Campaign' && onStartCreation) {
+                  onStartCreation();
+                } else {
+                  handleSend(prompt);
+                }
+              }} disabled={isTyping} />
             ))}
           </div>
         </div>
@@ -2077,7 +2144,19 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, creationStep, 
       {!isEmptyState && (
         <>
           {creationStep ? (
-            <CreationWizard step={creationStep} summary={creationSummary} onSend={handleSend} />
+            <CreationWizard
+              step={creationStep}
+              summary={creationSummary}
+              onSend={handleSend}
+              preUploadedFiles={attachments.filter(a => a.status === 'done' && (a.result?.image_hash || a.result?.video_id)).map(a => ({
+                name: a.file.name,
+                preview: a.preview,
+                type: a.file.type,
+                image_hash: a.result?.image_hash,
+                video_id: a.result?.video_id,
+              }))}
+              onUploadFiles={addFiles}
+            />
           ) : null}
           <div className="flex-1 overflow-y-auto">
             <div className="max-w-3xl mx-auto px-4 pt-6 pb-2">
