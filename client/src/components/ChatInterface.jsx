@@ -920,7 +920,7 @@ const InlineSelect = ({ item, onSend }) => {
           )}
           <div className="overflow-y-auto max-h-[200px]">
             {filtered.map((o, i) => (
-              <button key={o.id || i} onClick={() => { setOpen(false); onSend?.(`I changed ${item.label} to: ${o.title || o.id}${o.id ? ` (ID: ${o.id})` : ''}`); }}
+              <button key={o.id || i} onClick={() => { setOpen(false); onSend?.(o); }}
                 className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0">
                 <p className="text-[13px] font-medium text-slate-800 truncate">{o.title}</p>
                 {o.description && <p className="text-[11px] text-slate-400 truncate">{o.description}</p>}
@@ -936,7 +936,7 @@ const InlineSelect = ({ item, onSend }) => {
 };
 
 // ── Setup Card Item Row (handles editable + inline select) ───────────────────
-const SetupCardItem = ({ item, status, iconCls, dotColor, onSend }) => {
+const SetupCardItem = ({ item, status, iconCls, dotColor, onChange }) => {
   const [editing, setEditing] = useState(false);
 
   const icon = item.icon === 'target' ? <Target size={13} className={iconCls} /> :
@@ -957,7 +957,7 @@ const SetupCardItem = ({ item, status, iconCls, dotColor, onSend }) => {
       <div className="flex-1 min-w-0">
         <p className={`text-[10px] font-medium uppercase tracking-wide text-slate-400`}>{item.label}</p>
         {showSelect ? (
-          <InlineSelect item={item} onSend={(val) => { setEditing(false); onSend?.(val); }} status={status} />
+          <InlineSelect item={item} onSend={(opt) => { setEditing(false); onChange?.(opt); }} status={status} />
         ) : (
           <p className={`text-[13px] font-semibold mt-0.5 ${status === 'done' ? 'text-slate-600' : 'text-slate-800'}`}>{item.value}</p>
         )}
@@ -974,60 +974,100 @@ const SetupCardItem = ({ item, status, iconCls, dotColor, onSend }) => {
 };
 
 // ── Setup Card (campaign/ad set review — collapsible phase card) ─────────────
-const SetupCard = ({ data, onSend }) => {
-  const status = data.status || 'active'; // "done" | "active" | "pending"
+const SetupCard = ({ data, onSend, isAnswered }) => {
+  const status = data.status || 'active';
   const [collapsed, setCollapsed] = useState(data.collapsed ?? (status === 'done' || status === 'pending'));
+  // Track local selections — initialize from data.items values
+  const [selections, setSelections] = useState(() => {
+    const map = {};
+    (data.items || []).forEach(item => {
+      map[item.label] = { value: item.value, id: item.options?.find(o => o.title === item.value)?.id || null };
+    });
+    return map;
+  });
+  const [confirmed, setConfirmed] = useState(false);
+
   if (!data?.items?.length && !data.subtitle && status !== 'pending') return null;
   const phase = data.phase || 1;
 
-  // Status-driven styling
   const statusStyles = {
     done:    { border: 'border-emerald-200', bg: 'bg-emerald-50/30', headerBg: 'hover:bg-emerald-50/50', badge: 'border-emerald-400 bg-emerald-50 text-emerald-600', badgeIcon: '✓', text: 'text-slate-700', chevron: 'text-emerald-400' },
     active:  { border: 'border-blue-200', bg: 'bg-white', headerBg: 'hover:bg-blue-50/30', badge: 'border-blue-400 bg-blue-50 text-blue-600', badgeIcon: String(phase), text: 'text-slate-800', chevron: 'text-blue-400' },
     pending: { border: 'border-slate-100', bg: 'bg-slate-50/50', headerBg: '', badge: 'border-slate-200 bg-slate-50 text-slate-400', badgeIcon: String(phase), text: 'text-slate-400', chevron: 'text-slate-300' },
   };
   const s = statusStyles[status] || statusStyles.active;
-
-  // Icon color based on status
   const iconCls = status === 'pending' ? 'text-slate-300' : status === 'done' ? 'text-emerald-400' : 'text-slate-400';
   const dotColor = status === 'pending' ? 'bg-slate-200' : status === 'done' ? 'bg-emerald-400' : 'bg-blue-400';
 
+  // Build items with current selections applied
+  const currentItems = (data.items || []).map(item => ({
+    ...item,
+    value: selections[item.label]?.value || item.value,
+  }));
+
+  const handleItemChange = (label, opt) => {
+    setSelections(prev => ({ ...prev, [label]: { value: opt.title || opt.id, id: opt.id || null } }));
+  };
+
+  const handleConfirm = () => {
+    if (confirmed || isAnswered) return;
+    setConfirmed(true);
+    // Send all selections as one message
+    const parts = currentItems.map(item => {
+      const sel = selections[item.label];
+      return `${item.label}: ${sel?.value || item.value}${sel?.id ? ` (ID: ${sel.id})` : ''}`;
+    });
+    onSend?.(`✅ Confirm ${data.title || 'settings'}:\n${parts.join('\n')}`);
+  };
+
+  const effectiveStatus = (confirmed || isAnswered) ? 'done' : status;
+  const es = statusStyles[effectiveStatus] || statusStyles.active;
+
   return (
-    <div className={`my-2 border rounded-xl overflow-hidden shadow-sm transition-all ${s.border} ${s.bg} ${status === 'pending' ? 'opacity-60' : ''}`}>
-      {/* Phase header — clickable to collapse */}
-      <button onClick={() => status !== 'pending' && setCollapsed(v => !v)}
-        className={`w-full flex items-center justify-between px-4 py-2.5 transition-colors ${status === 'pending' ? 'cursor-default' : `cursor-pointer ${s.headerBg}`}
+    <div className={`my-2 border rounded-xl overflow-hidden shadow-sm transition-all ${es.border} ${es.bg} ${effectiveStatus === 'pending' ? 'opacity-60' : ''}`}>
+      <button onClick={() => effectiveStatus !== 'pending' && setCollapsed(v => !v)}
+        className={`w-full flex items-center justify-between px-4 py-2.5 transition-colors ${effectiveStatus === 'pending' ? 'cursor-default' : `cursor-pointer ${es.headerBg}`}
           ${!collapsed && data.items?.length ? 'border-b border-slate-100' : ''}`}>
         <div className="flex items-center gap-2.5">
-          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border ${s.badge}`}>
-            {s.badgeIcon}
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border ${es.badge}`}>
+            {(confirmed || isAnswered) ? '✓' : String(phase)}
           </div>
           <div className="text-left">
-            <p className={`text-[13px] font-semibold ${s.text}`}>{data.title || `Stage ${phase}`}</p>
-            {(collapsed || status === 'pending') && data.subtitle && (
+            <p className={`text-[13px] font-semibold ${es.text}`}>{data.title || `Stage ${phase}`}</p>
+            {(collapsed || effectiveStatus === 'pending') && data.subtitle && (
               <p className="text-[11px] text-slate-400">{data.subtitle}</p>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {status === 'done' && (
+          {effectiveStatus === 'done' && !confirmed && !isAnswered && (
             <span onClick={(e) => { e.stopPropagation(); onSend?.(`I want to edit Stage ${phase}`); }}
               className="text-[10px] text-emerald-500 hover:text-emerald-700 font-medium px-2 py-0.5 rounded hover:bg-emerald-50 transition-all">
               Edit
             </span>
           )}
-          {status !== 'pending' && (
-            <ChevronDown size={14} className={`${s.chevron} transition-transform ${collapsed ? '-rotate-90' : ''}`} />
+          {effectiveStatus !== 'pending' && (
+            <ChevronDown size={14} className={`${es.chevron} transition-transform ${collapsed ? '-rotate-90' : ''}`} />
           )}
         </div>
       </button>
 
-      {/* Expandable settings rows */}
-      {!collapsed && data.items?.length > 0 && (
+      {!collapsed && currentItems.length > 0 && (
         <div className="divide-y divide-slate-50">
-          {data.items.map((item, i) => (
-            <SetupCardItem key={i} item={item} status={status} iconCls={iconCls} dotColor={dotColor} onSend={onSend} />
+          {currentItems.map((item, i) => (
+            <SetupCardItem key={i} item={item} status={(confirmed || isAnswered) ? 'done' : status} iconCls={iconCls} dotColor={dotColor}
+              onChange={(opt) => handleItemChange(item.label, opt)} />
           ))}
+        </div>
+      )}
+
+      {/* Confirm button — only for active setupcards that haven't been confirmed */}
+      {!collapsed && status === 'active' && !confirmed && !isAnswered && (
+        <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/30">
+          <button onClick={handleConfirm}
+            className="w-full py-2 text-[13px] font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors shadow-sm">
+            ✅ Confirm {data.title || 'Settings'}
+          </button>
         </div>
       )}
     </div>
@@ -1685,7 +1725,7 @@ export const RichContent = ({ text, onSend }) => {
           case 'score': return <ScoreCard key={i} data={seg.data} />;
           case 'copyvariations': return <CopyVariations key={i} data={seg.data} onSend={onSend} />;
           case 'steps': return <StepsList key={i} data={seg.data} />;
-          case 'setupcard': return <SetupCard key={i} data={seg.data} onSend={onSend} />;
+          case 'setupcard': return <SetupCard key={i} data={seg.data} onSend={onSend} isAnswered={isAnswered} />;
           case 'quickreplies': return <QuickRepliesCard key={i} data={seg.data} onSend={onSend} />;
           case 'funnel': return <FunnelCard key={i} data={seg.data} />;
           case 'comparison': return <ComparisonCard key={i} data={seg.data} />;
@@ -1832,7 +1872,7 @@ const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem, folder
                   case 'score': return <ScoreCard key={i} data={seg.data} />;
                   case 'copyvariations': return <CopyVariations key={i} data={seg.data} onSend={onSend} />;
                   case 'steps': return <StepsList key={i} data={seg.data} />;
-                  case 'setupcard': return <SetupCard key={i} data={seg.data} onSend={onSend} />;
+                  case 'setupcard': return <SetupCard key={i} data={seg.data} onSend={onSend} isAnswered={isAnswered} />;
                   case 'quickreplies': return <QuickRepliesCard key={i} data={seg.data} onSend={onSend} />;
                   case 'funnel': return <FunnelCard key={i} data={seg.data} />;
                   case 'comparison': return <ComparisonCard key={i} data={seg.data} />;
