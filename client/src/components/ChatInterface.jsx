@@ -208,9 +208,9 @@ export const parseMarkdownTable = (text) => {
   let textBuf = [];
   let i = 0;
 
-  const RICH_BLOCKS = ['adlib', 'metrics', 'options', 'insights', 'score', 'copyvariations', 'steps', 'quickreplies', 'funnel', 'comparison', 'budget', 'trend', 'adpreview', 'setupcard'];
+  const RICH_BLOCKS = ['adlib', 'metrics', 'options', 'insights', 'score', 'copyvariations', 'steps', 'quickreplies', 'funnel', 'comparison', 'budget', 'trend', 'adpreview', 'setupcard', 'mediagrid'];
   // Aliases for common LLM misspellings
-  const BLOCK_ALIASES = { option: 'options', quickreplie: 'quickreplies', quickreply: 'quickreplies', copyvariation: 'copyvariations', metric: 'metrics', step: 'steps', setupcard: 'setupcard' };
+  const BLOCK_ALIASES = { option: 'options', quickreplie: 'quickreplies', quickreply: 'quickreplies', copyvariation: 'copyvariations', metric: 'metrics', step: 'steps', setupcard: 'setupcard', videogrid: 'mediagrid', postgrid: 'mediagrid' };
 
   while (i < lines.length) {
     const trimmed = lines[i].trim();
@@ -552,6 +552,135 @@ const OptionCards = ({ data, onSend, isAnswered, selectedTitle }) => {
           })}
         </div>
       )}
+    </MetaCard>
+  );
+};
+
+// ── Media Grid Card (video/post/ad selector with thumbnails + multi-select) ──
+const MediaGridCard = ({ data, onSend, isAnswered, selectedTitle }) => {
+  const [selected, setSelected] = useState(new Set());
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('metric'); // 'metric' | 'date'
+  if (!data?.items?.length) return null;
+
+  // Collapsed state after user confirms selection
+  if (isAnswered && selectedTitle) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-[13px] my-1">
+        <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
+        <span className="font-semibold text-emerald-800">{selectedTitle}</span>
+        <span className="text-emerald-500 text-[11px] ml-auto">Selected</span>
+      </div>
+    );
+  }
+
+  const filtered = data.items.filter(item =>
+    !search || (item.title || '').toLowerCase().includes(search.toLowerCase())
+    || (item.caption || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === 'date') return new Date(b.date || 0) - new Date(a.date || 0);
+    return (b.metric_value || 0) - (a.metric_value || 0);
+  });
+
+  const toggleItem = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selected.size === sorted.length) setSelected(new Set());
+    else setSelected(new Set(sorted.map(item => item.id)));
+  };
+
+  const handleConfirm = () => {
+    const selectedItems = data.items.filter(item => selected.has(item.id));
+    const names = selectedItems.map(i => i.title || i.caption || i.id).slice(0, 3);
+    const label = names.join(', ') + (selectedItems.length > 3 ? ` +${selectedItems.length - 3} more` : '');
+    const ids = selectedItems.map(i => i.id).join(', ');
+    onSend?.(`I selected: ${label} (IDs: ${ids})`);
+  };
+
+  const typeLabel = data.media_type === 'video' ? 'Videos' : data.media_type === 'post' ? 'Posts' : data.media_type === 'ad' ? 'Ads' : 'Items';
+
+  return (
+    <MetaCard title={data.title || `Select ${typeLabel}`} subtitle={data.subtitle || null} badge={`${sorted.length} ${typeLabel.toLowerCase()}`}>
+      <div className="px-4 py-2.5 border-b border-slate-100 flex items-center gap-2">
+        <div className="flex-1 relative">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder={`Search ${typeLabel.toLowerCase()}...`}
+            className="w-full pl-8 pr-3 py-1.5 text-[13px] text-slate-700 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-300 placeholder:text-slate-400" />
+        </div>
+        <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+          className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 outline-none">
+          <option value="metric">{data.metric_label || 'Views'} ↓</option>
+          <option value="date">Recent ↓</option>
+        </select>
+        <button onClick={toggleAll}
+          className="text-[11px] text-blue-600 hover:text-blue-700 font-medium whitespace-nowrap">
+          {selected.size === sorted.length ? 'Deselect all' : 'Select all'}
+        </button>
+      </div>
+      <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+        {sorted.map(item => {
+          const isSelected = selected.has(item.id);
+          return (
+            <button key={item.id} onClick={() => toggleItem(item.id)}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${isSelected ? 'bg-blue-50/70' : 'hover:bg-slate-50'}`}>
+              {/* Checkbox */}
+              <div className={`w-4.5 h-4.5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-slate-300'}`}>
+                {isSelected && <Check size={10} className="text-white" />}
+              </div>
+              {/* Thumbnail */}
+              {item.thumbnail ? (
+                <div className="w-14 h-10 rounded-md overflow-hidden bg-slate-100 shrink-0 relative">
+                  <img src={item.thumbnail} alt="" className="w-full h-full object-cover" />
+                  {item.duration && (
+                    <span className="absolute bottom-0.5 right-0.5 text-[9px] font-medium bg-black/70 text-white px-1 rounded">
+                      {item.duration}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="w-14 h-10 rounded-md bg-slate-100 shrink-0 flex items-center justify-center">
+                  {data.media_type === 'video' ? <Film size={16} className="text-slate-400" /> : <Image size={16} className="text-slate-400" />}
+                </div>
+              )}
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-medium text-slate-800 truncate">{item.title || item.caption || 'Untitled'}</p>
+                {item.date && <p className="text-[10px] text-slate-400 mt-0.5">{item.date}</p>}
+              </div>
+              {/* Metrics */}
+              <div className="text-right shrink-0">
+                <p className="text-[13px] font-semibold text-slate-700">{typeof item.metric_value === 'number' ? item.metric_value.toLocaleString() : item.metric_value || '—'}</p>
+                {item.source_icons && (
+                  <div className="flex items-center gap-0.5 justify-end mt-0.5">
+                    {item.source_icons.includes('fb') && <span className="w-3.5 h-3.5 rounded-full bg-blue-600 flex items-center justify-center text-[7px] text-white font-bold">f</span>}
+                    {item.source_icons.includes('ig') && <span className="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-[7px] text-white font-bold">ig</span>}
+                  </div>
+                )}
+              </div>
+            </button>
+          );
+        })}
+        {sorted.length === 0 && (
+          <p className="px-4 py-6 text-center text-[12px] text-slate-400">No {typeLabel.toLowerCase()} found</p>
+        )}
+      </div>
+      {/* Confirm bar */}
+      <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+        <span className="text-[12px] text-slate-500">{selected.size} of {sorted.length} selected</span>
+        <button onClick={handleConfirm} disabled={selected.size === 0}
+          className="px-4 py-1.5 text-[13px] font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-500 disabled:bg-slate-200 disabled:text-slate-400 transition-colors">
+          Confirm {selected.size > 0 ? `(${selected.size})` : ''}
+        </button>
+      </div>
     </MetaCard>
   );
 };
@@ -1618,6 +1747,7 @@ const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem, folder
                   case 'budget': return <BudgetCard key={i} data={seg.data} />;
                   case 'trend': return <TrendCard key={i} data={seg.data} />;
                   case 'adpreview': return <AdPreviewBlock key={i} data={seg.data} />;
+                  case 'mediagrid': return <MediaGridCard key={i} data={seg.data} onSend={onSend} isAnswered={isAnswered} selectedTitle={selectedTitle} />;
                   default: return <div key={i} className="whitespace-pre-wrap">{renderRichText(seg.content)}</div>;
                 }
               })}

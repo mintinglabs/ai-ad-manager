@@ -12,6 +12,17 @@ leads_to: [ad-manager, campaign-manager]
 
 Interactive audience planning flow. ALWAYS use ```options cards for every choice. NEVER list options as plain text bullets. Max 1-2 sentences between cards. Option titles MUST be human-readable names — NEVER raw IDs.
 
+**Media Selection:** When presenting videos, posts, or ads for selection, use the ```mediagrid block for rich thumbnail + checkbox UI. Format:
+```
+```mediagrid
+{"title":"Select videos","media_type":"video","metric_label":"3s Views","items":[
+  {"id":"VID_ID","title":"Video title","thumbnail":"https://...","duration":"0:41","metric_value":135860,"date":"25 Feb 2026","source_icons":["fb","ig"]},
+  ...
+]}
+```
+```
+Supported media_type values: `video`, `post`, `ad`. The frontend renders thumbnails, checkboxes, search, sort, and multi-select.
+
 **Progress:** Show step progress at the start of each step: `Step 2 of 4 — Engagement type`. Audience flows are shorter (3-5 steps) so users know they're close.
 
 **Golden Rules:**
@@ -42,6 +53,7 @@ Show immediately when user mentions audience, retargeting, custom audience, or l
   {"id":"VIDEO","title":"Video Viewers","description":"People who watched your Facebook or Instagram videos"},
   {"id":"INSTAGRAM","title":"Instagram Engagers","description":"People who interacted with your Instagram profile"},
   {"id":"PAGE","title":"Facebook Page Engagers","description":"People who interacted with your Facebook Page"},
+  {"id":"AD_ENGAGEMENT","title":"Ad Engagers","description":"People who engaged with specific ads or campaigns"},
   {"id":"LEAD_AD","title":"Lead Form Engagers","description":"People who opened or submitted your lead form"},
   {"id":"WHATSAPP","title":"WhatsApp Contacts","description":"People who messaged your WhatsApp Business account"},
   {"id":"CUSTOMER_LIST","title":"Customer List","description":"Upload your own customer data (emails, phones)"}
@@ -107,6 +119,22 @@ Confirm summary with ```steps, then call `create_custom_audience` with: name, de
 ### VIDEO Audience (Engagement)
 
 **Step 1 — Choose video source:** Call `get_pages` AND `get_connected_instagram_accounts` in parallel. Present ALL sources. Allow multi-select to combine FB + IG videos.
+
+**Step 1b — How to find videos:**
+
+```options
+{"title":"How do you want to find videos?","options":[
+  {"id":"browse","title":"Browse All Videos","description":"See all videos from this source sorted by views"},
+  {"id":"campaign","title":"Videos from a Campaign","description":"Only show videos used in a specific campaign"},
+  {"id":"video_id","title":"I Have a Video ID","description":"Look up a specific video by ID"}
+]}
+```
+
+If **browse** → proceed to Step 2 as normal.
+
+If **campaign** → Call `get_campaigns` to list campaigns → present as options → call `get_campaign_ads` with selected campaign_id → extract `creative.video_id` from each ad → present matching videos for selection. If an ad has no video_id, skip it.
+
+If **video_id** → Ask for the ID, call `get_video` to confirm it exists and show title + thumbnail, then skip to Step 3 (engagement level).
 
 **Step 2 — Show videos:** Based on source type:
 - Facebook Page: call `get_page_videos` with page_id
@@ -239,13 +267,39 @@ Auto-default retention=365 days. Use subtype="ENGAGEMENT" with event_source type
   {"id":"all","title":"All Engagement","description":"Anyone who interacted with your profile or content"},
   {"id":"visit","title":"Profile Visitors","description":"People who visited your profile"},
   {"id":"post","title":"Post/Ad Engagement","description":"Reactions, comments, shares, saves"},
+  {"id":"specific_post","title":"Specific Post Engagement","description":"Select specific IG posts/reels to target"},
   {"id":"message","title":"Sent a DM","description":"People who sent a direct message"},
   {"id":"saved","title":"Saved a Post","description":"People who saved your posts or ads"},
   {"id":"whatsapp","title":"Clicked WhatsApp Button","description":"People who tapped your WhatsApp contact button"}
 ]}
 ```
 
-Auto-default retention=365. Use event_source type `ig_business`.
+**If specific_post:**
+
+Call `get_ig_posts` with ig_account_id. This returns ALL post types (images, carousels, videos, reels). Present posts as options showing: caption snippet (first 60 chars as title), thumbnail, like count + comment count in description. Allow multi-select.
+
+After selection, build the rule with specific IG media IDs:
+
+```json
+{
+  "inclusions": {
+    "operator": "or",
+    "rules": [{
+      "event_sources": [{"id": "IG_ACCOUNT_ID", "type": "ig_business"}],
+      "retention_seconds": 31536000,
+      "filter": {
+        "operator": "and",
+        "filters": [
+          {"field": "event", "operator": "eq", "value": "ig_user_interacted_ad_or_organic"},
+          {"field": "post.id", "operator": "is_any", "value": ["IG_MEDIA_ID_1", "IG_MEDIA_ID_2"]}
+        ]
+      }
+    }]
+  }
+}
+```
+
+**Otherwise** (all other engagement types): Auto-default retention=365. Use event_source type `ig_business`.
 
 **Event values:**
 
@@ -269,6 +323,7 @@ Auto-default retention=365. Use event_source type `ig_business`.
 ```options
 {"title":"What type of Page engagement?","options":[
   {"id":"engaged","title":"Any Engagement","description":"Reactions, shares, comments, link clicks"},
+  {"id":"specific_post","title":"Specific Post Engagement","description":"People who engaged with specific posts you choose"},
   {"id":"liked","title":"Page Likes/Follows","description":"People who currently like or follow"},
   {"id":"visited","title":"Page Visitors","description":"Anyone who visited your Page"},
   {"id":"cta","title":"CTA Button Clicks","description":"People who clicked Call, Message, WhatsApp, etc."},
@@ -277,7 +332,32 @@ Auto-default retention=365. Use event_source type `ig_business`.
 ]}
 ```
 
-Auto-default retention=365. Use event_source type `page`.
+**If specific_post:**
+
+Call `get_page_posts` with page_id. Present posts as options showing: message snippet (first 60 chars as title), thumbnail (full_picture), likes count + comments count in description. Allow multi-select — user can pick multiple posts.
+
+After selection, build the rule with specific post IDs:
+
+```json
+{
+  "inclusions": {
+    "operator": "or",
+    "rules": [{
+      "event_sources": [{"id": "PAGE_ID", "type": "page"}],
+      "retention_seconds": 31536000,
+      "filter": {
+        "operator": "and",
+        "filters": [
+          {"field": "event", "operator": "eq", "value": "post_engaged"},
+          {"field": "post.id", "operator": "is_any", "value": ["POST_ID_1", "POST_ID_2"]}
+        ]
+      }
+    }]
+  }
+}
+```
+
+**Otherwise** (all other engagement types): Auto-default retention=365. Use event_source type `page`.
 
 **Event values:**
 
@@ -289,6 +369,63 @@ Auto-default retention=365. Use event_source type `page`.
 | Messages | `page_messaged` |
 | Page visits | `page_visited` |
 | WhatsApp button | `page_whatsapp_button_clicked` |
+
+---
+
+### AD ENGAGEMENT Audience (Ad-Specific Retargeting)
+
+Target people who engaged with specific ads or all ads from a campaign.
+
+**Step 1 — Find ads:**
+
+```options
+{"title":"How do you want to find ads?","options":[
+  {"id":"campaign","title":"Ads from a Campaign","description":"Select a campaign to see its ads"},
+  {"id":"all","title":"Browse All Ads","description":"See all active ads in the account"}
+]}
+```
+
+If **campaign**: Call `get_campaigns` → present as options → call `get_campaign_ads` with campaign_id.
+If **all**: Call `get_ads`.
+
+Present ads as options (ad name as title, status + campaign info in description). Allow multi-select.
+
+**Step 2 — Map ads to post IDs:** Each ad has `effective_object_story_id` in format `PAGEID_POSTID`. Extract page_id (first part before `_`) and use the full `effective_object_story_id` as the post ID.
+
+**Step 3 — Engagement type:**
+
+```options
+{"title":"What ad interaction?","options":[
+  {"id":"engaged","title":"Any Engagement","description":"Reactions, comments, shares, link clicks on the ad"},
+  {"id":"clicked","title":"Link Clicks Only","description":"People who clicked the CTA or link"},
+  {"id":"video_watched","title":"Video Views","description":"People who watched the ad video (if video ad)"}
+]}
+```
+
+**Step 4 — Retention + confirm.** Default 365 days.
+
+Use post engagement rule format with the extracted post IDs:
+
+```json
+{
+  "inclusions": {
+    "operator": "or",
+    "rules": [{
+      "event_sources": [{"id": "PAGE_ID", "type": "page"}],
+      "retention_seconds": 31536000,
+      "filter": {
+        "operator": "and",
+        "filters": [
+          {"field": "event", "operator": "eq", "value": "post_engaged"},
+          {"field": "post.id", "operator": "is_any", "value": ["EFFECTIVE_OBJECT_STORY_ID_1", "EFFECTIVE_OBJECT_STORY_ID_2"]}
+        ]
+      }
+    }]
+  }
+}
+```
+
+> **Note:** If an ad lacks `effective_object_story_id`, it cannot be used for post-level retargeting. Warn the user and suggest using page-level or video-level audience instead.
 
 ---
 

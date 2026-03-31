@@ -184,7 +184,7 @@ export const getCampaignAdSets = async (token, campaignId) => {
 export const getCampaignAds = async (token, campaignId) => {
   return fetchAll(`/${campaignId}/ads`, token, {
     limit: 200,
-    fields: 'id,name,status,effective_status,creative',
+    fields: 'id,name,status,effective_status,creative{id,video_id,thumbnail_url,object_story_id},effective_object_story_id',
   });
 };
 
@@ -270,7 +270,7 @@ export const getAdSetDeliveryEstimate = async (token, adSetId) => {
 
 // ─── Ads ─────────────────────────────────────────────────────────────
 
-const AD_FIELDS = 'id,name,adset_id,campaign_id,status,effective_status,creative,created_time,updated_time,tracking_specs,conversion_domain';
+const AD_FIELDS = 'id,name,adset_id,campaign_id,status,effective_status,creative{id,video_id,thumbnail_url,object_story_id},effective_object_story_id,created_time,updated_time,tracking_specs,conversion_domain';
 
 export const getAds = async (token, adAccountId) => {
   return fetchAll(`/${adAccountId}/ads`, token, {
@@ -1829,6 +1829,60 @@ export const getIgMedia = async (token, igAccountId, { pageId, adAccountId, afte
   }
 
   return { videos: [], nextCursor: null };
+};
+
+// ─── Single Video Lookup ────────────────────────────────────────────
+export const getVideo = async (token, videoId) => {
+  try {
+    const { data } = await metaApi.get(`/${videoId}`, {
+      params: {
+        access_token: token,
+        fields: 'id,title,description,source,picture,length,created_time,updated_time,status'
+      }
+    });
+    return data;
+  } catch (err) {
+    console.error('getVideo error:', err.response?.data?.error?.message || err.message);
+    return { error: err.response?.data?.error?.message || err.message };
+  }
+};
+
+// ─── IG Posts (all types — images, carousels, videos) ───────────────
+// For post engagement audiences where user wants to select specific IG posts
+export const getIgPosts = async (token, igAccountId, { pageId } = {}) => {
+  let igToken = token;
+  try {
+    const pages = await getPages(token);
+    const linked = pageId
+      ? pages?.find(p => p.id === pageId)
+      : pages?.find(p => p.instagram_business_account?.id === igAccountId);
+    if (linked?.access_token) igToken = linked.access_token;
+  } catch { /* skip */ }
+
+  try {
+    const { data } = await metaApi.get(`/${igAccountId}/media`, {
+      params: {
+        access_token: igToken,
+        fields: 'id,media_type,media_url,thumbnail_url,caption,timestamp,permalink,like_count,comments_count',
+        limit: 50
+      }
+    });
+    const posts = (data.data || []).map(p => ({
+      id: p.id,
+      media_type: p.media_type,
+      thumbnail: p.thumbnail_url || p.media_url,
+      caption: p.caption?.slice(0, 120) || 'Untitled',
+      timestamp: p.timestamp,
+      permalink: p.permalink,
+      likes: p.like_count || 0,
+      comments: p.comments_count || 0,
+    }));
+    posts.sort((a, b) => (b.likes + b.comments) - (a.likes + a.comments));
+    return { posts, nextCursor: data.paging?.cursors?.after || null };
+  } catch (err) {
+    console.error('getIgPosts error:', err.response?.data?.error?.message || err.message);
+    return { posts: [], nextCursor: null };
+  }
 };
 
 // ─── Universal Video Aggregator ──────────────────────────────────────

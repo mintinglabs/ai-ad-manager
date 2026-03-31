@@ -961,6 +961,14 @@ function getIgMedia({ ig_account_id, page_id }, c) {
   return meta.getIgMedia(token, ig_account_id, { pageId: page_id, adAccountId });
 }
 
+function getVideo({ video_id }, c) {
+  return meta.getVideo(ctx(c).token, video_id);
+}
+
+function getIgPosts({ ig_account_id, page_id }, c) {
+  return meta.getIgPosts(ctx(c).token, ig_account_id, { pageId: page_id });
+}
+
 // ─── Ad Library ─────────────────────────────────────────────────────────────
 function searchAdLibrary(args, c) {
   return meta.searchAdLibrary(ctx(c).token, args);
@@ -1404,6 +1412,10 @@ const adTools = [
   T('get_connected_instagram_accounts', 'List Instagram accounts connected to the ad account. Needed for IG-specific ad placements and video audiences.', getConnectedInstagramAccounts),
   T('get_ig_media', 'List videos from an Instagram professional account. Use for creating IG video engagement audiences. Returns video IDs, captions, timestamps, and permalinks.', getIgMedia,
     obj({ ig_account_id: str('Instagram account ID'), page_id: str('Facebook Page ID linked to this IG account (for token access)') }, ['ig_account_id'])),
+  T('get_ig_posts', 'List ALL posts (images, carousels, videos) from an Instagram account. Use for creating IG post engagement audiences where users want to select specific posts. Returns post IDs, captions, thumbnails, like counts, comment counts.', getIgPosts,
+    obj({ ig_account_id: str('Instagram account ID'), page_id: str('Linked Facebook Page ID (optional, improves token access)') }, ['ig_account_id'])),
+  T('get_video', 'Get details of a single video by ID. Use when user provides a specific video ID or when confirming a video exists before creating an audience.', getVideo,
+    obj({ video_id: str('Video ID to look up') }, ['video_id'])),
 
   // ── Ad Library ────────────────────────────────────────────────────────
   T('search_ad_library', 'Search the Meta Ad Library for competitor ads. Returns page_name, headlines, body text, ad_snapshot_url. Format results as ```adlib JSON for rich card rendering.', searchAdLibrary,
@@ -1522,6 +1534,9 @@ const audienceTools = pick(
   'targeting_search', 'targeting_browse', 'targeting_suggestions', 'targeting_validation',
   'create_custom_audience', 'create_lookalike_audience', 'create_saved_audience',
   'get_pages', 'get_pixels', 'get_page_videos', 'get_ig_media', 'get_connected_instagram_accounts',
+  // Granular source selection — specific posts, ads, videos by campaign
+  'get_campaigns', 'get_ads', 'get_ad_videos', 'get_page_posts', 'get_campaign_ads',
+  'get_ig_posts', 'get_video',
   'get_workflow_context', 'update_workflow_context', 'load_skill'
 );
 

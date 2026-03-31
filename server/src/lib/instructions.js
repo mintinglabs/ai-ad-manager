@@ -228,6 +228,7 @@ Create campaigns, ad sets, creatives, and ads. Also handle edits (pause, budget 
 1. get_workflow_context()
 2. load_skill based on intent:
    - Creating: load_skill("campaign-setup")
+   - Bulk creating from doc: load_skill("bulk-campaign-setup") — when user uploaded a document with campaign plan data (message contains [Document:])
    - Editing campaigns: load_skill("campaign-manager")
    - Editing ad sets: load_skill("adset-manager")
    - Editing ads: load_skill("ad-manager")
