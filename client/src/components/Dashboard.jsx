@@ -10,14 +10,28 @@ import { StrategistConfig } from './StrategistConfig.jsx';
 import { SkillsLibrary } from './SkillsLibrary.jsx';
 import { AudienceManager } from './AudienceManager.jsx';
 
-// Actions that require a connected ad account
-const ACCOUNT_ACTIONS = [
-  { icon: 'Zap',      label: 'Create Campaign',        desc: 'Launch a new ad in minutes — objective, destination, creative, audience, budget.',
-    prompt: 'I want to create a new campaign.' },
-  { icon: 'Users',    label: 'Build Audience',          desc: 'Create custom audiences from website visitors, video viewers, WhatsApp contacts, or customer lists.',
-    prompt: 'I want to build a new audience.' },
-  { icon: 'BarChart3', label: 'Performance Analysis',   desc: 'Analyse spend, results, and cost per outcome — conversations, leads, ROAS, or traffic.',
-    prompt: 'Show me how my ads are performing.' },
+// Use-case driven cards — categorized, battle-tested entry points
+const CARD_CATEGORIES = [
+  {
+    heading: 'Get Started',
+    cards: [
+      { icon: 'Zap', label: 'Create Campaign', desc: 'Step-by-step guided setup, or bulk create from a spreadsheet.', prompt: 'I want to create a new campaign.', color: 'violet' },
+      { icon: 'Users', label: 'Build Audience', desc: 'Website visitors, video viewers, IG/FB posts, lookalikes, customer lists.', prompt: 'I want to build a new audience.', color: 'emerald' },
+    ],
+  },
+  {
+    heading: 'Check What\'s Working',
+    cards: [
+      { icon: 'BarChart3', label: 'Analyze Ads', desc: 'Performance report — what to pause, what to scale, where budget is wasted.', prompt: 'How are my ads performing?', color: 'blue' },
+      { icon: 'Image', label: 'Audit Creatives', desc: 'Fatigue detection, hook rate ranking, AI visual analysis.', prompt: 'Audit my ad creatives.', color: 'amber' },
+    ],
+  },
+];
+
+const QUICK_CHIPS = [
+  { label: 'What should I pause?', prompt: 'What campaigns should I pause?' },
+  { label: 'Scale my winners', prompt: 'Which ads should I scale up?' },
+  { label: 'Check tracking health', prompt: 'Check my pixel and tracking health.' },
 ];
 
 
@@ -124,7 +138,8 @@ export const Dashboard = ({
     ? savedItems.find(i => i.id === activeView.itemId)
     : null;
 
-  const suggestedActions = ACCOUNT_ACTIONS;
+  const cardCategories = CARD_CATEGORIES;
+  const quickChips = QUICK_CHIPS;
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
@@ -217,7 +232,8 @@ export const Dashboard = ({
               activityLog={activityLog}
               onSend={handleSend}
               onStop={stopGeneration}
-              suggestedActions={suggestedActions}
+              cardCategories={cardCategories}
+              quickChips={quickChips}
               adAccountId={adAccountId}
               onSaveItem={saveItem}
               folders={folders}

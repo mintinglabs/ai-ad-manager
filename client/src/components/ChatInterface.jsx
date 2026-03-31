@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { Send, Square, Paperclip, CheckCircle2, XCircle, ArrowUpRight, BarChart3, Target, TrendingDown, Search, FileText, DollarSign, AlertTriangle, Zap, X, Upload, Image, Film, TrendingUp, ChevronRight, Shield, Sparkles, Download, Bookmark, ChevronDown, Link2, Building2, Check, ChevronLeft } from 'lucide-react';
+import { Send, Square, Paperclip, CheckCircle2, XCircle, ArrowUpRight, BarChart3, Target, TrendingDown, Search, FileText, DollarSign, AlertTriangle, Zap, X, Upload, Image, Film, TrendingUp, ChevronRight, Shield, Sparkles, Download, Bookmark, ChevronDown, Link2, Building2, Check, ChevronLeft, Users } from 'lucide-react';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
 import { useBusinesses } from '../hooks/useBusinesses.js';
 import {
@@ -1823,17 +1823,31 @@ const MetaIconOnly = ({ size = 18 }) => (
   <img src="/meta-icon.svg" alt="Meta" style={{ width: size, height: size }} className="shrink-0" />
 );
 
-const ActionCard = ({ label, desc, prompt, onSend, disabled }) => (
-  <button onClick={() => onSend(prompt)} disabled={disabled}
-    className="flex flex-col bg-white border border-slate-200/80 rounded-2xl px-5 py-4 text-left hover:border-blue-200 hover:bg-blue-50/20 hover:shadow-md transition-all duration-200 disabled:opacity-40 group">
-    <MetaIconOnly size={28} />
-    <p className="text-[14px] font-bold text-slate-900 leading-snug mt-3">{label}</p>
-    <p className="text-[12px] text-slate-400 leading-relaxed mt-1.5 flex-1">{desc}</p>
-    <div className="flex items-center gap-1 mt-3 text-[11px] font-semibold text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
-      Ask now <ArrowUpRight size={11} />
-    </div>
-  </button>
-);
+const ACTION_ICON_MAP = { Zap, Users, BarChart3, Image, Shield };
+const ACTION_COLOR_MAP = {
+  blue: 'bg-blue-100 text-blue-600',
+  violet: 'bg-violet-100 text-violet-600',
+  emerald: 'bg-emerald-100 text-emerald-600',
+  amber: 'bg-amber-100 text-amber-600',
+  rose: 'bg-rose-100 text-rose-600',
+};
+
+const ActionCard = ({ icon, label, desc, prompt, onSend, disabled, color = 'blue' }) => {
+  const IconComponent = ACTION_ICON_MAP[icon] || Zap;
+  return (
+    <button onClick={() => onSend(prompt)} disabled={disabled}
+      className="flex flex-col bg-white border border-slate-200/80 rounded-2xl px-5 py-4 text-left hover:border-blue-200 hover:bg-blue-50/20 hover:shadow-md transition-all duration-200 disabled:opacity-40 group">
+      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${ACTION_COLOR_MAP[color] || ACTION_COLOR_MAP.blue}`}>
+        <IconComponent size={18} />
+      </div>
+      <p className="text-[14px] font-bold text-slate-900 leading-snug mt-3">{label}</p>
+      <p className="text-[12px] text-slate-400 leading-relaxed mt-1.5 flex-1">{desc}</p>
+      <div className="flex items-center gap-1 mt-3 text-[11px] font-semibold text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
+        Ask now <ArrowUpRight size={11} />
+      </div>
+    </button>
+  );
+};
 
 // ── Slash Command Picker ────────────────────────────────────────────────────
 const SlashPicker = ({ skills, filter, onSelect, selectedIndex }) => {
@@ -2239,7 +2253,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
-export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = [], onSend, onStop, suggestedActions = [], adAccountId, onSaveItem, folders = [], activeSkill = null, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas, token, onLogin, selectedAccount, selectedBusiness, onSelectAccount }) => {
+export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = [], onSend, onStop, suggestedActions = [], cardCategories = [], quickChips = [], adAccountId, onSaveItem, folders = [], activeSkill = null, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas, token, onLogin, selectedAccount, selectedBusiness, onSelectAccount }) => {
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState([]); // { id, file, preview, status, progress, result }
   const [isDragOver, setIsDragOver] = useState(false);
@@ -2567,10 +2581,27 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
             />
           </div>
 
-          <div className="w-full max-w-3xl mx-auto grid grid-cols-2 lg:grid-cols-3 gap-3 mt-8 pb-8">
-            {suggestedActions.map((action) => (
-              <ActionCard key={action.label} {...action} onSend={handleSend} disabled={isTyping} />
+          <div className="w-full max-w-2xl mx-auto mt-8 pb-8 space-y-6">
+            {cardCategories.map(cat => (
+              <div key={cat.heading}>
+                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">{cat.heading}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {cat.cards.map(card => (
+                    <ActionCard key={card.label} {...card} onSend={handleSend} disabled={isTyping} />
+                  ))}
+                </div>
+              </div>
             ))}
+            {quickChips.length > 0 && (
+              <div className="flex flex-wrap gap-2 justify-center pt-2">
+                {quickChips.map(chip => (
+                  <button key={chip.label} onClick={() => handleSend(chip.prompt)} disabled={isTyping}
+                    className="px-4 py-2 text-[12px] font-medium text-slate-500 bg-white border border-slate-200 rounded-full hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/30 transition-all disabled:opacity-40">
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

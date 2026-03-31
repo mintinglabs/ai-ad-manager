@@ -1533,6 +1533,7 @@ const audienceTools = pick(
   'get_reach_estimate', 'get_delivery_estimate',
   'targeting_search', 'targeting_browse', 'targeting_suggestions', 'targeting_validation',
   'create_custom_audience', 'create_lookalike_audience', 'create_saved_audience',
+  'get_ad_account_details',
   'get_pages', 'get_pixels', 'get_page_videos', 'get_ig_media', 'get_connected_instagram_accounts',
   // Granular source selection — specific posts, ads, videos by campaign
   'get_campaigns', 'get_ads', 'get_ad_videos', 'get_page_posts', 'get_campaign_ads',

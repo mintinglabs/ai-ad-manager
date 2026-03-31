@@ -8,8 +8,8 @@ export const getWelcomeMessage = (accountName, language = 'en') => {
       id: 'welcome',
       role: 'agent',
       text: accountName
-        ? `你好！我係你嘅 **AI 廣告顧問**，已經連接咗 **${accountName}**，隨時可以幫你。\n\n你可以問我任何嘢 — 審計廣告系列、分析表現、管理預算、或者搵優化機會。`
-        : '你好！我係你嘅 **AI 廣告顧問**。喺左邊揀一個廣告帳戶就可以開始，或者直接問我關於 Meta 廣告嘅問題。',
+        ? `你好！我係你嘅 **AI 廣告顧問**，已經連接咗 **${accountName}**。揀下面嘅選項開始，或者直接打你想做嘅嘢。`
+        : '你好！我係你嘅 **AI 廣告顧問**。喺下面連接廣告帳戶就可以開始。',
       timestamp: Date.now(),
     };
   }
@@ -17,8 +17,8 @@ export const getWelcomeMessage = (accountName, language = 'en') => {
     id: 'welcome',
     role: 'agent',
     text: accountName
-      ? `Hi! I'm your **AI Ad Consultant**. I'm connected to **${accountName}** and ready to help.\n\nAsk me anything — audit campaigns, analyze performance, manage budgets, or find optimization opportunities.`
-      : "Hi! I'm your **AI Ad Consultant**. Connect an ad account below to get started, or ask me a general question about Meta advertising.",
+      ? `Hi! I'm your **AI Ad Consultant**, connected to **${accountName}**. Pick an option below or type what you'd like to do.`
+      : "Hi! I'm your **AI Ad Consultant**. Connect an ad account below to get started.",
     timestamp: Date.now(),
   };
 };
