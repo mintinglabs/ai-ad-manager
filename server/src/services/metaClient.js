@@ -1588,9 +1588,13 @@ const resolvePageAdAccount = async (token, pageId) => {
 };
 
 export const getPageVideos = async (token, pageId, adAccountId, { after } = {}) => {
-  const pages = await getPages(token);
-  const page = pages?.find(p => p.id === pageId);
-  const pageToken = page?.access_token || token;
+  // Try to get page token for better permissions, but don't block on it
+  let pageToken = token;
+  try {
+    const pages = await getPages(token);
+    const page = pages?.find(p => p.id === pageId);
+    if (page?.access_token) pageToken = page.access_token;
+  } catch { /* use user token as fallback */ }
 
   try {
     const params = {
@@ -1600,19 +1604,15 @@ export const getPageVideos = async (token, pageId, adAccountId, { after } = {}) 
     };
     if (after) params.after = after;
 
-    // Fast path: fetch page videos + ad views map in parallel (skip slow crosspost/length matching)
-    const resolvedAdAccount = await resolvePageAdAccount(token, pageId) || adAccountId;
-    const [{ data }, viewsMap] = await Promise.all([
-      metaApi.get(`/${pageId}/videos`, { params }),
-      resolvedAdAccount ? getVideoViewsMap(token, resolvedAdAccount, { datePreset: 'maximum' }).catch(() => ({})) : Promise.resolve({})
-    ]);
-    const rawPageVideos = (data.data || []).filter(v => !v.status || v.status.video_status === 'ready');
+    // Fast path: fetch page videos only — skip ad-level views map (too slow for large accounts)
+    const { data } = await metaApi.get(`/${pageId}/videos`, { params });
+    const rawPageVideos = (data?.data || []).filter(v => !v.status || v.status.video_status === 'ready');
 
     const pageVideos = rawPageVideos.map(v => {
       const isCrosspost = !!v.source_instagram_media_id;
       return {
         ...v,
-        three_second_views: viewsMap[v.id] || v.views || 0,
+        three_second_views: v.views || 0,
         is_ig: isCrosspost,
         sources: isCrosspost ? ['page', 'ig'] : ['page']
       };
