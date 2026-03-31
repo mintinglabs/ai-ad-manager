@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { Send, Square, Paperclip, CheckCircle2, XCircle, ArrowUpRight, BarChart3, Target, TrendingDown, Search, FileText, DollarSign, AlertTriangle, Zap, X, Upload, Image, Film, TrendingUp, ChevronRight, Shield, Sparkles, Download, Bookmark, ChevronDown, Link2, Building2, Check, ChevronLeft } from 'lucide-react';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
 import { useBusinesses } from '../hooks/useBusinesses.js';
@@ -808,28 +809,56 @@ const CopyVariations = ({ data, onSend }) => {
   );
 };
 
-// ── Inline Select (dropdown inside SetupCard items) ──────────────────────────
+// ── Inline Select (dropdown inside SetupCard items — portals to body to avoid overflow clipping) ──
 const InlineSelect = ({ item, onSend }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const ref = useRef(null);
+  const triggerRef = useRef(null);
+  const dropRef = useRef(null);
+  const [dropStyle, setDropStyle] = useState({});
+
+  // Close on outside click
   useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const handler = (e) => {
+      if (triggerRef.current?.contains(e.target)) return;
+      if (dropRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  // Position dropdown relative to trigger when opened
+  useEffect(() => {
+    if (open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const dropUp = spaceBelow < 260;
+      setDropStyle({
+        position: 'fixed',
+        left: rect.left,
+        width: rect.width,
+        zIndex: 9999,
+        ...(dropUp
+          ? { bottom: window.innerHeight - rect.top + 4 }
+          : { top: rect.bottom + 4 }),
+      });
+    }
+  }, [open]);
+
   const filtered = (item.options || []).filter(o =>
     !search || o.title?.toLowerCase().includes(search.toLowerCase()) || o.description?.toLowerCase().includes(search.toLowerCase())
   );
   return (
-    <div ref={ref} className="relative mt-1">
-      <button onClick={() => setOpen(v => !v)}
+    <div className="relative mt-1">
+      <button ref={triggerRef} onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between px-3 py-2 text-left text-[13px] font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg hover:border-blue-300 hover:bg-blue-50/30 transition-colors">
         <span className="truncate">{item.value || 'Select...'}</span>
         <ChevronDown size={14} className={`text-slate-400 transition-transform shrink-0 ml-2 ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && (
-        <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-[240px] overflow-hidden">
+      {open && ReactDOM.createPortal(
+        <div ref={dropRef} style={dropStyle}
+          className="bg-white border border-slate-200 rounded-lg shadow-xl max-h-[240px] overflow-hidden">
           {item.options.length > 5 && (
             <div className="p-2 border-b border-slate-100">
               <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..."
@@ -846,7 +875,8 @@ const InlineSelect = ({ item, onSend }) => {
             ))}
             {filtered.length === 0 && <p className="text-[12px] text-slate-400 px-3 py-3 text-center">No matches</p>}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
