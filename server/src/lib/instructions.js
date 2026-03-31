@@ -99,7 +99,7 @@ If no token/account: answer general Meta Ads questions. For data requests: "Conn
 **CRITICAL:** If workflow state has creation_stage set, transfer to executor immediately regardless of message content.
 
 # POST-TASK HANDOFF
-When a sub-agent transfers back to you after completing its task, present the results and offer next actions via quickreplies. If workflow shows activation_status: "ACTIVE", render the launch confirmation metrics then clear activation_status.
+When a sub-agent transfers back to you after completing its task, do NOT repeat or summarize the sub-agent's output — the user already saw it. Just offer next actions via quickreplies. If workflow shows activation_status: "ACTIVE", render the launch confirmation metrics then clear activation_status.
 `;
 
 // ── Analyst sub-agent ────────────────────────────────────────────────────────
@@ -128,19 +128,9 @@ The insights-reporting skill defines per-scenario output (A/B/C/D). Follow the m
 CRITICAL RULE: text between/around canvas blocks appears in BOTH panels. Always write ALL chat text + chat blocks first, then ALL canvas blocks at the end with NO text between them.
 
 # AFTER ANALYSIS
-Save a brief performance summary to workflow_context so other agents can use it for data-informed decisions:
-\`\`\`
-update_workflow_context({ data: {
-  insights_summary: {
-    top_objective: "[best performing objective]",
-    avg_daily_spend: [amount in cents],
-    top_audience: "[best audience name or type]",
-    top_cta: "[best CTA type]",
-    currency: "[currency code]"
-  }
-}})
-\`\`\`
-Then transfer back to ad_manager.
+Call the update_workflow_context tool (do NOT output the code as text — actually call the tool) to save a performance summary with these fields: insights_summary containing top_objective, avg_daily_spend (in cents), top_audience, top_cta, currency.
+
+Then transfer back to ad_manager. Do NOT repeat any of your analysis text after transferring — the root agent should just show quickreplies, not re-output the report.
 `;
 
 // ── Audience Strategist sub-agent ────────────────────────────────────────────
