@@ -47,12 +47,15 @@ export default function VideoAudienceCard({ data, onSend, isAnswered, adAccountI
   const [videoSource, setVideoSource] = useState('fb_page');
   const [selectedPageId, setSelectedPageId] = useState('');
   const [selectedIgId, setSelectedIgId] = useState('');
+  const [selectedCampaignId, setSelectedCampaignId] = useState('');
+  const [videoIdInput, setVideoIdInput] = useState('');
   const [engagement, setEngagement] = useState('video_watched_3s');
   const [retention, setRetention] = useState(365);
 
   // Data state
   const [pages, setPages] = useState(data?.pages || []);
   const [igAccounts, setIgAccounts] = useState(data?.igAccounts || []);
+  const [campaigns, setCampaigns] = useState([]);
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -86,6 +89,10 @@ export default function VideoAudienceCard({ data, onSend, isAnswered, adAccountI
         setIgAccounts(r.data?.data || r.data || []);
       }).catch(() => {});
     }
+    // Fetch campaigns for campaign source
+    api.get(`/meta/adaccounts/${adAccountId}/campaigns-list`, { headers }).then(r => {
+      setCampaigns(r.data?.data || r.data || []);
+    }).catch(() => {});
   }, [adAccountId]);
 
   // Set default page when pages load
@@ -98,11 +105,13 @@ export default function VideoAudienceCard({ data, onSend, isAnswered, adAccountI
     if (igAccounts.length > 0 && !selectedIgId) setSelectedIgId(igAccounts[0].id);
   }, [igAccounts]);
 
-  // Fetch videos when source/page/ig changes
+  // Fetch videos when source/page/ig/campaign changes
   useEffect(() => {
     if (!adAccountId) return;
     if (videoSource === 'fb_page' && !selectedPageId) return;
     if (videoSource === 'ig_account' && !selectedIgId) return;
+    if (videoSource === 'campaign' && !selectedCampaignId) return;
+    if (videoSource === 'video_id') { setVideos([]); setLoading(false); return; }
 
     const id = ++fetchRef.current;
     setLoading(true);
@@ -115,18 +124,35 @@ export default function VideoAudienceCard({ data, onSend, isAnswered, adAccountI
     let url;
     if (videoSource === 'fb_page') {
       url = `/meta/pages/${selectedPageId}/videos?adAccountId=${adAccountId}`;
-    } else {
+    } else if (videoSource === 'ig_account') {
       const igAcct = igAccounts.find(a => a.id === selectedIgId);
       const params = [igAcct?.pageId ? `pageId=${igAcct.pageId}` : '', `adAccountId=${adAccountId}`].filter(Boolean).join('&');
       url = `/meta/instagram/${selectedIgId}/media?${params}`;
+    } else if (videoSource === 'campaign') {
+      url = `/campaigns/${selectedCampaignId}/ads`;
     }
+
+    if (!url) { setLoading(false); return; }
 
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     api.get(url, { headers }).then(r => {
       if (id !== fetchRef.current) return;
       const res = r.data || {};
-      const raw = Array.isArray(res) ? res : (res.videos || res.media || []);
-      setVideos(normalizeVideos(raw, videoSource));
+      let raw = Array.isArray(res) ? res : (res.videos || res.media || res.data || []);
+      // For campaign ads, filter to only video ads and normalize
+      if (videoSource === 'campaign') {
+        raw = raw.filter(a => a.creative?.video_id).map(a => ({
+          id: a.creative.video_id,
+          title: a.name || 'Ad Video',
+          picture: a.creative.thumbnail_url || '',
+          created_time: a.created_time,
+          updated_time: a.updated_time,
+          three_second_views: 0,
+        }));
+      } else {
+        raw = normalizeVideos(raw, videoSource);
+      }
+      setVideos(raw);
       setNextCursor(res.nextCursor || null);
       setLoading(false);
     }).catch(err => {
@@ -134,7 +160,7 @@ export default function VideoAudienceCard({ data, onSend, isAnswered, adAccountI
       setError(err.response?.data?.error || err.message || 'Failed to load videos');
       setLoading(false);
     });
-  }, [videoSource, selectedPageId, selectedIgId, adAccountId]);
+  }, [videoSource, selectedPageId, selectedIgId, selectedCampaignId, adAccountId]);
 
   // Load more videos
   const loadMore = () => {
@@ -177,15 +203,28 @@ export default function VideoAudienceCard({ data, onSend, isAnswered, adAccountI
   const pageVideos = filtered.slice(safePage * VIDEOS_PER_PAGE, (safePage + 1) * VIDEOS_PER_PAGE);
 
   const handleConfirm = () => {
-    if (confirmed || isAnswered || selectedIds.size === 0) return;
+    if (confirmed || isAnswered) return;
+    const engDesc = ENGAGEMENT_LABELS[engagement] || engagement;
+
+    // Video ID source: use text input
+    if (videoSource === 'video_id') {
+      const ids = videoIdInput.split(/[,\s]+/).filter(Boolean);
+      if (ids.length === 0) return;
+      setConfirmed(true);
+      onSend?.(`Create video audience: source=Manual Video IDs, engagement=${engDesc}, retention=${retention} days, videos=(IDs: ${ids.join(', ')})`);
+      return;
+    }
+
+    if (selectedIds.size === 0) return;
     setConfirmed(true);
     const selVideos = videos.filter(v => selectedIds.has(v.id));
     const names = selVideos.map(v => v.title || v.id).slice(0, 3);
     const label = names.join(', ') + (selVideos.length > 3 ? ` +${selVideos.length - 3} more` : '');
     const ids = selVideos.map(v => v.id).join(', ');
-    const engDesc = ENGAGEMENT_LABELS[engagement] || engagement;
-    const pageName = pages.find(p => p.id === selectedPageId)?.name || selectedPageId;
-    const sourceLabel = videoSource === 'fb_page' ? `Facebook Page: ${pageName}` : `Instagram: ${igAccounts.find(a => a.id === selectedIgId)?.username || selectedIgId}`;
+    let sourceLabel;
+    if (videoSource === 'fb_page') sourceLabel = `Facebook Page: ${pages.find(p => p.id === selectedPageId)?.name || selectedPageId}`;
+    else if (videoSource === 'ig_account') sourceLabel = `Instagram: ${igAccounts.find(a => a.id === selectedIgId)?.username || selectedIgId}`;
+    else if (videoSource === 'campaign') sourceLabel = `Campaign: ${campaigns.find(c => c.id === selectedCampaignId)?.name || selectedCampaignId}`;
     onSend?.(`Create video audience: source=${sourceLabel}, engagement=${engDesc}, retention=${retention} days, videos=${label} (IDs: ${ids})`);
   };
 
@@ -211,30 +250,52 @@ export default function VideoAudienceCard({ data, onSend, isAnswered, adAccountI
 
       {/* Dropdowns */}
       <div className="px-4 py-3 space-y-3 border-b border-slate-100">
-        {/* Row 1: Source + Page/Account */}
+        {/* Row 1: Source + Page/Account/Campaign */}
         <div className="flex gap-3">
           <div className="flex-1">
             <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">影片來源</label>
             <select value={videoSource} onChange={e => setVideoSource(e.target.value)} className={SEL}>
               <option value="fb_page">Facebook Page</option>
               <option value="ig_account">Instagram Account</option>
+              <option value="campaign">Campaign</option>
+              <option value="video_id">Video ID (手動輸入)</option>
             </select>
           </div>
-          <div className="flex-1">
-            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
-              {videoSource === 'fb_page' ? '專頁' : 'IG 帳號'}
-            </label>
-            {videoSource === 'fb_page' ? (
-              <select value={selectedPageId} onChange={e => setSelectedPageId(e.target.value)} className={SEL}>
-                {pages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            ) : (
-              <select value={selectedIgId} onChange={e => setSelectedIgId(e.target.value)} className={SEL}>
-                {igAccounts.map(a => <option key={a.id} value={a.id}>{a.username ? `@${a.username}` : a.id}</option>)}
-              </select>
-            )}
-          </div>
+          {videoSource !== 'video_id' && (
+            <div className="flex-1">
+              <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
+                {videoSource === 'fb_page' ? '專頁' : videoSource === 'ig_account' ? 'IG 帳號' : 'Campaign'}
+              </label>
+              {videoSource === 'fb_page' && (
+                <select value={selectedPageId} onChange={e => setSelectedPageId(e.target.value)} className={SEL}>
+                  {pages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              )}
+              {videoSource === 'ig_account' && (
+                <select value={selectedIgId} onChange={e => setSelectedIgId(e.target.value)} className={SEL}>
+                  {igAccounts.map(a => <option key={a.id} value={a.id}>{a.username ? `@${a.username}` : a.id}</option>)}
+                </select>
+              )}
+              {videoSource === 'campaign' && (
+                <select value={selectedCampaignId} onChange={e => setSelectedCampaignId(e.target.value)} className={SEL}>
+                  <option value="">Select campaign...</option>
+                  {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              )}
+            </div>
+          )}
         </div>
+
+        {/* Video ID manual input */}
+        {videoSource === 'video_id' && (
+          <div>
+            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Video IDs</label>
+            <input value={videoIdInput} onChange={e => setVideoIdInput(e.target.value)}
+              placeholder="Paste video IDs, comma separated"
+              className={SEL} />
+            <p className="text-[10px] text-slate-400 mt-1">Enter one or more video IDs separated by commas</p>
+          </div>
+        )}
 
         {/* Row 2: Engagement + Retention */}
         <div className="flex gap-3">

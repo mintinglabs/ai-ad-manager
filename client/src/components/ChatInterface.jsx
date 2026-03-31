@@ -2,6 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { Send, Square, Paperclip, CheckCircle2, XCircle, ArrowUpRight, BarChart3, Target, TrendingDown, Search, FileText, DollarSign, AlertTriangle, Zap, X, Upload, Image, Film, TrendingUp, ChevronRight, Shield, Sparkles, Download, Bookmark, ChevronDown, Link2, Building2, Check, ChevronLeft, Users } from 'lucide-react';
 import VideoAudienceCard from './VideoAudienceCard.jsx';
+import EngagementAudienceCard from './EngagementAudienceCard.jsx';
+import LookalikeAudienceCard from './LookalikeAudienceCard.jsx';
+import SavedAudienceCard from './SavedAudienceCard.jsx';
+import WebsiteAudienceCard from './WebsiteAudienceCard.jsx';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
 import { useBusinesses } from '../hooks/useBusinesses.js';
 import {
@@ -210,7 +214,7 @@ export const parseMarkdownTable = (text) => {
   let textBuf = [];
   let i = 0;
 
-  const RICH_BLOCKS = ['adlib', 'metrics', 'options', 'insights', 'score', 'copyvariations', 'steps', 'quickreplies', 'funnel', 'comparison', 'budget', 'trend', 'adpreview', 'setupcard', 'mediagrid', 'videoaudience'];
+  const RICH_BLOCKS = ['adlib', 'metrics', 'options', 'insights', 'score', 'copyvariations', 'steps', 'quickreplies', 'funnel', 'comparison', 'budget', 'trend', 'adpreview', 'setupcard', 'mediagrid', 'videoaudience', 'engagementaudience', 'lookalikeaudience', 'savedaudience', 'websiteaudience', 'dashboard'];
   // Aliases for common LLM misspellings
   const BLOCK_ALIASES = { option: 'options', quickreplie: 'quickreplies', quickreply: 'quickreplies', copyvariation: 'copyvariations', metric: 'metrics', step: 'steps', setupcard: 'setupcard', videogrid: 'mediagrid', postgrid: 'mediagrid' };
 
@@ -1010,10 +1014,14 @@ const SetupCard = ({ data, onSend, isAnswered }) => {
     setSelections(prev => ({ ...prev, [label]: { value: opt.title || opt.id, id: opt.id || null } }));
   };
 
+  // Check if all required fields have values
+  const hasUnfilledFields = currentItems.some(item =>
+    item.type === 'select' && (!selections[item.label]?.value || selections[item.label]?.value === 'Select...')
+  );
+
   const handleConfirm = () => {
-    if (confirmed || isAnswered) return;
+    if (confirmed || isAnswered || hasUnfilledFields) return;
     setConfirmed(true);
-    // Send all selections as one message
     const parts = currentItems.map(item => {
       const sel = selections[item.label];
       return `${item.label}: ${sel?.value || item.value}${sel?.id ? ` (ID: ${sel.id})` : ''}`;
@@ -1065,9 +1073,9 @@ const SetupCard = ({ data, onSend, isAnswered }) => {
       {/* Confirm button — only for active setupcards that haven't been confirmed */}
       {!collapsed && status === 'active' && !confirmed && !isAnswered && (
         <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/30">
-          <button onClick={handleConfirm}
-            className="w-full py-2 text-[13px] font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors shadow-sm">
-            ✅ Confirm {data.title || 'Settings'}
+          <button onClick={handleConfirm} disabled={hasUnfilledFields}
+            className="w-full py-2 text-[13px] font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-500 disabled:bg-slate-200 disabled:text-slate-400 transition-colors shadow-sm">
+            {hasUnfilledFields ? 'Please fill all fields' : `✅ Confirm ${data.title || 'Settings'}`}
           </button>
         </div>
       )}
@@ -1734,6 +1742,10 @@ export const RichContent = ({ text, onSend }) => {
           case 'trend': return <TrendCard key={i} data={seg.data} />;
           case 'adpreview': return <AdPreviewBlock key={i} data={seg.data} />;
           case 'videoaudience': return <VideoAudienceCard key={i} data={seg.data} onSend={onSend} />;
+          case 'engagementaudience': return <EngagementAudienceCard key={i} data={seg.data} onSend={onSend} />;
+          case 'lookalikeaudience': return <LookalikeAudienceCard key={i} data={seg.data} onSend={onSend} />;
+          case 'savedaudience': return <SavedAudienceCard key={i} data={seg.data} onSend={onSend} />;
+          case 'websiteaudience': return <WebsiteAudienceCard key={i} data={seg.data} onSend={onSend} />;
           default: return <div key={i} className="whitespace-pre-wrap">{renderRichText(seg.content)}</div>;
         }
       })}
@@ -1750,25 +1762,33 @@ export const hasRichCards = (text) => {
 
 // ── Split message into chat (text-only) vs canvas (full content with charts) ──
 // These block types get stripped from inline chat and rendered in the canvas panel instead
-const CANVAS_BLOCK_NAMES = ['metrics', 'budget', 'comparison', 'trend', 'funnel', 'adpreview'];
+const CANVAS_BLOCK_NAMES = ['metrics', 'budget', 'comparison', 'trend', 'funnel', 'adpreview', 'dashboard'];
 
 export const splitChatAndCanvas = (text) => {
   if (!text) return { chatText: '', canvasData: null };
 
-  // Check if any canvas-worthy blocks exist
+  // Check for new dashboard block (structured JSON for interactive canvas)
+  const dashboardMatch = text.match(/```dashboard\n([\s\S]*?)```/);
+  if (dashboardMatch) {
+    try {
+      const dashboard = JSON.parse(dashboardMatch[1]);
+      const chatText = text.replace(/```dashboard\n[\s\S]*?```/g, '').replace(/\n{3,}/g, '\n\n').trim();
+      return { chatText, canvasData: { dashboard, title: dashboard.title || 'Performance Dashboard' } };
+    } catch { /* fall through to legacy */ }
+  }
+
+  // Legacy: check if any canvas-worthy blocks exist
   const hasCanvas = CANVAS_BLOCK_NAMES.some(b => text.includes('```' + b));
-  // Also check for markdown tables (lines starting with |)
   const hasTable = /^\|.+\|$/m.test(text) && /^\|[\s\-:|]+\|$/m.test(text);
 
   if (!hasCanvas && !hasTable) return { chatText: text, canvasData: null };
 
-  // Strip canvas blocks from chat text using regex (keeps text + interactive blocks intact)
+  // Strip canvas blocks from chat text
   let chatText = text;
   for (const block of CANVAS_BLOCK_NAMES) {
     const re = new RegExp('```' + block + '\\n[\\s\\S]*?```', 'g');
     chatText = chatText.replace(re, '');
   }
-  // Strip markdown tables (header + separator + rows)
   chatText = chatText.replace(/(?:^|\n)(\|.+\|\n\|[\s\-:|]+\|\n(?:\|.+\|\n?)*)/g, '');
   chatText = chatText.replace(/\n{3,}/g, '\n\n').trim();
 
@@ -1883,11 +1903,15 @@ const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem, folder
                   case 'adpreview': return <AdPreviewBlock key={i} data={seg.data} />;
                   case 'mediagrid': return <MediaGridCard key={i} data={seg.data} onSend={onSend} isAnswered={isAnswered} selectedTitle={selectedTitle} />;
                   case 'videoaudience': return <VideoAudienceCard key={i} data={seg.data} onSend={onSend} isAnswered={isAnswered} adAccountId={adAccountId} token={token} />;
+                  case 'engagementaudience': return <EngagementAudienceCard key={i} data={seg.data} onSend={onSend} isAnswered={isAnswered} adAccountId={adAccountId} token={token} />;
+                  case 'lookalikeaudience': return <LookalikeAudienceCard key={i} data={seg.data} onSend={onSend} isAnswered={isAnswered} adAccountId={adAccountId} token={token} />;
+                  case 'savedaudience': return <SavedAudienceCard key={i} data={seg.data} onSend={onSend} isAnswered={isAnswered} adAccountId={adAccountId} token={token} />;
+                  case 'websiteaudience': return <WebsiteAudienceCard key={i} data={seg.data} onSend={onSend} isAnswered={isAnswered} adAccountId={adAccountId} token={token} />;
                   default: return <div key={i} className="whitespace-pre-wrap">{renderRichText(seg.content)}</div>;
                 }
               })}
               {/* Auto-open canvas panel when message has chart/dashboard blocks */}
-              {canvasData && isLatest && <AutoCanvasOpener data={canvasData} onOpen={onOpenCanvas} />}
+              {canvasData?.dashboard && isLatest && <AutoCanvasOpener data={canvasData} onOpen={onOpenCanvas} />}
             </div>
             <p className="text-xs text-slate-400 mt-1 ml-1">{fmtTime(message.timestamp)}</p>
           </div>

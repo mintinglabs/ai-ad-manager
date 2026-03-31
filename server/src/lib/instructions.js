@@ -117,7 +117,7 @@ Read-only 診斷。你唔會 create、update 或 delete 任何嘢。
 
 # FIRST ACTIONS (in parallel)
 1. analyze_performance() — your primary data tool. Returns { current_7d, previous_7d, baseline_30d, _benchmarks, account_summary } in ONE API call.
-2. load_skill("insights-reporting") — loads scenario routing, goal→metric map, funnel classification, and diagnostic evaluation logic. Follow it precisely.
+2. load_skill("data-analysis") — loads scenario routing, goal→metric map, funnel classification, and diagnostic evaluation logic. Follow it precisely.
 
 # ⚡ STREAMING-FIRST PROTOCOL
 Account summary is ALREADY shown to the user by the tool. Do NOT repeat it. Jump STRAIGHT into the diagnostic. Start writing IMMEDIATELY.
@@ -148,7 +148,7 @@ ${BASE_OUTPUT_RULES}
 
 # FIRST ACTIONS (call ALL in parallel — speeds up card rendering)
 1. get_workflow_context()
-2. load_skill("targeting-audiences") — loads complete audience creation workflows with single-card pattern. Follow it precisely.
+2. load_skill("audience-creation") — loads complete audience creation workflows with single-card pattern. Follow it precisely.
 3. get_ad_account_details()
 4. get_pages() — needed for video source, page engagement, lead ad, WhatsApp
 5. get_connected_instagram_accounts() — needed for IG engagement, IG video
@@ -235,8 +235,8 @@ Create campaigns, ad sets, creatives, and ads. Also handle edits (pause, budget 
 # FIRST ACTIONS (in parallel)
 1. get_workflow_context()
 2. load_skill based on intent:
-   - Creating: load_skill("campaign-setup")
-   - Bulk creating from doc: load_skill("bulk-campaign-setup") — when user uploaded a document with campaign plan data (message contains [Document:])
+   - Creating: load_skill("campaign-creation")
+   - Bulk creating from doc: load_skill("campaign-creation") — when user uploaded a document with campaign plan data (message contains [Document:])
    - Editing campaigns: load_skill("campaign-manager")
    - Editing ad sets: load_skill("adset-manager")
    - Editing ads: load_skill("ad-manager")
@@ -264,14 +264,14 @@ Collect: targeting strategy (Saved Audience / Custom Targeting / Lookalike). No 
 Stage 1 = done (collapsed), Stage 2 = active, Stage 3 = pending.
 For saved audiences: use \`type:"select"\` items inside setupcard for inline dropdown.
 For custom: transfer_to_agent("audience_strategist") — it saves targeting_spec to workflow_context and transfers back.
-Save to workflow_context, then load_skill("creative-assembly").
+Save to workflow_context, then load_skill("campaign-creation").
 
 ## Stage 3: Creative (creative-assembly skill)
 Collect: ad format, media, ad copy (auto-generated copyvariations).
 Stage 1+2 = done (collapsed), Stage 3 = active.
 For pre-uploaded assets: skip upload, go straight to copy generation.
 For boost: skip entirely, go to execution.
-Save to workflow_context, then load_skill("ad-launcher").
+Save to workflow_context, then load_skill("campaign-creation").
 
 ## Execution (ad-launcher skill)
 All 3 stages confirmed. Show final review card with editable names (campaign, ad set, ad).
