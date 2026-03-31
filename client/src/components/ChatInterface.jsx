@@ -1789,6 +1789,15 @@ const SaveMenu = ({ messageId, onSave, folders = [] }) => {
   );
 };
 
+// ── Auto-open canvas when a message has chart data ──────────────────────────
+const AutoCanvasOpener = ({ data, onOpen }) => {
+  const opened = useRef(false);
+  useEffect(() => {
+    if (data && onOpen && !opened.current) { opened.current = true; onOpen(data); }
+  }, [data, onOpen]);
+  return null;
+};
+
 // ── Message bubble ────────────────────────────────────────────────────────────
 const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem, folders, isAnswered, answeredWith, onOpenCanvas }) => {
   if (message.type === 'report') return (<><ReportMessage message={message} timestamp={message.timestamp} /><div className="mb-2" /></>);
@@ -1834,7 +1843,8 @@ const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem, folder
                   default: return <div key={i} className="whitespace-pre-wrap">{renderRichText(seg.content)}</div>;
                 }
               })}
-              {/* Canvas trigger removed — all content renders inline in chat */}
+              {/* Auto-open canvas panel when message has chart/dashboard blocks */}
+              {canvasData && isLatest && <AutoCanvasOpener data={canvasData} onOpen={onOpenCanvas} />}
             </div>
             <p className="text-xs text-slate-400 mt-1 ml-1">{fmtTime(message.timestamp)}</p>
           </div>
