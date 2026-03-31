@@ -1519,8 +1519,8 @@ const audienceTools = pick(
   'create_custom_audience', 'create_lookalike_audience', 'create_saved_audience',
   'get_ad_account_details',
   'get_pages', 'get_pixels', 'get_page_videos', 'get_ig_media', 'get_connected_instagram_accounts',
-  // Granular source selection — specific posts, ads, videos by campaign
-  'get_campaigns', 'get_ads', 'get_ad_videos', 'get_page_posts', 'get_campaign_ads',
+  // Granular source selection — videos and posts only (get_ads removed: too heavy for large accounts)
+  'get_campaigns', 'get_ad_videos', 'get_page_posts',
   'get_ig_posts', 'get_video',
   'get_workflow_context', 'update_workflow_context', 'load_skill'
 );
