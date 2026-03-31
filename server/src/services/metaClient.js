@@ -1571,14 +1571,6 @@ export const getPageVideos = async (token, pageId, adAccountId, { after } = {}) 
   const page = pages?.find(p => p.id === pageId);
   const pageToken = page?.access_token || token;
 
-  // Auto-resolve the correct ad account for this page's business
-  const resolvedAdAccount = await resolvePageAdAccount(token, pageId) || adAccountId;
-
-  // Build ad views map from the CORRECT ad account (in parallel with page videos)
-  const viewsMapPromise = resolvedAdAccount
-    ? getVideoViewsMap(token, resolvedAdAccount, { datePreset: 'maximum' })
-    : Promise.resolve({});
-
   try {
     const params = {
       access_token: pageToken,
@@ -1587,62 +1579,19 @@ export const getPageVideos = async (token, pageId, adAccountId, { after } = {}) 
     };
     if (after) params.after = after;
 
+    // Fast path: fetch page videos + ad views map in parallel (skip slow crosspost/length matching)
+    const resolvedAdAccount = await resolvePageAdAccount(token, pageId) || adAccountId;
     const [{ data }, viewsMap] = await Promise.all([
       metaApi.get(`/${pageId}/videos`, { params }),
-      viewsMapPromise
+      resolvedAdAccount ? getVideoViewsMap(token, resolvedAdAccount, { datePreset: 'maximum' }).catch(() => ({})) : Promise.resolve({})
     ]);
     const rawPageVideos = (data.data || []).filter(v => !v.status || v.status.video_status === 'ready');
 
-    // Also fetch IG media from linked IG account to detect crossposted videos
-    const igAccount = page?.instagram_business_account;
-    let igCrosspostMap = {}; // page_video_id or ig_media_id → true
-    if (igAccount?.id) {
-      try {
-        const { data: igData } = await metaApi.get(`/${igAccount.id}/media`, {
-          params: { access_token: pageToken, fields: 'id,timestamp', limit: 50 }
-        });
-        // Build a set of IG media timestamps for crosspost matching
-        const igTimestamps = new Set((igData.data || []).map(m => m.timestamp?.slice(0, 16)));
-        for (const v of rawPageVideos) {
-          if (v.created_time && igTimestamps.has(v.created_time.slice(0, 16))) {
-            igCrosspostMap[v.id] = true;
-          }
-        }
-      } catch { /* IG crosspost detection failed, skip */ }
-    }
-
-    // Build ad video lookup by rounded length for same-account matching
-    // Safe because we resolved the CORRECT ad account for this page's business
-    const adByLength = {}; // length_tenths → highest views
-    if (resolvedAdAccount) {
-      try {
-        const adVids = await getAdVideos(token, resolvedAdAccount, { viewsMap });
-        for (const av of (adVids || [])) {
-          const lenKey = Math.round((av.length || 0) * 10);
-          if (lenKey > 0 && (av.three_second_views || 0) > (adByLength[lenKey]?.views || 0)) {
-            adByLength[lenKey] = { views: av.three_second_views, updated_time: av.updated_time };
-          }
-        }
-      } catch { /* skip */ }
-    }
-
     const pageVideos = rawPageVideos.map(v => {
-      // Priority: 1) exact video_id match, 2) length match from same ad account, 3) organic views
-      let adViews = viewsMap[v.id] || 0;
-      let lastUsed = v.updated_time;
-      if (!adViews && v.length) {
-        const lenKey = Math.round((v.length || 0) * 10);
-        const match = adByLength[lenKey];
-        if (match?.views) { adViews = match.views; }
-        if (match?.updated_time && (!lastUsed || match.updated_time > lastUsed)) {
-          lastUsed = match.updated_time;
-        }
-      }
-      const isCrosspost = !!igCrosspostMap[v.id] || !!v.source_instagram_media_id;
+      const isCrosspost = !!v.source_instagram_media_id;
       return {
         ...v,
-        three_second_views: adViews || v.views || 0,
-        updated_time: lastUsed,
+        three_second_views: viewsMap[v.id] || v.views || 0,
         is_ig: isCrosspost,
         sources: isCrosspost ? ['page', 'ig'] : ['page']
       };
@@ -1651,9 +1600,7 @@ export const getPageVideos = async (token, pageId, adAccountId, { after } = {}) 
     const nextCursor = data.paging?.cursors?.after || null;
     const hasMore = !!data.paging?.next;
 
-    // Sort by 3s views descending (matches Meta's "Last used date" sort with boosted videos on top)
     pageVideos.sort((a, b) => (b.three_second_views || 0) - (a.three_second_views || 0));
-
     return { videos: pageVideos, nextCursor: hasMore ? nextCursor : null };
   } catch (err) {
     console.error('getPageVideos error:', err.response?.data?.error?.message || err.message);
@@ -1689,6 +1636,7 @@ export const getIgMedia = async (token, igAccountId, { pageId, adAccountId, afte
 
   if (!after) {
     try {
+      // Fast path: fetch IG media + ad views map in parallel (skip slow per-video insights)
       const [{ data }, viewsMap] = await Promise.all([
         metaApi.get(`/${igAccountId}/media`, {
           params: {
@@ -1697,99 +1645,25 @@ export const getIgMedia = async (token, igAccountId, { pageId, adAccountId, afte
             limit: 50
           }
         }),
-        viewsMapPromise
+        viewsMapPromise.catch(() => ({}))
       ]);
       const allMedia = data.data || [];
       const videos = allMedia.filter(m => m.media_type === 'VIDEO' || m.media_type === 'REELS');
       const nextCursor = data.paging?.cursors?.after || null;
-      console.log(`[getIgMedia] Direct IG media: ${allMedia.length} total (types: ${[...new Set(allMedia.map(m => m.media_type))].join(',')}), ${videos.length} videos`);
+      console.log(`[getIgMedia] Direct IG media: ${allMedia.length} total, ${videos.length} videos`);
 
-      // Fetch page videos + ad views + native IG views ALL in parallel to avoid serial bottleneck
-      const pageVideoViewsPromise = (async () => {
-        const map = {};
-        if (!resolvedPageId) return map;
-        try {
-          const linkedPage = allPages.find(p => p.id === resolvedPageId);
-          const pt = linkedPage?.access_token || token;
-          const { data: pvData } = await metaApi.get(`/${resolvedPageId}/videos`, {
-            params: { access_token: pt, fields: 'id,title,description,source,picture,length,created_time,updated_time,views,source_instagram_media_id', limit: 50 }
-          });
-          for (const pv of (pvData.data || [])) {
-            let adViews = viewsMap[pv.id] || 0;
-            if (pv.created_time) {
-              map[pv.created_time.slice(0, 16)] = {
-                views: adViews || pv.views || 0,
-                title: pv.title, picture: pv.picture, length: pv.length, id: pv.id,
-                updated_time: pv.updated_time
-              };
-            }
-          }
-        } catch (e) { console.log(`[getIgMedia] page videos fetch failed:`, e.response?.data?.error?.message || e.message); }
-        return map;
-      })();
+      const normalized = videos.map(v => ({
+        ...v,
+        title: v.caption?.slice(0, 80) || 'Untitled',
+        picture: v.thumbnail_url,
+        created_time: v.timestamp,
+        updated_time: v.timestamp,
+        three_second_views: viewsMap[v.id] || 0,
+        source_instagram_media_id: v.id,
+        is_ig: true,
+        sources: ['ig']
+      }));
 
-      // Batch-fetch native IG media views — all in parallel with a 15s timeout per call
-      const igViewsPromise = (async () => {
-        const igViews = {};
-        const insightsApi = axios.create({ baseURL: `${BASE_URL}/${API_VERSION}`, timeout: 15000 });
-        await Promise.all(videos.map(async (v) => {
-          try {
-            const { data: insData } = await insightsApi.get(`/${v.id}/insights`, {
-              params: { access_token: igToken, metric: 'views' }
-            });
-            const val = insData.data?.[0]?.values?.[0]?.value;
-            if (val != null) igViews[v.id] = parseInt(val, 10) || 0;
-          } catch (e) {
-            console.log(`[getIgMedia] insights for ${v.id}: ${e.response?.data?.error?.message || e.message}`);
-          }
-        }));
-        return igViews;
-      })();
-
-      // Wait for both in parallel (not serial)
-      const [pageVideoViews, igViews] = await Promise.all([pageVideoViewsPromise, igViewsPromise]);
-
-      // Enrich page video views with ad length matching if available
-      if (resolvedAdAccount) {
-        try {
-          const adVids = await getAdVideos(token, resolvedAdAccount, { viewsMap });
-          for (const av of (adVids || [])) {
-            const lenKey = Math.round((av.length || 0) * 10);
-            if (lenKey <= 0) continue;
-            // Update page video views that had no ad views but match by length
-            for (const [ts, pv] of Object.entries(pageVideoViews)) {
-              if (!viewsMap[pv.id] && pv.length && Math.round(pv.length * 10) === lenKey) {
-                if ((av.three_second_views || 0) > (pv.views || 0)) {
-                  pageVideoViews[ts].views = av.three_second_views;
-                  pageVideoViews[ts].updated_time = av.updated_time || pv.updated_time;
-                }
-              }
-            }
-          }
-        } catch { /* skip */ }
-      }
-
-      // Normalize IG video fields — use ad views from crossposted page video when available
-      const normalized = videos.map(v => {
-        const crosspost = v.timestamp ? pageVideoViews[v.timestamp.slice(0, 16)] : null;
-        const adViews = crosspost?.views || 0;
-        const nativeViews = igViews[v.id] || 0;
-        return {
-          ...v,
-          title: v.caption?.slice(0, 80) || 'Untitled',
-          picture: v.thumbnail_url,
-          created_time: v.timestamp,
-          updated_time: crosspost?.updated_time || v.timestamp,
-          length: crosspost?.length,
-          three_second_views: Math.max(adViews, nativeViews),
-          source_instagram_media_id: v.id,
-          is_ig: true,
-          sources: crosspost ? ['ig', 'page'] : ['ig']
-        };
-      });
-      console.log(`[getIgMedia] Returning ${normalized.length} IG videos`);
-
-      // Only return actual IG videos — page-only videos belong in the FB Page source
       normalized.sort((a, b) => (b.three_second_views || 0) - (a.three_second_views || 0));
       return { videos: normalized, nextCursor: data.paging?.next ? nextCursor : null };
     } catch (err) {
