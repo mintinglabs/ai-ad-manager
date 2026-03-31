@@ -818,12 +818,32 @@ export const createCustomAudience = async (token, adAccountId, params) => {
     apiParams.subtype = subtype;
   }
 
+  // Auto-resolve ad account from event_sources in the rule (fixes permission errors when session has wrong account)
+  let resolvedAdAccountId = adAccountId;
+  try {
+    const parsedRule = apiParams.rule ? (typeof apiParams.rule === 'string' ? JSON.parse(apiParams.rule) : apiParams.rule) : null;
+    const eventSource = parsedRule?.inclusions?.rules?.[0]?.event_sources?.[0];
+    if (eventSource?.id && (eventSource?.type === 'page' || eventSource?.type === 'ig_business')) {
+      const pages = await getPages(token);
+      const page = eventSource.type === 'page'
+        ? pages?.find(p => p.id === eventSource.id)
+        : pages?.find(p => p.instagram_business_account?.id === eventSource.id);
+      if (page) {
+        const resolved = await resolvePageAdAccount(token, page.id);
+        if (resolved) {
+          console.log(`[createCustomAudience] Auto-resolved adAccount: ${adAccountId} → ${resolved}`);
+          resolvedAdAccountId = resolved;
+        }
+      }
+    }
+  } catch (e) { console.log(`[createCustomAudience] Auto-resolve failed:`, e.message); }
+
   // Log what we're sending to Meta for debugging
   const debugParams = { ...apiParams };
   delete debugParams.access_token;
-  console.log(`[metaClient] createCustomAudience → POST /${adAccountId}/customaudiences`, JSON.stringify(debugParams));
+  console.log(`[metaClient] createCustomAudience → POST /${resolvedAdAccountId}/customaudiences`, JSON.stringify(debugParams));
 
-  const { data } = await metaApi.post(`/${adAccountId}/customaudiences`, null, {
+  const { data } = await metaApi.post(`/${resolvedAdAccountId}/customaudiences`, null, {
     params: apiParams
   });
   return data;

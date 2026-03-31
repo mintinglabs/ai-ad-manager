@@ -1,6 +1,6 @@
 ---
 name: targeting-audiences
-description: Plan audience targeting strategies — custom audiences, lookalikes, saved audiences, and interest targeting with interactive source selection
+description: Plan audience targeting strategies — custom audiences, lookalikes, saved audiences, and interest targeting with single-card creation UI
 layer: strategic
 depends_on: [insights-reporting]
 leads_to: [ad-manager, campaign-manager]
@@ -8,199 +8,105 @@ leads_to: [ad-manager, campaign-manager]
 
 # Targeting & Audiences
 
-## Strategy Workflow
+## Single-Card Creation Pattern
 
-Interactive audience planning flow. ALWAYS use ```options cards for every choice. NEVER list options as plain text bullets. Max 1-2 sentences between cards. Option titles MUST be human-readable names — NEVER raw IDs.
+**CRITICAL UX RULE:** Every audience type uses a **setupcard with inline dropdowns** — the user configures everything in ONE card, NOT through multiple chat steps. For video/post audiences, show a **mediagrid** block alongside the setupcard.
 
-**Media Selection:** When presenting videos, posts, or ads for selection, use the ```mediagrid block for rich thumbnail + checkbox UI. Format:
-```
-```mediagrid
-{"title":"Select videos","media_type":"video","metric_label":"3s Views","items":[
-  {"id":"VID_ID","title":"Video title","thumbnail":"https://...","duration":"0:41","metric_value":135860,"date":"25 Feb 2026","source_icons":["fb","ig"]},
-  ...
-]}
-```
-```
-Supported media_type values: `video`, `post`, `ad`. The frontend renders thumbnails, checkboxes, search, sort, and multi-select.
-
-**Progress:** Show step progress at the start of each step: `Step 2 of 4 — Engagement type`. Audience flows are shorter (3-5 steps) so users know they're close.
+**The server-side tool (`get_page_videos`, `get_ig_media`) automatically emits the full video list as a mediagrid directly to the frontend via SSE.** You do NOT need to re-serialize all videos — the frontend already has the complete list. Just reference it in your text: "請喺上面揀選影片" (Select videos above).
 
 **Golden Rules:**
+1. ALWAYS call API tools first to get real data before presenting cards — NEVER ask users to provide IDs manually
+2. Show the setupcard + mediagrid in ONE response — no "What do you want to do?" preamble
+3. Every field uses `type:"select"` (immediate dropdown) or `editable:true` (hover to edit)
+4. After user confirms, call `create_custom_audience` immediately — no extra confirmation step
+5. Show audience ID in the post-creation metrics
+6. `special_ad_categories` is a CAMPAIGN-level field. NEVER ask about it when creating audiences.
 
-1. ALWAYS call API tools first to get real data (pages, videos, IG accounts) before presenting options — NEVER ask users to provide IDs manually
-2. Gather info efficiently — use smart defaults (retention=30d website, 365d engagement). Auto-generate names if not provided.
-3. When user provides enough info upfront, skip to confirmation.
-4. `special_ad_categories` is a CAMPAIGN-level field. NEVER ask about it when creating audiences.
-5. ALWAYS offer the exclusion step before final confirmation — it's a key quality-of-life feature that prevents wasted spend.
+---
 
-### Entry Point — Audience Type Selection
+## Entry Point
 
-Show immediately when user mentions audience, retargeting, custom audience, or lookalike. Split into two cards — first ask the goal, then show relevant types:
+When user mentions audience, retargeting, custom audience, or lookalike, show the purpose card:
 
 ```options
-{"title":"What's the purpose of this audience?","options":[
-  {"id":"RETARGET","title":"Retarget warm audiences","description":"Re-engage people who already know your brand"},
-  {"id":"PROSPECT","title":"Find new customers","description":"Reach people similar to your best customers"},
-  {"id":"SAVE","title":"Save a targeting preset","description":"Reusable interest/demographic targeting for future campaigns"}
+{"title":"你想建立邊種受眾？","options":[
+  {"id":"RETARGET","title":"再行銷 (Retargeting)","description":"重新接觸已經認識你品牌嘅人"},
+  {"id":"PROSPECT","title":"搵新客 (Prospecting)","description":"搵同你現有客群相似嘅人"},
+  {"id":"SAVE","title":"儲存受眾設定 (Saved Audience)","description":"根據興趣同人口統計建立常用受眾"}
 ]}
 ```
+
+Then based on selection, show the retarget source options OR go directly to Lookalike/Saved.
 
 **If RETARGET:**
 
 ```options
-{"title":"Who do you want to retarget?","options":[
-  {"id":"WEBSITE","title":"Website Visitors","description":"People who visited your site via Meta Pixel"},
-  {"id":"VIDEO","title":"Video Viewers","description":"People who watched your Facebook or Instagram videos"},
-  {"id":"INSTAGRAM","title":"Instagram Engagers","description":"People who interacted with your Instagram profile"},
-  {"id":"PAGE","title":"Facebook Page Engagers","description":"People who interacted with your Facebook Page"},
-  {"id":"AD_ENGAGEMENT","title":"Ad Engagers","description":"People who engaged with specific ads or campaigns"},
-  {"id":"LEAD_AD","title":"Lead Form Engagers","description":"People who opened or submitted your lead form"},
-  {"id":"WHATSAPP","title":"WhatsApp Contacts","description":"People who messaged your WhatsApp Business account"},
-  {"id":"CUSTOMER_LIST","title":"Customer List","description":"Upload your own customer data (emails, phones)"}
+{"title":"你想 Retarget 邊類人？","options":[
+  {"id":"VIDEO","title":"影片觀眾 (Video Viewers)","description":"睇過你 Facebook 或 Instagram 影片嘅人"},
+  {"id":"WEBSITE","title":"網站訪客 (Website Visitors)","description":"透過 Meta Pixel 追蹤到嘅訪客"},
+  {"id":"INSTAGRAM","title":"Instagram 互動者","description":"同你 IG 帳號互動過嘅人"},
+  {"id":"PAGE","title":"Facebook 專頁互動者","description":"同你 Facebook 專頁互動過嘅人"},
+  {"id":"AD_ENGAGEMENT","title":"廣告互動者","description":"同你特定廣告互動過嘅人"},
+  {"id":"LEAD_AD","title":"Lead Form 互動者","description":"開過或提交過你 Lead Form 嘅人"},
+  {"id":"WHATSAPP","title":"WhatsApp 聯絡人","description":"同你 WhatsApp Business 互動過嘅人"},
+  {"id":"CUSTOMER_LIST","title":"客戶名單","description":"上傳你嘅客戶 Email 或電話名單"}
 ]}
 ```
 
-**If PROSPECT:**
-
-```options
-{"title":"What should the new audience be based on?","options":[
-  {"id":"LOOKALIKE","title":"Lookalike Audience","description":"Find people similar to your existing customers or followers"},
-  {"id":"INTEREST","title":"Interest & Behavior Targeting","description":"Target by interests, behaviors, and demographics (Saved Audience)"}
-]}
-```
+After this ONE selection, go directly to the single-card for that audience type. No more intermediate steps.
 
 ---
 
-### WEBSITE Audience (Pixel-Based Retargeting)
+## VIDEO Audience — Single-Card
 
-**Step 1 — Select Pixel:** Call `get_pixels` and present as options.
+**FIRST ACTIONS** (call in parallel, before showing any UI):
+1. `get_pages()`
+2. `get_connected_instagram_accounts()`
+3. `get_page_videos(page_id)` — for the first/primary page
 
-**Step 2 — Event type:**
+Then show BOTH blocks in ONE response:
 
-```options
-{"title":"Who should be in this audience?","options":[
-  {"id":"all_visitors","title":"All Website Visitors","description":"Anyone who visited any page"},
-  {"id":"specific_pages","title":"Specific Page Visitors","description":"People who visited certain URLs"},
-  {"id":"time_spent","title":"Top Time Spent","description":"Top 5%, 10%, or 25% by time on site"},
-  {"id":"purchase","title":"Purchasers","description":"People who completed a purchase"},
-  {"id":"add_to_cart","title":"Add to Cart","description":"People who added items to cart"},
-  {"id":"lead","title":"Lead Submissions","description":"People who submitted a lead form"},
-  {"id":"view_content","title":"Content Viewers","description":"People who viewed product/content pages"}
+**Block 1 — Config setupcard:**
+
+```setupcard
+{"phase":1,"status":"active","title":"建立影片受眾","icon":"target","items":[
+  {"label":"影片來源","value":"Facebook Page","type":"select","options":[
+    {"id":"fb","title":"Facebook Page"},
+    {"id":"ig","title":"Instagram Account"}
+  ]},
+  {"label":"專頁/帳號","value":"[First page name]","type":"select","options":[
+    mapped from get_pages results — {"id":"PAGE_ID","title":"Page Name"} for each
+  ]},
+  {"label":"互動程度","value":"睇咗至少 3 秒","type":"select","options":[
+    {"id":"3s","title":"睇咗至少 3 秒","description":"最闊嘅受眾"},
+    {"id":"10s","title":"睇咗至少 10 秒"},
+    {"id":"thruplay","title":"ThruPlay (15 秒)","description":"睇完或睇咗 15 秒以上"},
+    {"id":"25pct","title":"睇咗 25%"},
+    {"id":"50pct","title":"睇咗 50%","description":"有明顯興趣"},
+    {"id":"75pct","title":"睇咗 75%","description":"高參與度"},
+    {"id":"95pct","title":"睇咗 95%","description":"幾乎睇晒，最高意向"}
+  ]},
+  {"label":"保留期","value":"365 日","editable":true,"options":[
+    {"id":"30","title":"30 日"},
+    {"id":"90","title":"90 日"},
+    {"id":"180","title":"180 日"},
+    {"id":"365","title":"365 日 (預設)"}
+  ]}
 ]}
 ```
 
-**Step 3 — URL filter (if specific pages):**
+**Block 2 — Video selector:** The server already emitted the full video list via SSE mediagrid. Just tell the user: "請喺上面嘅影片列表揀選你想用嘅片（可多選），然後撳「Confirm」。"
 
-```options
-{"title":"How should URLs be matched?","options":[
-  {"id":"contains","title":"URL Contains","description":"Match pages with a keyword in the URL (e.g., /product)"},
-  {"id":"not_contains","title":"URL Does Not Contain","description":"Exclude pages with a keyword"},
-  {"id":"equals","title":"URL Equals","description":"Match an exact page URL"}
-]}
+If the server mediagrid doesn't appear (e.g. tool returned error), fall back to outputting a mediagrid block yourself with ALL videos from the API response. Do NOT truncate.
+
+**When user clicks Confirm** with selected videos → call `create_custom_audience` with:
+```
+subtype: "ENGAGEMENT"
+name: auto-generate "[Page Name] Video Viewers — [Date]"
+rule: { inclusions: { operator: "or", rules: [{ event_sources: [{ id: "PAGE_ID", type: "page" }], retention_seconds: RETENTION, filter: { operator: "and", filters: [{ field: "event", operator: "eq", value: "video_watched" }, { field: "video.video_id", operator: "is_any", value: [SELECTED_VIDEO_IDS] }] } }] } }
 ```
 
-**Step 4 — Retention:**
-
-```options
-{"title":"How far back should we look?","options":[
-  {"id":"7","title":"7 days","description":"Very recent visitors only"},
-  {"id":"14","title":"14 days","description":"Recent visitors"},
-  {"id":"30","title":"30 days (Recommended)","description":"Standard retargeting window"},
-  {"id":"60","title":"60 days","description":"Extended window"},
-  {"id":"90","title":"90 days","description":"Broad retargeting"},
-  {"id":"180","title":"180 days (Maximum)","description":"Longest allowed for website audiences"}
-]}
-```
-
-Confirm summary with ```steps, then call `create_custom_audience` with: name, description, subtype="WEBSITE", pixel_id, retention_days. The system auto-builds the correct Meta v19 event_sources format — just pass pixel_id and optionally a simple URL rule. Do NOT build event_sources/inclusions yourself for WEBSITE.
-
----
-
-### VIDEO Audience (Engagement)
-
-**Step 1 — Choose video source:** Call `get_pages` AND `get_connected_instagram_accounts` in parallel. Present ALL sources. Allow multi-select to combine FB + IG videos.
-
-**Step 1b — How to find videos:**
-
-```options
-{"title":"How do you want to find videos?","options":[
-  {"id":"browse","title":"Browse All Videos","description":"See all videos from this source sorted by views"},
-  {"id":"campaign","title":"Videos from a Campaign","description":"Only show videos used in a specific campaign"},
-  {"id":"video_id","title":"I Have a Video ID","description":"Look up a specific video by ID"}
-]}
-```
-
-If **browse** → proceed to Step 2 as normal.
-
-If **campaign** → Call `get_campaigns` to list campaigns → present as options → call `get_campaign_ads` with selected campaign_id → extract `creative.video_id` from each ad → present matching videos for selection. If an ad has no video_id, skip it.
-
-If **video_id** → Ask for the ID, call `get_video` to confirm it exists and show title + thumbnail, then skip to Step 3 (engagement level).
-
-**Step 2 — Show videos:** Based on source type:
-- Facebook Page: call `get_page_videos` with page_id
-- Instagram: call `get_ig_media` with ig_account_id
-
-**IMPORTANT: Always present videos using the ```mediagrid block, NOT plain text or ```options.** Take the returned video array and format as:
-
-```mediagrid
-{"title":"Select Videos","media_type":"video","metric_label":"3s Views","items":[
-  {"id":"VIDEO_ID","title":"Video title from API","thumbnail":"picture URL from API","duration":"0:41","metric_value":135860,"date":"25 Feb 2026","source_icons":["fb"]},
-  {"id":"VIDEO_ID_2","title":"Second video","thumbnail":"picture URL","duration":"0:49","metric_value":88580,"date":"27 Feb 2026","source_icons":["fb","ig"]}
-]}
-```
-
-Map each video from the API response:
-- `id` → video `id`
-- `title` → video `title` (or `caption` for IG)
-- `thumbnail` → video `picture` (or `thumbnail_url` for IG)
-- `duration` → format `length` seconds as "M:SS"
-- `metric_value` → `three_second_views` (or `views` if 0)
-- `date` → format `created_time` as "DD Mon YYYY"
-- `source_icons` → `["fb"]` for page-only, `["fb","ig"]` if `is_ig` is true, `["ig"]` for IG-only
-
-Cap at 15 videos max. Sort by views descending (already sorted from API).
-
-**Step 3 — Engagement level:**
-
-```options
-{"title":"What level of engagement?","options":[
-  {"id":"3s","title":"3 seconds viewed","description":"Broadest audience — anyone who watched at least 3 seconds"},
-  {"id":"10s","title":"10 seconds viewed","description":"More engaged viewers"},
-  {"id":"thruplay","title":"ThruPlay / 15 seconds","description":"Completed or watched at least 15 seconds"},
-  {"id":"25pct","title":"25% viewed","description":"Watched at least a quarter of the video"},
-  {"id":"50pct","title":"50% viewed","description":"Watched at least half"},
-  {"id":"75pct","title":"75% viewed","description":"Highly engaged viewers"},
-  {"id":"95pct","title":"95% viewed","description":"Nearly completed — most engaged"}
-]}
-```
-
-Auto-default retention=365 days. Confirm summary, then call `create_custom_audience` with subtype="ENGAGEMENT".
-
-**Rule JSON format:**
-
-For Facebook Page videos, use `"type":"page"`. For Instagram videos, use `"type":"ig_business"`.
-
-```json
-{
-  "inclusions": {
-    "operator": "or",
-    "rules": [{
-      "event_sources": [{"id": "PAGE_OR_IG_ID", "type": "page or ig_business"}],
-      "retention_seconds": SECONDS,
-      "filter": {
-        "operator": "and",
-        "filters": [
-          {"field": "event", "operator": "eq", "value": "video_watched"},
-          {"field": "video.video_id", "operator": "is_any", "value": ["VIDEO_ID_1", "VIDEO_ID_2"]}
-        ]
-      }
-    }]
-  }
-}
-```
-
-**Engagement event values:**
-
+**Engagement event map:**
 | Selection | Event Value |
 |---|---|
 | 3 seconds | `video_watched` |
@@ -213,172 +119,107 @@ For Facebook Page videos, use `"type":"page"`. For Instagram videos, use `"type"
 
 ---
 
-### CUSTOMER LIST Audience
+## WEBSITE Audience — Single-Card
 
-> **Important:** Users cannot SHA-256 hash data in chat. This flow creates the audience shell — user must upload hashed data via Meta Business Suite or CRM.
+Call `get_pixels()` first.
 
-**Step 1 — Data type:** EMAIL / PHONE / MIXED (emails + phones + names)
-
-**Step 2 — Source:** USER_PROVIDED_ONLY / PARTNER_PROVIDED_ONLY / BOTH_USER_AND_PARTNER_PROVIDED
-
-**Step 3 — Create the audience shell** with subtype="CUSTOM", customer_file_source. Then show upload instructions:
-
-> 1. Prepare CSV: email, phone (E.164: +85298765432), first_name, last_name
-> 2. SHA-256 hash each field (use Meta's template or CRM export)
-> 3. Go to **Meta Business Suite → Audiences → [Name] → Add people**
-> 4. Upload hashed CSV
-
----
-
-### LEAD AD Audience (Lead Form Engagers)
-
-**Step 1 — Select Page:** Call `get_pages` and present.
-
-**Step 2 — Engagement type:**
-
-```options
-{"title":"What lead form interaction?","options":[
-  {"id":"lead_opened","title":"Opened the Lead Form","description":"Anyone who opened — including those who didn't submit"},
-  {"id":"lead_submitted","title":"Submitted the Lead Form","description":"People who completed and submitted"},
-  {"id":"lead_not_submitted","title":"Opened but Didn't Submit","description":"High-intent people who started but didn't finish — great for retargeting"}
+```setupcard
+{"phase":1,"status":"active","title":"建立網站訪客受眾","icon":"target","items":[
+  {"label":"Pixel","value":"[First pixel name]","type":"select","options":[
+    mapped from get_pixels — {"id":"PIXEL_ID","title":"Pixel Name"}
+  ]},
+  {"label":"訪客類型","value":"所有網站訪客","type":"select","options":[
+    {"id":"all","title":"所有網站訪客","description":"去過任何頁面嘅人"},
+    {"id":"specific","title":"特定頁面訪客","description":"去過某啲 URL 嘅人"},
+    {"id":"purchase","title":"購買者","description":"完成購買嘅人"},
+    {"id":"add_to_cart","title":"加入購物車","description":"加過貨入 Cart 嘅人"},
+    {"id":"lead","title":"Lead 提交者","description":"提交過表單嘅人"}
+  ]},
+  {"label":"保留期","value":"30 日","editable":true,"options":[
+    {"id":"7","title":"7 日"},
+    {"id":"14","title":"14 日"},
+    {"id":"30","title":"30 日 (預設)"},
+    {"id":"60","title":"60 日"},
+    {"id":"90","title":"90 日"},
+    {"id":"180","title":"180 日 (最長)"}
+  ]}
 ]}
 ```
 
-Auto-default retention=90 days (max for lead ad audiences). Create with event_sources type "page", events: `lead_generation_opened` / `leadgen_submitted`.
+If user picks "specific pages", ask for URL keyword in one follow-up. Then create.
 
 ---
 
-### WHATSAPP Contacts Audience
+## INSTAGRAM Engagement Audience — Single-Card
 
-**Step 1 — Select Page** (with WhatsApp Business connected): Call `get_pages`.
+Call `get_connected_instagram_accounts()` first.
 
-**Step 2 — Interaction type:**
-
-```options
-{"title":"What WhatsApp interaction?","options":[
-  {"id":"ALL","title":"All Interactions","description":"Anyone who sent or received messages — broadest"},
-  {"id":"SENT_MESSAGE","title":"Sent You a Message","description":"People who messaged first — highest intent"},
-  {"id":"OPENED_CONVERSATION","title":"Opened a Conversation","description":"People who opened a WhatsApp thread"}
+```setupcard
+{"phase":1,"status":"active","title":"建立 IG 互動受眾","icon":"target","items":[
+  {"label":"IG 帳號","value":"@[first username]","type":"select","options":[
+    mapped from get_connected_instagram_accounts
+  ]},
+  {"label":"互動類型","value":"所有互動","type":"select","options":[
+    {"id":"all","title":"所有互動","description":"同你 Profile 或內容有互動嘅人"},
+    {"id":"visit","title":"瀏覽 Profile"},
+    {"id":"post","title":"帖文/廣告互動","description":"Like、留言、分享、儲存"},
+    {"id":"specific_post","title":"特定帖文互動","description":"揀選特定帖文"},
+    {"id":"message","title":"發送 DM"},
+    {"id":"saved","title":"儲存帖文"},
+    {"id":"whatsapp","title":"撳過 WhatsApp 按鈕"}
+  ]},
+  {"label":"保留期","value":"365 日","editable":true,"options":[
+    {"id":"30","title":"30 日"},
+    {"id":"90","title":"90 日"},
+    {"id":"180","title":"180 日"},
+    {"id":"365","title":"365 日 (預設)"}
+  ]}
 ]}
 ```
 
-Auto-default retention=365 days. Use subtype="ENGAGEMENT" with event_source type `whatsapp_business_account`.
+If "specific_post" selected → call `get_ig_posts()` → server emits mediagrid with all posts.
 
-**Event values:**
-
-| Event | Value |
-|---|---|
-| All interactions | `WABA_MESSAGE` |
-| Sent a message | `WABA_MESSAGE` |
-| Opened conversation | `WABA_CONVERSATION_STARTED_7D` |
-
----
-
-### INSTAGRAM Engagement Audience
-
-**Step 1 — Select account:** Call `get_connected_instagram_accounts` and present (@username as title).
-
-**Step 2 — Engagement type:**
-
-```options
-{"title":"What type of IG engagement?","options":[
-  {"id":"all","title":"All Engagement","description":"Anyone who interacted with your profile or content"},
-  {"id":"visit","title":"Profile Visitors","description":"People who visited your profile"},
-  {"id":"post","title":"Post/Ad Engagement","description":"Reactions, comments, shares, saves"},
-  {"id":"specific_post","title":"Specific Post Engagement","description":"Select specific IG posts/reels to target"},
-  {"id":"message","title":"Sent a DM","description":"People who sent a direct message"},
-  {"id":"saved","title":"Saved a Post","description":"People who saved your posts or ads"},
-  {"id":"whatsapp","title":"Clicked WhatsApp Button","description":"People who tapped your WhatsApp contact button"}
-]}
-```
-
-**If specific_post:**
-
-Call `get_ig_posts` with ig_account_id. This returns ALL post types (images, carousels, videos, reels). Present posts as options showing: caption snippet (first 60 chars as title), thumbnail, like count + comment count in description. Allow multi-select.
-
-After selection, build the rule with specific IG media IDs:
-
-```json
-{
-  "inclusions": {
-    "operator": "or",
-    "rules": [{
-      "event_sources": [{"id": "IG_ACCOUNT_ID", "type": "ig_business"}],
-      "retention_seconds": 31536000,
-      "filter": {
-        "operator": "and",
-        "filters": [
-          {"field": "event", "operator": "eq", "value": "ig_user_interacted_ad_or_organic"},
-          {"field": "post.id", "operator": "is_any", "value": ["IG_MEDIA_ID_1", "IG_MEDIA_ID_2"]}
-        ]
-      }
-    }]
-  }
-}
-```
-
-**Otherwise** (all other engagement types): Auto-default retention=365. Use event_source type `ig_business`.
-
-**Event values:**
-
+**IG Event values:**
 | Event | Value |
 |---|---|
 | All engagement | `ig_business_profile_all` |
-| Visited profile | `ig_business_profile_visit` |
-| Sent message | `ig_user_messaged` |
-| Saved post/ad | `ig_user_saved_media` |
-| Engaged with post/ad | `ig_user_interacted_ad_or_organic` |
-| Clicked WhatsApp button | `ig_whatsapp_button_click` |
+| Profile visit | `ig_business_profile_visit` |
+| Post/Ad engaged | `ig_user_interacted_ad_or_organic` |
+| Sent DM | `ig_user_messaged` |
+| Saved | `ig_user_saved_media` |
+| WhatsApp button | `ig_whatsapp_button_click` |
 
 ---
 
-### FACEBOOK PAGE Engagement Audience
+## FACEBOOK PAGE Engagement Audience — Single-Card
 
-**Step 1 — Select page:** Call `get_pages` (page NAME as title).
+Call `get_pages()` first.
 
-**Step 2 — Engagement type:**
-
-```options
-{"title":"What type of Page engagement?","options":[
-  {"id":"engaged","title":"Any Engagement","description":"Reactions, shares, comments, link clicks"},
-  {"id":"specific_post","title":"Specific Post Engagement","description":"People who engaged with specific posts you choose"},
-  {"id":"liked","title":"Page Likes/Follows","description":"People who currently like or follow"},
-  {"id":"visited","title":"Page Visitors","description":"Anyone who visited your Page"},
-  {"id":"cta","title":"CTA Button Clicks","description":"People who clicked Call, Message, WhatsApp, etc."},
-  {"id":"messaged","title":"Sent a Message","description":"People who messaged via Messenger"},
-  {"id":"whatsapp","title":"Clicked WhatsApp Button","description":"People who tapped WhatsApp on your Page"}
+```setupcard
+{"phase":1,"status":"active","title":"建立專頁互動受眾","icon":"target","items":[
+  {"label":"Facebook 專頁","value":"[First page name]","type":"select","options":[
+    mapped from get_pages
+  ]},
+  {"label":"互動類型","value":"所有互動","type":"select","options":[
+    {"id":"engaged","title":"所有互動","description":"Like、分享、留言、連結點擊"},
+    {"id":"specific_post","title":"特定帖文互動","description":"揀選特定帖文"},
+    {"id":"liked","title":"專頁讚好/關注"},
+    {"id":"visited","title":"專頁訪客"},
+    {"id":"cta","title":"CTA 按鈕點擊"},
+    {"id":"messaged","title":"發送訊息"},
+    {"id":"whatsapp","title":"撳過 WhatsApp 按鈕"}
+  ]},
+  {"label":"保留期","value":"365 日","editable":true,"options":[
+    {"id":"30","title":"30 日"},
+    {"id":"90","title":"90 日"},
+    {"id":"365","title":"365 日 (預設)"}
+  ]}
 ]}
 ```
 
-**If specific_post:**
+If "specific_post" → call `get_page_posts()` → server can emit mediagrid.
 
-Call `get_page_posts` with page_id. Present posts as options showing: message snippet (first 60 chars as title), thumbnail (full_picture), likes count + comments count in description. Allow multi-select — user can pick multiple posts.
-
-After selection, build the rule with specific post IDs:
-
-```json
-{
-  "inclusions": {
-    "operator": "or",
-    "rules": [{
-      "event_sources": [{"id": "PAGE_ID", "type": "page"}],
-      "retention_seconds": 31536000,
-      "filter": {
-        "operator": "and",
-        "filters": [
-          {"field": "event", "operator": "eq", "value": "post_engaged"},
-          {"field": "post.id", "operator": "is_any", "value": ["POST_ID_1", "POST_ID_2"]}
-        ]
-      }
-    }]
-  }
-}
-```
-
-**Otherwise** (all other engagement types): Auto-default retention=365. Use event_source type `page`.
-
-**Event values:**
-
+**Page Event values:**
 | Event | Value |
 |---|---|
 | Any engagement | `page_engaged` |
@@ -386,154 +227,191 @@ After selection, build the rule with specific post IDs:
 | CTA clicks | `page_cta_clicked` |
 | Messages | `page_messaged` |
 | Page visits | `page_visited` |
-| WhatsApp button | `page_whatsapp_button_clicked` |
+| WhatsApp | `page_whatsapp_button_clicked` |
 
 ---
 
-### AD ENGAGEMENT Audience (Ad-Specific Retargeting)
+## AD ENGAGEMENT Audience — Single-Card
 
-Target people who engaged with specific ads or all ads from a campaign.
+Call `get_campaigns()` first.
 
-**Step 1 — Find ads:**
-
-```options
-{"title":"How do you want to find ads?","options":[
-  {"id":"campaign","title":"Ads from a Campaign","description":"Select a campaign to see its ads"},
-  {"id":"all","title":"Browse All Ads","description":"See all active ads in the account"}
+```setupcard
+{"phase":1,"status":"active","title":"建立廣告互動受眾","icon":"target","items":[
+  {"label":"搵法","value":"從 Campaign 入面搵","type":"select","options":[
+    {"id":"campaign","title":"從 Campaign 入面搵"},
+    {"id":"all","title":"瀏覽所有廣告"}
+  ]},
+  {"label":"Campaign","value":"Select...","type":"select","options":[
+    mapped from get_campaigns
+  ]},
+  {"label":"互動類型","value":"所有互動","type":"select","options":[
+    {"id":"engaged","title":"所有互動"},
+    {"id":"clicked","title":"連結點擊"},
+    {"id":"video_watched","title":"影片觀看"}
+  ]},
+  {"label":"保留期","value":"365 日","editable":true,"options":[
+    {"id":"90","title":"90 日"},
+    {"id":"180","title":"180 日"},
+    {"id":"365","title":"365 日 (預設)"}
+  ]}
 ]}
 ```
 
-If **campaign**: Call `get_campaigns` → present as options → call `get_campaign_ads` with campaign_id.
-If **all**: Call `get_ads`.
+After Campaign selected → call `get_campaign_ads` → show ads as mediagrid. Map `effective_object_story_id` for rule.
 
-Present ads as options (ad name as title, status + campaign info in description). Allow multi-select.
+---
 
-**Step 2 — Map ads to post IDs:** Each ad has `effective_object_story_id` in format `PAGEID_POSTID`. Extract page_id (first part before `_`) and use the full `effective_object_story_id` as the post ID.
+## LEAD AD Audience — Single-Card
 
-**Step 3 — Engagement type:**
-
-```options
-{"title":"What ad interaction?","options":[
-  {"id":"engaged","title":"Any Engagement","description":"Reactions, comments, shares, link clicks on the ad"},
-  {"id":"clicked","title":"Link Clicks Only","description":"People who clicked the CTA or link"},
-  {"id":"video_watched","title":"Video Views","description":"People who watched the ad video (if video ad)"}
+```setupcard
+{"phase":1,"status":"active","title":"建立 Lead Form 受眾","icon":"target","items":[
+  {"label":"Facebook 專頁","value":"[Page name]","type":"select","options":[mapped from get_pages]},
+  {"label":"互動類型","value":"開過 Lead Form","type":"select","options":[
+    {"id":"opened","title":"開過 Lead Form","description":"開過但未必提交"},
+    {"id":"submitted","title":"已提交 Lead Form"},
+    {"id":"not_submitted","title":"開過但無提交","description":"高意向但未完成"}
+  ]},
+  {"label":"保留期","value":"90 日","editable":true,"options":[
+    {"id":"30","title":"30 日"},
+    {"id":"60","title":"60 日"},
+    {"id":"90","title":"90 日 (最長)"}
+  ]}
 ]}
 ```
 
-**Step 4 — Retention + confirm.** Default 365 days.
-
-Use post engagement rule format with the extracted post IDs:
-
-```json
-{
-  "inclusions": {
-    "operator": "or",
-    "rules": [{
-      "event_sources": [{"id": "PAGE_ID", "type": "page"}],
-      "retention_seconds": 31536000,
-      "filter": {
-        "operator": "and",
-        "filters": [
-          {"field": "event", "operator": "eq", "value": "post_engaged"},
-          {"field": "post.id", "operator": "is_any", "value": ["EFFECTIVE_OBJECT_STORY_ID_1", "EFFECTIVE_OBJECT_STORY_ID_2"]}
-        ]
-      }
-    }]
-  }
-}
-```
-
-> **Note:** If an ad lacks `effective_object_story_id`, it cannot be used for post-level retargeting. Warn the user and suggest using page-level or video-level audience instead.
-
 ---
 
-### LOOKALIKE Audience
+## WHATSAPP Audience — Single-Card
 
-**Step 1 — Source audience:** Call `get_custom_audiences` and present existing audiences (name + estimated size).
-
-**Step 2 — Target country:** Show common options (HK, TW, SG, MY, US, GB, AU, Other).
-
-> **Minimum source size:** Source must have ≥100 people. Warn if selected source is small.
-
-**Step 3 — Lookalike size:**
-
-```options
-{"title":"How similar should the lookalike be?","options":[
-  {"id":"0.01","title":"1% (Most Similar)","description":"Smallest, highest quality — best for conversions"},
-  {"id":"0.02","title":"2%","description":"Slightly broader, still high quality"},
-  {"id":"0.03","title":"3%","description":"Good balance of quality and reach"},
-  {"id":"0.05","title":"5%","description":"Broader reach, moderate similarity"},
-  {"id":"0.10","title":"10%","description":"Large audience, lower similarity"},
-  {"id":"0.20","title":"20% (Broadest)","description":"Maximum reach — best for awareness campaigns"}
+```setupcard
+{"phase":1,"status":"active","title":"建立 WhatsApp 受眾","icon":"target","items":[
+  {"label":"Facebook 專頁","value":"[Page name]","type":"select","options":[mapped from get_pages]},
+  {"label":"互動類型","value":"所有互動","type":"select","options":[
+    {"id":"all","title":"所有互動","description":"發過或收過訊息嘅人"},
+    {"id":"sent","title":"主動發訊息","description":"最高意向"},
+    {"id":"opened","title":"開過對話"}
+  ]},
+  {"label":"保留期","value":"365 日","editable":true,"options":[
+    {"id":"90","title":"90 日"},
+    {"id":"180","title":"180 日"},
+    {"id":"365","title":"365 日 (預設)"}
+  ]}
 ]}
 ```
 
-Confirm and call `create_lookalike_audience`. Ratio is decimal: 1% = 0.01.
-
 ---
 
-### SAVED Audience (Interest/Behavior Targeting)
+## CUSTOMER LIST Audience — Single-Card
 
-**Step 1 — What are you promoting?** Ask for product/service/industry.
-
-**Step 2 — Location:** Common options (HK, TW, SG, MY, US, GB, Other).
-
-**Step 3 — Demographics:** Gender (All/Male/Female) + age range (default 18-65).
-
-**Step 4 — Interest discovery:** Call `targeting_search` with 2-3 keywords from Step 1. Present results as options cards.
-
-**Step 5 — Validate and estimate:** Call `get_reach_estimate` with full targeting spec. Show size:
-- < 50K → warn: narrow, may limit delivery
-- > 10M in small market → warn: very broad
-
-Confirm and create saved audience.
-
----
-
-### Exclusion Step (offer for ALL audience types)
-
-After main audience is defined and before confirmation, always offer:
-
-```options
-{"title":"Do you want to exclude anyone?","options":[
-  {"id":"NONE","title":"No exclusions","description":"Show ads to the full audience"},
-  {"id":"EXISTING_CUSTOMERS","title":"Exclude existing customers","description":"Avoid wasting budget on converted users"},
-  {"id":"RECENT_CONVERTERS","title":"Exclude recent converters","description":"Exclude people who converted in the last 30 days"},
-  {"id":"CUSTOM","title":"Exclude a specific audience","description":"Choose any existing custom audience"}
+```setupcard
+{"phase":1,"status":"active","title":"建立客戶名單受眾","icon":"target","items":[
+  {"label":"資料類型","value":"Email","type":"select","options":[
+    {"id":"email","title":"Email"},
+    {"id":"phone","title":"電話號碼"},
+    {"id":"mixed","title":"混合 (Email + 電話 + 姓名)"}
+  ]},
+  {"label":"資料來源","value":"用戶提供","type":"select","options":[
+    {"id":"USER_PROVIDED_ONLY","title":"用戶提供"},
+    {"id":"PARTNER_PROVIDED_ONLY","title":"合作夥伴提供"},
+    {"id":"BOTH_USER_AND_PARTNER_PROVIDED","title":"兩者都有"}
+  ]}
 ]}
 ```
 
-If user picks exclusion, call `get_custom_audiences` to let them select, then add to rule JSON under `exclusions`.
+Create audience shell, then show CSV upload instructions.
 
 ---
 
-### Post-Creation Flow
+## LOOKALIKE Audience — Single-Card
 
-After creating ANY audience, show:
+Call `get_custom_audiences()` first.
+
+```setupcard
+{"phase":1,"status":"active","title":"建立 Lookalike 受眾","icon":"target","items":[
+  {"label":"來源受眾","value":"Select...","type":"select","options":[
+    mapped from get_custom_audiences — {"id":"AUD_ID","title":"Audience Name (est. size)"}
+  ]},
+  {"label":"目標國家","value":"HK","type":"select","options":[
+    {"id":"HK","title":"香港"},
+    {"id":"TW","title":"台灣"},
+    {"id":"SG","title":"新加坡"},
+    {"id":"MY","title":"馬來西亞"},
+    {"id":"US","title":"美國"},
+    {"id":"GB","title":"英國"},
+    {"id":"AU","title":"澳洲"}
+  ]},
+  {"label":"相似度","value":"1% (最相似)","type":"select","options":[
+    {"id":"0.01","title":"1% (最相似)","description":"最小、最高質素"},
+    {"id":"0.02","title":"2%"},
+    {"id":"0.03","title":"3%","description":"質素同覆蓋嘅平衡"},
+    {"id":"0.05","title":"5%"},
+    {"id":"0.10","title":"10%","description":"較大覆蓋，相似度較低"},
+    {"id":"0.20","title":"20% (最闊)"}
+  ]}
+]}
+```
+
+> Source must have ≥100 people. Warn if too small.
+
+---
+
+## SAVED Audience — Single-Card
+
+Call `targeting_search` with 2-3 keywords from user's description.
+
+```setupcard
+{"phase":1,"status":"active","title":"建立興趣受眾","icon":"target","items":[
+  {"label":"地區","value":"香港","type":"select","options":[
+    {"id":"HK","title":"香港"},{"id":"TW","title":"台灣"},{"id":"SG","title":"新加坡"},{"id":"US","title":"美國"}
+  ]},
+  {"label":"性別","value":"所有","type":"select","options":[
+    {"id":"0","title":"所有"},{"id":"2","title":"女性"},{"id":"1","title":"男性"}
+  ]},
+  {"label":"年齡","value":"18-65","editable":true,"options":[
+    {"id":"18-35","title":"18-35"},{"id":"25-45","title":"25-45"},{"id":"18-65","title":"18-65 (預設)"}
+  ]},
+  {"label":"興趣","value":"[From targeting_search results]","type":"select","options":[
+    mapped from targeting_search — {"id":"INTEREST_ID","title":"Interest Name"}
+  ]}
+]}
+```
+
+After config → `get_reach_estimate` → show size warning if < 50K or > 10M.
+
+---
+
+## Post-Creation Flow
+
+After creating ANY audience, show audience ID:
 
 ```metrics
 [
-  {"label":"Audience Name","value":"[Name]"},
-  {"label":"Type","value":"[Type e.g. Website Visitors · 30 days]"},
-  {"label":"Estimated Size","value":"[Size or 'Populating — 24-48 hours']"},
-  {"label":"Exclusions","value":"[Name or 'None']"}
+  {"label":"受眾名稱","value":"[Name]"},
+  {"label":"受眾 ID","value":"[Audience ID from API response]"},
+  {"label":"類型","value":"[e.g. Video Viewers · 365 days]"},
+  {"label":"預計大小","value":"[Size or '填充中 — 24-48 小時']"}
 ]
 ```
 
-Then quickreplies:
-
 ```quickreplies
-["Create ad set with this audience", "Create lookalike from this", "Build another audience", "Analyse audience performance"]
+["用呢個受眾建立 Ad Set", "建立 Lookalike", "建立另一個受眾", "分析受眾表現"]
 ```
 
-**Keep users in our UI:** Do NOT send users to Meta Ads Manager or Business Suite.
+---
+
+## Handoff
+
+**If mid-creation** (workflow_context has `creation_stage: "stage2_custom_audience"`):
+Save targeting spec to workflow_context and transfer back to **executor**.
+
+**Otherwise** (normal audience work):
+Transfer back to ad_manager.
 
 ---
 
 ## Quick Reference
 
 ### Retention Limits
-
 | Audience Type | Max | Default |
 |---|---|---|
 | Website | 180 days | 30 days |
@@ -541,18 +419,14 @@ Then quickreplies:
 | Video / IG / Page / WhatsApp | 365 days | 365 days |
 
 ### Lookalike Ratio Guide
-
-| Ratio | Size | Best For |
-|---|---|---|
-| 1% (0.01) | Smallest | Conversions |
-| 2-3% | Small-Medium | Balanced |
-| 5% | Medium | Traffic, engagement |
-| 10-20% | Large | Awareness |
-
-`type` can be `"similarity"` (closeness) or `"reach"` (size).
+| Ratio | Best For |
+|---|---|
+| 1% (0.01) | Conversions |
+| 2-3% | Balanced |
+| 5% | Traffic |
+| 10-20% | Awareness |
 
 ### Targeting Spec Structure
-
 ```json
 {
   "geo_locations": { "countries": ["HK"] },
@@ -563,14 +437,3 @@ Then quickreplies:
   "excluded_custom_audiences": [{ "id": "23851234567891" }]
 }
 ```
-
-- `genders`: 0=all, 1=male, 2=female
-- `flexible_spec` entries within same object = OR; separate objects = AND
-
-## Handoff
-
-**If mid-creation** (workflow_context has `creation_stage: "stage2_custom_audience"`):
-Save targeting spec to workflow_context and transfer back to **executor** (`transfer_to_agent("executor")`), not ad_manager. The executor will resume the 3-stage creation flow at Stage 2 confirmation.
-
-**Otherwise** (normal audience work):
-Transfer back to ad_manager. Suggest next actions based on what was created.

@@ -156,10 +156,15 @@ ${BASE_OUTPUT_RULES}
 
 # IMPORTANT: Only call tools that exist in your tool list. NEVER guess tool names. If you need account info, use get_ad_account_details() — there is NO tool called get_ad_accounts.
 
-# FIRST ACTIONS (in parallel)
+# FIRST ACTIONS (call ALL in parallel — speeds up card rendering)
 1. get_workflow_context()
-2. load_skill("targeting-audiences") — loads complete audience creation workflows. Follow it precisely.
-3. get_ad_account_details() — to confirm the ad account is connected and get account info.
+2. load_skill("targeting-audiences") — loads complete audience creation workflows with single-card pattern. Follow it precisely.
+3. get_ad_account_details()
+4. get_pages() — needed for video source, page engagement, lead ad, WhatsApp
+5. get_connected_instagram_accounts() — needed for IG engagement, IG video
+
+# SINGLE-CARD UX
+You MUST show the audience config as a setupcard with inline dropdowns — NOT as separate chat steps. The skill has the exact format. Show setupcard + mediagrid in ONE response. The server auto-emits the full video list via SSE mediagrid when you call get_page_videos/get_ig_media — you don't need to re-serialize every video.
 
 # WHEN BATON HAS ANALYSIS DATA
 If workflow contains insights_alert (from analyst), use diagnostic signals:

@@ -683,12 +683,13 @@ const MediaGridCard = ({ data, onSend, isAnswered, selectedTitle }) => {
                   {data.media_type === 'video' ? <Film size={16} className="text-slate-400" /> : <Image size={16} className="text-slate-400" />}
                 </div>
               )}
-              {/* Title + date */}
+              {/* Title + ID + date */}
               <div className="flex-1 min-w-0">
                 <p className="text-[12px] font-medium text-slate-800 truncate">{item.title || item.caption || 'Untitled'}</p>
                 <p className="text-[10px] text-slate-400 mt-0.5">
                   {item.duration && <span>{item.duration} · </span>}
                   {item.date && <span>Uploaded {item.date}</span>}
+                  {item.id && <span className="ml-1 text-slate-300">· ID: {item.id}</span>}
                 </p>
               </div>
               {/* Metrics + source icons */}

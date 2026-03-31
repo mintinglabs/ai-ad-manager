@@ -466,7 +466,30 @@ function getAdVideoStatus({ video_id }, c) {
 function getPageVideos({ page_id }, c) {
   const { token, adAccountId } = ctx(c);
   if (!page_id) return { error: 'page_id is required.' };
-  return meta.getPageVideos(token, page_id, adAccountId);
+  return meta.getPageVideos(token, page_id, adAccountId).then(result => {
+    // Emit full video list as mediagrid SSE — ensures frontend gets ALL videos even if agent truncates
+    const sseFn = c.session?.id ? activeSessions.get(c.session.id) : null;
+    if (sseFn && result.videos?.length) {
+      sseFn({
+        type: 'tool_result', name: 'get_page_videos',
+        mediagrid: {
+          title: 'Select Videos (Facebook Page)',
+          media_type: 'video',
+          metric_label: '3s Views',
+          items: result.videos.map(v => ({
+            id: v.id,
+            title: v.title || 'Untitled',
+            thumbnail: v.picture,
+            duration: v.length ? `${Math.floor(v.length / 60)}:${String(Math.round(v.length % 60)).padStart(2, '0')}` : null,
+            metric_value: v.three_second_views || v.views || 0,
+            date: v.created_time ? new Date(v.created_time).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : null,
+            source_icons: v.is_ig ? ['fb', 'ig'] : ['fb']
+          }))
+        }
+      });
+    }
+    return result;
+  });
 }
 
 // ─── Insights ───────────────────────────────────────────────────────────────
@@ -958,7 +981,29 @@ function getConnectedInstagramAccounts(_, c) {
 
 function getIgMedia({ ig_account_id, page_id }, c) {
   const { token, adAccountId } = ctx(c);
-  return meta.getIgMedia(token, ig_account_id, { pageId: page_id, adAccountId });
+  return meta.getIgMedia(token, ig_account_id, { pageId: page_id, adAccountId }).then(result => {
+    const sseFn = c.session?.id ? activeSessions.get(c.session.id) : null;
+    if (sseFn && result.videos?.length) {
+      sseFn({
+        type: 'tool_result', name: 'get_ig_media',
+        mediagrid: {
+          title: 'Select Videos (Instagram)',
+          media_type: 'video',
+          metric_label: '3s Views',
+          items: result.videos.map(v => ({
+            id: v.id || v.source_instagram_media_id,
+            title: v.title || v.caption?.slice(0, 80) || 'Untitled',
+            thumbnail: v.picture || v.thumbnail_url,
+            duration: v.length ? `${Math.floor(v.length / 60)}:${String(Math.round(v.length % 60)).padStart(2, '0')}` : null,
+            metric_value: v.three_second_views || 0,
+            date: v.created_time ? new Date(v.created_time).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : null,
+            source_icons: ['ig']
+          }))
+        }
+      });
+    }
+    return result;
+  });
 }
 
 function getVideo({ video_id }, c) {

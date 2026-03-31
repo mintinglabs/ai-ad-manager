@@ -193,6 +193,19 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
                 if (idx !== -1) updated[idx] = { ...updated[idx], done: true, summary: event.summary };
                 return updated;
               });
+              // If tool_result carries a mediagrid payload, inject it into the agent message
+              if (event.mediagrid) {
+                const mediagridBlock = '\n\n```mediagrid\n' + JSON.stringify(event.mediagrid) + '\n```\n\n';
+                fullText += mediagridBlock;
+                const msg = { id: agentMsgId, role: 'agent', text: fullText, timestamp: Date.now() };
+                if (!addedAgent) {
+                  setMessages((prev) => [...prev, msg]);
+                  addedAgent = true;
+                  setThinkingText('');
+                } else {
+                  setMessages((prev) => prev.map((m) => m.id === agentMsgId ? msg : m));
+                }
+              }
             } else if (event.type === 'context') {
               const d = event.data || {};
               if (d.ad_id && d.activation_status === 'ACTIVE') {
