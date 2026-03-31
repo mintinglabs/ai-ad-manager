@@ -25,8 +25,12 @@ const DEV_BYPASS = import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS === 't
 
 export default function App() {
   const { longLivedToken, isLoading, error, login, logout } = useAuth();
-  const [selectedBusiness, setSelectedBusiness] = useState(null);
-  const [selectedAccount,  setSelectedAccount]  = useState(null);
+  const [selectedBusiness, setSelectedBusiness] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('aam_selected_business')); } catch { return null; }
+  });
+  const [selectedAccount, setSelectedAccount] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('aam_selected_account')); } catch { return null; }
+  });
 
   // Always show Dashboard — soft wall prompts login when needed
   return (
@@ -36,9 +40,9 @@ export default function App() {
         adAccountId={selectedAccount?.id || null}
         selectedAccount={selectedAccount}
         selectedBusiness={selectedBusiness}
-        onSwitchAccount={(account) => setSelectedAccount(account)}
-        onSwitchBusiness={(business) => { setSelectedAccount(null); setSelectedBusiness(business || null); }}
-        onLogout={() => { logout(); setSelectedBusiness(null); setSelectedAccount(null); }}
+        onSwitchAccount={(account) => { setSelectedAccount(account); localStorage.setItem('aam_selected_account', JSON.stringify(account)); }}
+        onSwitchBusiness={(business) => { setSelectedAccount(null); setSelectedBusiness(business || null); localStorage.removeItem('aam_selected_account'); localStorage.setItem('aam_selected_business', JSON.stringify(business || null)); }}
+        onLogout={() => { logout(); setSelectedBusiness(null); setSelectedAccount(null); localStorage.removeItem('aam_selected_account'); localStorage.removeItem('aam_selected_business'); }}
         onLogin={login}
         isLoginLoading={isLoading}
         loginError={error}
