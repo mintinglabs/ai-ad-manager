@@ -190,7 +190,7 @@ export const Dashboard = ({
       <main className="flex-1 flex min-w-0">
         {/* Chat area — shrinks to 40% when canvas is open */}
         <div className={`flex flex-col min-w-0 transition-all duration-300 ease-in-out ${canvasData ? 'w-[40%]' : 'flex-1'}`}>
-          {!sidebarOpen && (
+          {!sidebarOpen && activeView.type === 'chat' && (
             <button
               onClick={() => setSidebarOpen(true)}
               className="absolute top-4 left-4 z-10 w-8 h-8 rounded-lg bg-white/80 backdrop-blur-sm border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-colors shadow-sm"
