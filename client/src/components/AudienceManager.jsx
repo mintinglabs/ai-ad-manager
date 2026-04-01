@@ -1733,7 +1733,7 @@ const AccountSelector = ({ token, onLogin, selectedAccount, selectedBusiness, on
                 ) : accounts.length === 0 ? (
                   <div className="px-3 py-4 text-center text-[11px] text-slate-400">No ad accounts found</div>
                 ) : accounts.map(acc => (
-                  <button key={acc.id} onClick={() => { onSelectAccount?.(activeBiz, acc); setOpen(false); }}
+                  <button key={acc.id} onClick={() => { onSelectAccount?.(activeBiz, acc, { stayOnPage: true }); setOpen(false); }}
                     className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors ${acc.id === selectedAccount?.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
                     <span className="text-[12px] font-medium text-slate-700 truncate flex-1">{acc.name}</span>
                     <span className="text-[10px] text-slate-400 font-mono shrink-0">{acc.id}</span>

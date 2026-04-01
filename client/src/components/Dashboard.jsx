@@ -72,10 +72,10 @@ export const Dashboard = ({
   }, []);
 
   // Handle account switching — reset chat
-  const handleAccountSelect = useCallback((business, account) => {
+  const handleAccountSelect = useCallback((business, account, { stayOnPage } = {}) => {
     onSwitchBusiness(business);
     onSwitchAccount(account);
-    setActiveView({ type: 'chat' });
+    if (!stayOnPage) setActiveView({ type: 'chat' });
   }, [onSwitchBusiness, onSwitchAccount]);
 
   const handleSend = useCallback((text, attachments, slashIds) => {
