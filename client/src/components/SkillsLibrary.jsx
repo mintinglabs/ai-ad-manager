@@ -222,6 +222,7 @@ const SkillBuilderModal = ({ onSave, onCancel, onGenerate, saving, error }) => {
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState(null);
   const [uploadedFileName, setUploadedFileName] = useState(null);
+  const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef(null);
 
   // Generated skill fields (editable in step 2)
@@ -230,11 +231,10 @@ const SkillBuilderModal = ({ onSave, onCancel, onGenerate, saving, error }) => {
   const [preview, setPreview] = useState('');
   const [content, setContent] = useState('');
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
+  const processFile = async (file) => {
     if (!file) return;
     setUploadedFileName(file.name);
-
+    setGenError(null);
     try {
       const reader = new FileReader();
       reader.onload = async () => {
@@ -256,6 +256,18 @@ const SkillBuilderModal = ({ onSave, onCancel, onGenerate, saving, error }) => {
       setGenError('Failed to read file: ' + err.message);
     }
   };
+
+  const handleFileUpload = (e) => processFile(e.target.files?.[0]);
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDragOver = (e) => { e.preventDefault(); setIsDragOver(true); };
+  const handleDragLeave = () => setIsDragOver(false);
 
   const handleGenerate = async () => {
     if (!rawText.trim()) return;
@@ -310,16 +322,26 @@ const SkillBuilderModal = ({ onSave, onCancel, onGenerate, saving, error }) => {
           {step === 1 ? (
             /* ── Step 1: Input ── */
             <div className="space-y-4">
-              {/* File upload */}
+              {/* File upload / drag & drop */}
               <div>
                 <input ref={fileInputRef} type="file" accept=".txt,.md,.pdf,.csv,.xlsx,.xls,.doc,.docx" onChange={handleFileUpload} className="hidden" />
-                <button
+                <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30 transition-all text-sm text-slate-500 hover:text-indigo-600"
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  className={`w-full flex flex-col items-center justify-center gap-1 px-4 py-5 rounded-xl border-2 border-dashed cursor-pointer transition-all
+                    ${isDragOver ? 'border-indigo-400 bg-indigo-50/50 scale-[1.01]' : 'border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30'}
+                    ${uploadedFileName ? 'border-emerald-300 bg-emerald-50/30' : ''}`}
                 >
-                  <Upload size={16} />
-                  {uploadedFileName ? `Uploaded: ${uploadedFileName}` : 'Upload a file (PDF, TXT, CSV, Excel, Word)'}
-                </button>
+                  <Upload size={18} className={isDragOver ? 'text-indigo-500' : uploadedFileName ? 'text-emerald-500' : 'text-slate-400'} />
+                  <p className={`text-sm font-medium ${uploadedFileName ? 'text-emerald-600' : 'text-slate-500'}`}>
+                    {uploadedFileName ? uploadedFileName : isDragOver ? 'Drop file here' : 'Drag & drop a file here'}
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    {uploadedFileName ? 'Click or drop to replace' : 'PDF, TXT, CSV, Excel, Word — or click to browse'}
+                  </p>
+                </div>
               </div>
 
               {/* Divider */}

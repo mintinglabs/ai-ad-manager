@@ -2110,14 +2110,17 @@ const AccountConnector = ({ token, onLogin, selectedAccount, selectedBusiness, o
   };
 
   const isConnected = !!token && !!selectedAccount;
+  const isLoggedIn = !!token;
 
   return (
     <div ref={ref} className="relative">
       <button onClick={() => { setOpen(v => { if (!v) setLevel(getInitialLevel()); return !v; }); }}
         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-medium transition-colors
-          ${isConnected ? 'border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100' : 'border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50'}`}>
+          ${isConnected ? 'border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
+            : isLoggedIn ? 'border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100'
+            : 'border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50'}`}>
         <Link2 size={12} />
-        {isConnected ? selectedAccount.name : 'Connect'}
+        {isConnected ? selectedAccount.name : isLoggedIn ? 'Select Account' : 'Connect'}
       </button>
 
       {open && (
@@ -2135,6 +2138,8 @@ const AccountConnector = ({ token, onLogin, selectedAccount, selectedBusiness, o
                   <span className="text-[12px] font-medium text-slate-700 flex-1">Meta Ads Manager</span>
                   {isConnected ? (
                     <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">Connected</span>
+                  ) : isLoggedIn ? (
+                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">Select Account</span>
                   ) : (
                     <span className="text-[10px] font-medium text-blue-600">Connect</span>
                   )}
