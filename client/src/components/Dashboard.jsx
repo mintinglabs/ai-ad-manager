@@ -253,6 +253,8 @@ export const Dashboard = ({
               onManageSkills={(skill) => skill ? setActiveView({ type: 'skillConfig', skill }) : setActiveView({ type: 'skillsLibrary' })}
               token={token}
               onLogin={onLogin}
+              isLoginLoading={isLoginLoading}
+              loginError={loginError}
               selectedAccount={selectedAccount}
               selectedBusiness={selectedBusiness}
               onSelectAccount={handleAccountSelect}
