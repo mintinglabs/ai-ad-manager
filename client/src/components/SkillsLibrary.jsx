@@ -136,8 +136,6 @@ const BUILTIN_INFO = {
 
 // ── Read-only Built-in Skill Detail Modal ──────────────────────────────────
 const SkillDetailModal = ({ skill, onClose }) => {
-  const Icon = ICON_MAP[skill.icon] || Sparkles;
-  const gradient = ICON_COLORS[skill.icon] || 'from-indigo-500 to-indigo-600';
   const info = BUILTIN_INFO[skill.id] || {};
 
   return (
@@ -146,8 +144,8 @@ const SkillDetailModal = ({ skill, onClose }) => {
         {/* Header */}
         <div className="px-6 pt-5 pb-4 border-b border-slate-100 shrink-0">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-sm`}>
-              <Icon size={18} className="text-white" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-sm">
+              <Sparkles size={18} className="text-white" />
             </div>
             <div className="flex-1">
               <h3 className="text-sm font-bold text-slate-900">{skill.name}</h3>
@@ -496,15 +494,13 @@ const DeleteConfirm = ({ skill, onConfirm, onCancel }) => (
 
 // ── Built-in Skill Card (read-only) ────────────────────────────────────────
 const BuiltinCard = ({ skill, onOpen }) => {
-  const Icon = ICON_MAP[skill.icon] || Sparkles;
-
   return (
     <button
       onClick={() => onOpen(skill)}
       className="flex flex-col items-center p-5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-md transition-all text-center cursor-pointer group"
     >
-      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center mb-3 shadow-sm">
-        <Icon size={20} className="text-white" />
+      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center mb-3 shadow-sm">
+        <Sparkles size={20} className="text-white" />
       </div>
       <h3 className="text-[13px] font-semibold text-slate-800 truncate w-full">{skill.name}</h3>
       <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-semibold mt-1.5 flex items-center gap-1">
@@ -520,7 +516,6 @@ const BuiltinCard = ({ skill, onOpen }) => {
 
 // ── Strategy Skill Card (with preview & context menu) ──────────────────────
 const StrategyCard = ({ skill, onOpen, onUseInChat, onDelete }) => {
-  const Icon = ICON_MAP[skill.icon] || BarChart3;
   const [menuOpen, setMenuOpen] = useState(false);
   const isCustom = !skill.isDefault;
 
@@ -530,8 +525,8 @@ const StrategyCard = ({ skill, onOpen, onUseInChat, onDelete }) => {
         onClick={() => onOpen(skill)}
         className="w-full flex flex-col items-center p-5 rounded-2xl border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-100/50 transition-all text-center cursor-pointer"
       >
-        <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${isCustom ? 'from-violet-500 to-indigo-600' : 'from-blue-500 to-blue-600'} flex items-center justify-center mb-3 shadow-sm`}>
-          <Icon size={20} className="text-white" />
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center mb-3 shadow-sm">
+          <Sparkles size={20} className="text-white" />
         </div>
         <h3 className="text-[13px] font-semibold text-slate-800 truncate w-full">{skill.name}</h3>
         <span className={`text-[9px] px-2 py-0.5 rounded-full font-semibold mt-1.5 ${isCustom ? 'bg-violet-50 text-violet-600' : 'bg-blue-50 text-blue-500'}`}>
@@ -679,7 +674,7 @@ export const SkillsLibrary = ({ skills, onCreate, onUpdate, onDelete, onGenerate
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-8 py-6">
-        <div className="max-w-5xl space-y-8">
+        <div className="space-y-8">
 
           {/* ── Custom Strategies Section ── */}
           <div>
@@ -690,7 +685,7 @@ export const SkillsLibrary = ({ skills, onCreate, onUpdate, onDelete, onGenerate
             <p className="text-[11px] text-slate-400 mb-4 ml-5">
               Create your own analysis strategies. When active, they override the default analysis approach. Click to edit instructions.
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
               {customSkills.map(skill => (
                 <StrategyCard
                   key={skill.id}
@@ -720,7 +715,7 @@ export const SkillsLibrary = ({ skills, onCreate, onUpdate, onDelete, onGenerate
               <p className="text-[11px] text-slate-400 mb-4 ml-5">
                 Pre-configured workflows and analysis tools. Click to see what they do and how they work.
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
                 {builtinSkills.map(skill => (
                   <BuiltinCard key={skill.id} skill={skill} onOpen={handleOpenSkill} />
                 ))}
