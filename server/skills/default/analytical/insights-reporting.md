@@ -3,6 +3,7 @@ name: insights-reporting
 description: Analyze Facebook ad performance with diagnostic statuses and strategic recommendations
 layer: analytical
 leads_to: [campaign-manager, adset-manager, creative-manager, targeting-audiences, tracking-conversions]
+preview: "📊 Campaign A: ROAS 3.2x, CPA $12 — performing well\n🚨 Campaign B: ROAS 0.8x, Freq 4.2 — creative fatigue detected\n🚀 Action: Pause Campaign B, scale Campaign A budget +20%"
 ---
 
 # Insights & Reporting

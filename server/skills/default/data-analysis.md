@@ -3,6 +3,7 @@ name: data-analysis
 description: Performance analysis, diagnostics, and business intelligence. Covers performance overview, cost diagnostics, capital loss detection, scaling opportunities, and business management.
 layer: analytical
 leads_to: [campaign-manager, adset-manager, creative-manager, targeting-audiences, tracking-conversions, automation-rules]
+preview: "📊 7-day overview: $2,450 spent, 12 conversions, avg CPA $204\n⚠️ Campaign C: frequency 3.8, CTR down 25% WoW — audience saturation\n✅ Campaign D: ROAS 4.1x, only 60% budget used — scale opportunity"
 ---
 
 # Data Analysis

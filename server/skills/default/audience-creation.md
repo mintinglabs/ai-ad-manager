@@ -2,6 +2,7 @@
 name: audience-creation
 description: Create all audience types — video, website, engagement, lookalike, saved, customer list. Unified 3-stage flow with self-contained chat cards.
 layer: strategic
+preview: "🎯 Video viewers (75%) from Page — 8,200 people\n👥 Lookalike 1% from purchasers — 210,000 reach\n🔒 Exclude: past 30-day converters"
 ---
 
 # Audience Creation

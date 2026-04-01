@@ -4,6 +4,7 @@ description: Plan audience targeting strategies — custom audiences, lookalikes
 layer: strategic
 depends_on: [insights-reporting]
 leads_to: [ad-manager, campaign-manager]
+preview: "🎯 Current: 3 audiences, 35% overlap detected\n👥 Recommend: Lookalike 1% from top purchasers\n🔒 Exclude overlapping segments to reduce self-competition"
 ---
 
 # Targeting & Audiences

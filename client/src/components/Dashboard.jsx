@@ -207,7 +207,6 @@ export const Dashboard = ({
               onDelete={deleteSkill}
               onGenerate={generateSkill}
               onBack={() => setActiveView({ type: 'chat' })}
-              onConfigure={(skill) => setActiveView({ type: 'skillConfig', skill })}
               onActivateSkill={(skill) => { toggleSkill(skill.id); setActiveView({ type: 'chat' }); }}
             />
           ) : activeView.type === 'skillConfig' && activeView.skill ? (

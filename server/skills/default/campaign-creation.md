@@ -2,6 +2,7 @@
 name: campaign-creation
 description: Complete campaign creation — from strategy to launch. Covers guided, materials-based, boost, bulk, and clone scenarios.
 layer: pipeline
+preview: "Stage 1: Conversions campaign, $50/day, Hong Kong\nStage 2: Lookalike 1% from purchasers\nStage 3: Video ad + 3 copy variations → Launch"
 ---
 
 # Campaign Creation

@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Plus, Sparkles, BarChart3, Palette, DollarSign, Users, Zap, Trash2, Save, Target, TrendingUp, FolderOpen, ChevronLeft, ArrowLeft, MoreVertical, MessageSquare, X, Upload, Wand2, FileText, RotateCcw, PenLine } from 'lucide-react';
+import { Plus, Sparkles, BarChart3, Palette, DollarSign, Users, Zap, Trash2, Save, Target, TrendingUp, FolderOpen, ChevronLeft, ArrowLeft, MoreVertical, MessageSquare, X, Upload, Wand2, FileText, RotateCcw, PenLine, Eye, Lock } from 'lucide-react';
 
 const ICON_MAP = {
   funnel: BarChart3, chart: BarChart3, palette: Palette, dollar: DollarSign,
@@ -12,6 +12,203 @@ const ICON_COLORS = {
   users: 'from-violet-500 to-purple-600', sparkles: 'from-indigo-500 to-indigo-600',
   zap: 'from-amber-500 to-orange-500', target: 'from-cyan-500 to-teal-600',
   trending: 'from-blue-500 to-indigo-600',
+};
+
+// Built-in skill summaries (what it does + how it works) for the read-only detail view
+const BUILTIN_INFO = {
+  'insights-reporting': {
+    summary: 'Analyzes your Facebook ad performance with diagnostic statuses and strategic recommendations. The default analysis engine.',
+    howItWorks: [
+      'Classifies campaigns into TOFU (awareness), MOFU (consideration), BOFU (conversion) funnel stages',
+      'Routes to 4 scenarios: budget efficiency, creative vs market diagnosis, capital loss detection, scaling opportunities',
+      'Maps each optimization goal to its primary metric (ROAS, CPA, CPL, CPC, CPM, etc.)',
+      'Diagnoses issues with 5-signal framework: frequency, CTR trend, CPA vs benchmark, spend pace, audience saturation',
+    ],
+  },
+  'data-analysis': {
+    summary: 'Performance analysis, diagnostics, and business intelligence. The core analytical skill used by the analyst agent.',
+    howItWorks: [
+      'Pulls 7-day current, 7-day previous, and 30-day baseline data in one call',
+      'Evaluates each campaign with diagnostic signals (frequency, CTR trend, CPA, spend pace)',
+      'Assigns status badges: performing well, needs attention, critical, or in learning phase',
+      'Generates prioritized action queue with specific recommendations',
+    ],
+  },
+  'business-manager': {
+    summary: 'Navigate Facebook Business Manager — view businesses, ad accounts, pages, pixels, and team members with account health analysis.',
+    howItWorks: [
+      'Lists all businesses and their associated ad accounts',
+      'Shows page connections, pixel installations, and team roles',
+      'Checks account health: spending limits, restrictions, verification status',
+    ],
+  },
+  'campaign-creation': {
+    summary: 'Complete campaign creation — from strategy to launch. Covers guided, materials-based, boost, bulk, and clone scenarios.',
+    howItWorks: [
+      'Stage 1: Collect campaign objective, destination, country, budget, page selection',
+      'Stage 2: Configure audience targeting (saved, custom, or lookalike)',
+      'Stage 3: Assemble creatives — upload media, auto-generate ad copy variations',
+      'Execution: Create campaign + ad set + creative + ad, preflight check, preview, activate',
+    ],
+  },
+  'audience-creation': {
+    summary: 'Create all audience types — video, website, engagement, lookalike, saved, and customer list with self-contained chat cards.',
+    howItWorks: [
+      'Presents audience type selection with visual cards in chat',
+      'Video audiences: select page, choose videos, set retention window',
+      'Supports lookalikes (1-10%), interest targeting, and custom combinations',
+      'Validates audience size and warns about overlaps',
+    ],
+  },
+  'campaign-manager': {
+    summary: 'Plan and configure Facebook ad campaigns with an interactive guided flow and diagnostic-driven one-click fixes.',
+    howItWorks: [
+      'Guided 11-step creation flow with interactive options at each decision point',
+      'Handles pause, budget update, status change, and campaign duplication',
+      'Responds to analyst diagnostic warnings with actionable quick-fix suggestions',
+    ],
+  },
+  'targeting-audiences': {
+    summary: 'Plan audience targeting strategies — custom audiences, lookalikes, saved audiences, and interest targeting.',
+    howItWorks: [
+      'Analyzes current audience performance and overlap',
+      'Recommends expansion via lookalikes, interest stacking, or exclusions',
+      'Creates audiences directly via single-card UI in chat',
+    ],
+  },
+  'creative-manager': {
+    summary: 'Audit creative health — detect fatigue, analyze hook rates, and recommend format pivots and copy refreshes.',
+    howItWorks: [
+      'Scores each creative on CTR, frequency, CPA trend, and hook quality',
+      'Detects creative fatigue (high frequency + declining CTR)',
+      'Suggests new copy variations using PAS, AIDA, and Before/After frameworks',
+    ],
+  },
+  'ad-manager': {
+    summary: 'Create, update, delete, copy, and preview Facebook ads with read-first safety guardrails.',
+    howItWorks: [
+      'Always reads current state before making changes (read-first pattern)',
+      'Supports single and bulk ad operations',
+      'Generates ad previews before activation',
+    ],
+  },
+  'adset-manager': {
+    summary: 'Create, update, delete, and copy ad sets with targeting, budgets, bidding, and scheduling.',
+    howItWorks: [
+      'Manages targeting specs, bid strategies, and budget allocation',
+      'Supports schedule-based delivery and dayparting',
+      'Handles ad set duplication with modified targeting',
+    ],
+  },
+  'tracking-conversions': {
+    summary: 'Set up pixels, send server-side conversion events via CAPI, and create custom conversions.',
+    howItWorks: [
+      'Checks pixel installation status and event firing health',
+      'Validates Conversions API (CAPI) integration',
+      'Creates and tests custom conversion rules',
+    ],
+  },
+  'lead-ads': {
+    summary: 'Create lead generation forms, retrieve and export lead submissions, and connect forms to ads.',
+    howItWorks: [
+      'Builds lead forms with custom questions and privacy policy',
+      'Retrieves and exports lead data from submitted forms',
+      'Connects forms to ad creatives for lead campaigns',
+    ],
+  },
+  'product-catalogs': {
+    summary: 'Manage product catalogs, feeds, product sets, and batch operations for dynamic product ads.',
+    howItWorks: [
+      'Lists catalogs, feeds, and product sets',
+      'Supports batch product updates and feed management',
+      'Configures dynamic product ad templates',
+    ],
+  },
+  'automation-rules': {
+    summary: 'Plan automation strategies for ad rules — auto-pause, auto-scale, and notification rules with safety guardrails.',
+    howItWorks: [
+      'Creates rules based on performance thresholds (CPA, ROAS, frequency)',
+      'Supports auto-pause for underperforming campaigns',
+      'Configures auto-scaling with daily budget caps and cooldown periods',
+    ],
+  },
+};
+
+// ── Read-only Built-in Skill Detail Modal ──────────────────────────────────
+const SkillDetailModal = ({ skill, onUseInChat, onClose }) => {
+  const Icon = ICON_MAP[skill.icon] || Sparkles;
+  const gradient = ICON_COLORS[skill.icon] || 'from-indigo-500 to-indigo-600';
+  const info = BUILTIN_INFO[skill.id] || {};
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-sm flex items-center justify-center p-6" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="px-6 pt-5 pb-4 border-b border-slate-100 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-sm`}>
+              <Icon size={18} className="text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-bold text-slate-900">{skill.name}</h3>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <Lock size={10} className="text-slate-400" />
+                <span className="text-[10px] text-slate-400 font-medium">Built-in — read only</span>
+              </div>
+            </div>
+            <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="px-6 py-5 flex-1 overflow-y-auto space-y-5">
+          {/* What it does */}
+          <div>
+            <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">What it does</h4>
+            <p className="text-sm text-slate-700 leading-relaxed">
+              {info.summary || skill.description}
+            </p>
+          </div>
+
+          {/* How it works */}
+          {info.howItWorks?.length > 0 && (
+            <div>
+              <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">How it works</h4>
+              <ul className="space-y-2">
+                {info.howItWorks.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className="w-5 h-5 rounded-full bg-indigo-50 text-indigo-500 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                    <span className="text-[13px] text-slate-600 leading-relaxed">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Demo output */}
+          {skill.preview && (
+            <div>
+              <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Sample output</h4>
+              <div className="px-4 py-3 rounded-xl bg-slate-50 border border-slate-100">
+                <p className="text-[12px] text-slate-600 leading-relaxed whitespace-pre-line font-mono">{skill.preview}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex items-center justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-medium text-slate-500 hover:bg-slate-50">Close</button>
+          <button onClick={() => { onUseInChat(skill); onClose(); }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-500 transition-colors">
+            <MessageSquare size={12} /> Use in Chat
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // ── Skill Builder Modal (AI-powered) ───────────────────────────────────────
@@ -393,21 +590,18 @@ const CreateStrategyCard = ({ onClick, onManualClick }) => (
 );
 
 // ── Main Skills Library ─────────────────────────────────────────────────────
-export const SkillsLibrary = ({ skills, onCreate, onUpdate, onDelete, onGenerate, onBack, onConfigure, onActivateSkill }) => {
+export const SkillsLibrary = ({ skills, onCreate, onUpdate, onDelete, onGenerate, onBack, onActivateSkill }) => {
   const [builderOpen, setBuilderOpen] = useState(false);
   const [creatingManual, setCreatingManual] = useState(false);
   const [editingSkill, setEditingSkill] = useState(null);
+  const [viewingSkill, setViewingSkill] = useState(null); // read-only detail for built-in
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  // Separate skills into workflows (built-in non-analysis) and strategies (analysis)
-  const ANALYSIS_IDS = ['performance_analyst', 'inception_funnel_audit', 'insights-reporting'];
-  const workflowSkills = skills.filter(s => s.isDefault && !ANALYSIS_IDS.includes(s.id) && s.type !== 'strategy');
-  const strategySkills = [
-    ...skills.filter(s => s.isDefault && (ANALYSIS_IDS.includes(s.id) || s.type === 'strategy')),
-    ...skills.filter(s => !s.isDefault),
-  ];
+  // Built-in skills = all default skills, Custom strategies = user-created
+  const builtinSkills = skills.filter(s => s.isDefault);
+  const customSkills = skills.filter(s => !s.isDefault);
 
   const handleSave = async (data) => {
     setSaving(true);
@@ -436,10 +630,10 @@ export const SkillsLibrary = ({ skills, onCreate, onUpdate, onDelete, onGenerate
   };
 
   const handleOpenSkill = (skill) => {
-    if (skill.isDefault && onConfigure) {
-      onConfigure(skill);
+    if (skill.isDefault) {
+      setViewingSkill(skill); // read-only detail modal
     } else {
-      setEditingSkill(skill);
+      setEditingSkill(skill); // editable modal
     }
   };
 
@@ -477,17 +671,17 @@ export const SkillsLibrary = ({ skills, onCreate, onUpdate, onDelete, onGenerate
       <div className="flex-1 overflow-y-auto px-8 py-6">
         <div className="max-w-5xl space-y-8">
 
-          {/* ── Analysis Strategies Section ── */}
+          {/* ── Custom Strategies Section ── */}
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <BarChart3 size={14} className="text-indigo-500" />
-              <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Analysis Strategies</h2>
+              <Wand2 size={14} className="text-indigo-500" />
+              <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Custom Strategies</h2>
             </div>
             <p className="text-[11px] text-slate-400 mb-4 ml-5">
-              Custom strategies change how the AI analyzes your ad data. Activate one from the chat bar to override the default analysis.
+              Create your own analysis strategies. When active, they override the default analysis approach. Click to edit instructions.
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {strategySkills.map(skill => (
+              {customSkills.map(skill => (
                 <StrategyCard
                   key={skill.id}
                   skill={skill}
@@ -501,20 +695,23 @@ export const SkillsLibrary = ({ skills, onCreate, onUpdate, onDelete, onGenerate
                 onManualClick={() => setCreatingManual(true)}
               />
             </div>
+            {customSkills.length === 0 && (
+              <p className="text-[11px] text-slate-400 mt-2 ml-5 italic">No custom strategies yet. Create one to customize how the AI analyzes your data.</p>
+            )}
           </div>
 
-          {/* ── Built-in Workflows Section ── */}
-          {workflowSkills.length > 0 && (
+          {/* ── Built-in Skills Section ── */}
+          {builtinSkills.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <FolderOpen size={14} className="text-slate-400" />
-                <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Built-in Workflows</h2>
+                <Lock size={14} className="text-slate-400" />
+                <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Built-in Skills</h2>
               </div>
               <p className="text-[11px] text-slate-400 mb-4 ml-5">
-                Fixed step-by-step flows for campaign creation, audience building, and more. These cannot be customized.
+                Pre-configured workflows and analysis tools. Click to see what they do and how they work.
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {workflowSkills.map(skill => (
+                {builtinSkills.map(skill => (
                   <WorkflowCard key={skill.id} skill={skill} onOpen={handleOpenSkill} />
                 ))}
               </div>
@@ -522,6 +719,15 @@ export const SkillsLibrary = ({ skills, onCreate, onUpdate, onDelete, onGenerate
           )}
         </div>
       </div>
+
+      {/* Read-only detail modal for built-in skills */}
+      {viewingSkill && (
+        <SkillDetailModal
+          skill={viewingSkill}
+          onUseInChat={handleUseInChat}
+          onClose={() => setViewingSkill(null)}
+        />
+      )}
 
       {/* Builder Modal (AI-powered) */}
       {builderOpen && (
@@ -534,7 +740,7 @@ export const SkillsLibrary = ({ skills, onCreate, onUpdate, onDelete, onGenerate
         />
       )}
 
-      {/* Manual Editor Modal */}
+      {/* Manual Editor Modal (for custom skills) */}
       {(creatingManual || editingSkill) && (
         <SkillEditorModal
           skill={editingSkill}

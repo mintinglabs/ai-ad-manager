@@ -4,6 +4,7 @@ description: Plan and configure Facebook ad campaigns — guided 11-step creatio
 layer: strategic
 depends_on: [insights-reporting]
 leads_to: [adset-manager, ad-manager, creative-manager, targeting-audiences, tracking-conversions]
+preview: "⚙️ Campaign 'Summer Sale': Conversions, $100/day\n⏸️ Quick fix: Pause underperforming ad set B\n📈 Scale: Increase Campaign A budget to $150/day"
 ---
 
 # Campaign Manager

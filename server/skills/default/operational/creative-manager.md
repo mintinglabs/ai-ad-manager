@@ -4,6 +4,7 @@ description: Audit creative health — detect fatigue, analyze hook rates, recom
 layer: analytical
 depends_on: [insights-reporting]
 leads_to: [ad-manager, campaign-manager]
+preview: "🎨 Ad A: CTR 2.1%, hook strong — top performer\n⚠️ Ad B: Freq 4.5, CTR dropped 40% — creative fatigue\n💡 Suggest: 3 new headlines using PAS framework"
 ---
 
 # Creative Health Audit
