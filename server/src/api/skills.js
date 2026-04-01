@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { GoogleGenAI } from '@google/genai';
 
 const router = Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -23,19 +24,75 @@ const parseMd = (content, filename) => {
     name: meta.name || filename.replace('.md', ''),
     description: meta.description || '',
     icon: meta.icon || 'sparkles',
+    type: meta.type || 'workflow',
+    preview: meta.preview || '',
     content: match[2].trim(),
   };
 };
 
 // Build .md file from data
 const buildMd = (data) => {
-  return `---\nname: ${data.name}\ndescription: ${data.description || ''}\nicon: ${data.icon || 'sparkles'}\n---\n\n${data.content || ''}`;
+  let frontmatter = `---\nname: ${data.name}\ndescription: ${data.description || ''}\nicon: ${data.icon || 'sparkles'}`;
+  if (data.type) frontmatter += `\ntype: ${data.type}`;
+  if (data.preview) frontmatter += `\npreview: ${data.preview}`;
+  frontmatter += `\n---`;
+  return `${frontmatter}\n\n${data.content || ''}`;
 };
 
 // Ensure custom dir exists
 const ensureCustomDir = async () => {
   try { await fs.mkdir(CUSTOM_DIR, { recursive: true }); } catch {}
 };
+
+// POST /api/skills/generate — AI-powered skill generation from raw text
+router.post('/generate', async (req, res) => {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
+
+    const { rawText } = req.body;
+    if (!rawText?.trim()) return res.status(400).json({ error: 'rawText is required' });
+
+    const truncated = rawText.slice(0, 8000);
+    const ai = new GoogleGenAI({ apiKey });
+
+    const result = await ai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: [{ role: 'user', parts: [{ text: `You are a skill generator for an AI Ad Manager that helps marketers analyze Facebook/Meta ad performance.
+
+Given the raw input below, convert it into a structured analysis strategy skill. The skill tells the AI how to analyze ad data differently from the default approach.
+
+Return a JSON object with:
+- "name": Short descriptive name (2-5 words, e.g. "ROAS-First Analysis")
+- "description": One sentence explaining what this strategy focuses on
+- "preview": 2-3 lines of example output showing what analysis looks like with this strategy (use emoji markers like 📊 🚨 🚀)
+- "content": Well-structured markdown instructions that tell the AI how to analyze data. Include: role definition, what metrics to prioritize, how to classify/diagnose campaigns, what output format to use, and any specific frameworks or thresholds.
+
+Raw input:
+${truncated}` }] }],
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            description: { type: 'string' },
+            preview: { type: 'string' },
+            content: { type: 'string' },
+          },
+          required: ['name', 'description', 'content'],
+        },
+      },
+    });
+
+    const text = result.text || result.candidates?.[0]?.content?.parts?.[0]?.text;
+    const parsed = JSON.parse(text);
+    res.json({ name: parsed.name, description: parsed.description, preview: parsed.preview || '', content: parsed.content });
+  } catch (err) {
+    console.error('[skills/generate] error:', err.message);
+    res.status(500).json({ error: 'Failed to generate skill: ' + err.message });
+  }
+});
 
 // GET /api/skills — list all skills (default + custom)
 router.get('/', async (_req, res) => {
@@ -133,10 +190,12 @@ router.post('/', async (req, res) => {
       return res.status(409).json({ error: 'A skill with this name already exists' });
     } catch {} // File doesn't exist — good
 
-    const md = buildMd({ name, description: description || '', content: content || '', icon: icon || 'sparkles' });
+    const type = req.body.type || 'strategy';
+    const preview = req.body.preview || '';
+    const md = buildMd({ name, description: description || '', content: content || '', icon: icon || 'sparkles', type, preview });
     await fs.writeFile(filepath, md, 'utf-8');
 
-    res.json({ id, name, description: description || '', content: content || '', icon: icon || 'sparkles', isDefault: false });
+    res.json({ id, name, description: description || '', content: content || '', icon: icon || 'sparkles', type, preview, isDefault: false });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -159,10 +218,12 @@ router.put('/:id', async (req, res) => {
       }
     }
 
-    const md = buildMd({ name: name || id, description: description || '', content: content || '', icon: icon || 'sparkles' });
+    const type = req.body.type || 'strategy';
+    const preview = req.body.preview || '';
+    const md = buildMd({ name: name || id, description: description || '', content: content || '', icon: icon || 'sparkles', type, preview });
     await fs.writeFile(filepath, md, 'utf-8');
 
-    res.json({ id, name: name || id, description: description || '', content: content || '', icon: icon || 'sparkles', isDefault });
+    res.json({ id, name: name || id, description: description || '', content: content || '', icon: icon || 'sparkles', type, preview, isDefault });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

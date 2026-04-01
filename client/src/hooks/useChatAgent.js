@@ -97,7 +97,7 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
     return newId;
   }, [accountName, language]);
 
-  const sendMessage = useCallback(async (text, attachments, { displayText } = {}) => {
+  const sendMessage = useCallback(async (text, attachments, { displayText, activeCustomSkill } = {}) => {
     if (!text.trim() || isTyping) return;
 
     const now = Date.now();
@@ -127,6 +127,7 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
           adAccountId,
           token,
           language,
+          ...(activeCustomSkill && { activeCustomSkill }),
         }),
         signal: controller.signal,
       });

@@ -72,6 +72,12 @@ export const useSkills = () => {
     }
   }, [activeSkillId]);
 
+  // Generate a skill from raw text using AI
+  const generateSkill = useCallback(async (rawText) => {
+    const { data } = await api.post('/skills/generate', { rawText });
+    return data; // { name, description, content, preview }
+  }, []);
+
   // Get the currently active skill
   const activeSkill = skills.find(s => s.id === activeSkillId) || null;
 
@@ -97,6 +103,7 @@ export const useSkills = () => {
     createSkill,
     updateSkill,
     deleteSkill,
+    generateSkill,
     getSkillContext,
     getSkillContextById,
     fetchSkills,

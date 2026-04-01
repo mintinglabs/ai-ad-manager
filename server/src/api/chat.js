@@ -165,7 +165,7 @@ const sse = (res, obj) => {
 router.post('/', async (req, res) => {
   let adkSessionId = null;
   try {
-    const { message, sessionId: clientSessionId, adAccountId, token, language = 'en' } = req.body;
+    const { message, sessionId: clientSessionId, adAccountId, token, language = 'en', activeCustomSkill = null } = req.body;
     console.log(`[chat] message="${message?.slice(0, 60)}" adAccountId=${adAccountId} lang=${language} session=${clientSessionId?.slice(0, 8)}`);
     console.log(`[chat] token=${(req.token || token || '').slice(0, 15)}... bodyToken=${!!token} headerToken=${!!req.token}`);
     console.log(`[chat] env check: GEMINI_API_KEY=${!!process.env.GEMINI_API_KEY}`);
@@ -199,7 +199,7 @@ router.post('/', async (req, res) => {
       const session = await sessionService.createSession({
         appName: 'ai_ad_manager',
         userId,
-        state: { token: userToken, adAccountId: adAccountId || null },
+        state: { token: userToken, adAccountId: adAccountId || null, activeCustomSkill },
       });
       adkSessionId = session.id;
       if (clientSessionId) sessionMap.set(clientSessionId, adkSessionId);
@@ -237,7 +237,7 @@ router.post('/', async (req, res) => {
         const retrySession = await sessionService.createSession({
           appName: 'ai_ad_manager',
           userId,
-          state: { token: userToken, adAccountId: adAccountId || null },
+          state: { token: userToken, adAccountId: adAccountId || null, activeCustomSkill },
         });
         adkSessionId = retrySession.id;
         if (clientSessionId) sessionMap.set(clientSessionId, adkSessionId);
@@ -249,7 +249,7 @@ router.post('/', async (req, res) => {
         userId,
         sessionId: adkSessionId,
         newMessage,
-        stateDelta: { token: userToken, adAccountId: adAccountId || null },
+        stateDelta: { token: userToken, adAccountId: adAccountId || null, activeCustomSkill },
       });
 
       fullText = '';

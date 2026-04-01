@@ -56,7 +56,7 @@ export const Dashboard = ({
 
   const {
     skills, activeSkill, activeSkillId, toggleSkill,
-    createSkill, updateSkill, deleteSkill, getSkillContext, getSkillContextById,
+    createSkill, updateSkill, deleteSkill, generateSkill, getSkillContext, getSkillContextById,
   } = useSkills();
 
   const {
@@ -87,9 +87,10 @@ export const Dashboard = ({
     }
     if (!skillCtx) skillCtx = getSkillContext();
     const fullText = skillCtx ? `${skillCtx}\n\n---\n\nUser message: ${text}` : text;
-    // Send full text to API but only show user's message in chat
-    sendMessage(fullText, attachments, { displayText: text });
-  }, [sendMessage, getSkillContext, getSkillContextById]);
+    // Pass custom skill ID so backend load_skill can override default analysis strategy
+    const customSkillId = activeSkill && !activeSkill.isDefault ? activeSkill.id : null;
+    sendMessage(fullText, attachments, { displayText: text, activeCustomSkill: customSkillId });
+  }, [sendMessage, getSkillContext, getSkillContextById, activeSkill]);
 
   const handleSwitchSession = useCallback((sessionId) => {
     setActiveView({ type: 'chat' });
@@ -204,6 +205,7 @@ export const Dashboard = ({
               onCreate={createSkill}
               onUpdate={updateSkill}
               onDelete={deleteSkill}
+              onGenerate={generateSkill}
               onBack={() => setActiveView({ type: 'chat' })}
               onConfigure={(skill) => setActiveView({ type: 'skillConfig', skill })}
               onActivateSkill={(skill) => { toggleSkill(skill.id); setActiveView({ type: 'chat' }); }}

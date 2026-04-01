@@ -1427,6 +1427,18 @@ const adTools = [
   T('load_skill', 'Load a skill\'s detailed workflow guidance. Call this BEFORE executing complex flows like campaign creation, audience creation, report generation, etc. The skill contains step-by-step instructions, API formats, and best practices. Available pipeline skills: campaign-setup, creative-assembly, ad-launcher. Available operational skills: campaign-manager, targeting-audiences, creative-manager, insights-reporting, ad-manager, adset-manager, tracking-conversions, automation-rules, business-manager, lead-ads, product-catalogs.',
     async (_args, context) => {
       const { skill_name } = _args;
+
+      // Check if user has an active custom strategy skill — overrides analytical skills
+      const customOverride = context.state?.get?.('activeCustomSkill');
+      if (customOverride) {
+        try {
+          const customPath = path.join(SKILLS_DIR, 'custom', `${customOverride}.md`);
+          const content = await fs.readFile(customPath, 'utf-8');
+          const body = content.replace(/^---\n[\s\S]*?\n---\n?/, '').trim();
+          return { skill: customOverride, layer: 'custom', content: body, overrides: skill_name };
+        } catch { /* custom skill not found, fall through to defaults */ }
+      }
+
       // Search across all layer subfolders including pipeline
       for (const layer of ['pipeline', 'analytical', 'strategic', 'operational']) {
         try {
