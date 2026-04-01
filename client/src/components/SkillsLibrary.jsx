@@ -649,7 +649,7 @@ const StrategyCard = ({ skill, onOpen, onUseInChat, onDelete }) => {
 
 // ── Create Strategy Card ───────────────────────────────────────────────────
 const CreateStrategyCard = ({ onCreateAI, onManualClick }) => (
-  <div className="flex flex-col items-center justify-center p-5 rounded-2xl border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30 transition-all text-center cursor-pointer group min-h-[200px]"
+  <div className="flex flex-col items-center justify-center p-5 rounded-2xl border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30 transition-all text-center cursor-pointer group min-h-[140px]"
     onClick={onCreateAI}>
     <div className="w-12 h-12 rounded-2xl bg-slate-100 group-hover:bg-indigo-100 flex items-center justify-center mb-3 transition-colors">
       <Wand2 size={20} className="text-slate-400 group-hover:text-indigo-500 transition-colors" />
@@ -682,7 +682,7 @@ const ImportMdCard = ({ onImport }) => {
       onDrop={(e) => { e.preventDefault(); setIsDragOver(false); handleFiles(e.dataTransfer.files); }}
       onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
       onDragLeave={() => setIsDragOver(false)}
-      className={`flex flex-col items-center justify-center p-5 rounded-2xl border-2 border-dashed transition-all text-center cursor-pointer group min-h-[200px]
+      className={`flex flex-col items-center justify-center p-5 rounded-2xl border-2 border-dashed transition-all text-center cursor-pointer group min-h-[140px]
         ${isDragOver ? 'border-emerald-400 bg-emerald-50/50' : 'border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/30'}`}
     >
       <input ref={fileRef} type="file" accept=".md" multiple onChange={(e) => handleFiles(e.target.files)} className="hidden" />
@@ -821,22 +821,29 @@ export const SkillsLibrary = ({ skills, onCreate, onUpdate, onDelete, onGenerate
             <p className="text-[11px] text-slate-400 mb-4 ml-5">
               Create your own analysis strategies. When active, they override the default analysis approach. Click to edit instructions.
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
-              {customSkills.map(skill => (
-                <StrategyCard
-                  key={skill.id}
-                  skill={skill}
-                  onOpen={handleOpenSkill}
-                  onUseInChat={handleUseInChat}
-                  onDelete={setDeleteTarget}
-                />
-              ))}
+            {/* Create / Import actions — full width 2-col */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
               <CreateStrategyCard
                 onCreateAI={() => setBuilderOpen(true)}
                 onManualClick={() => setCreatingManual(true)}
               />
               <ImportMdCard onImport={handleBulkImport} />
             </div>
+
+            {/* Custom skill cards */}
+            {customSkills.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
+                {customSkills.map(skill => (
+                  <StrategyCard
+                    key={skill.id}
+                    skill={skill}
+                    onOpen={handleOpenSkill}
+                    onUseInChat={handleUseInChat}
+                    onDelete={setDeleteTarget}
+                  />
+                ))}
+              </div>
+            )}
             {importStatus && (
               <div className="mt-3 ml-5 flex items-center gap-2">
                 <p className="text-[11px] font-medium text-indigo-600">
