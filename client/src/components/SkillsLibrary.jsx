@@ -135,7 +135,7 @@ const BUILTIN_INFO = {
 };
 
 // ── Read-only Built-in Skill Detail Modal ──────────────────────────────────
-const SkillDetailModal = ({ skill, onUseInChat, onClose }) => {
+const SkillDetailModal = ({ skill, onClose }) => {
   const Icon = ICON_MAP[skill.icon] || Sparkles;
   const gradient = ICON_COLORS[skill.icon] || 'from-indigo-500 to-indigo-600';
   const info = BUILTIN_INFO[skill.id] || {};
@@ -153,7 +153,7 @@ const SkillDetailModal = ({ skill, onUseInChat, onClose }) => {
               <h3 className="text-sm font-bold text-slate-900">{skill.name}</h3>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <Lock size={10} className="text-slate-400" />
-                <span className="text-[10px] text-slate-400 font-medium">Built-in — read only</span>
+                <span className="text-[10px] text-slate-400 font-medium">Built-in — always active, used automatically by the AI</span>
               </div>
             </div>
             <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100">
@@ -167,7 +167,7 @@ const SkillDetailModal = ({ skill, onUseInChat, onClose }) => {
           {/* What it does */}
           <div>
             <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">What it does</h4>
-            <p className="text-sm text-slate-700 leading-relaxed">
+            <p className="text-[13px] text-slate-700 leading-relaxed">
               {info.summary || skill.description}
             </p>
           </div>
@@ -176,9 +176,9 @@ const SkillDetailModal = ({ skill, onUseInChat, onClose }) => {
           {info.howItWorks?.length > 0 && (
             <div>
               <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">How it works</h4>
-              <ul className="space-y-2">
+              <ul className="space-y-2.5">
                 {info.howItWorks.map((item, i) => (
-                  <li key={i} className="flex items-start gap-2">
+                  <li key={i} className="flex items-start gap-2.5">
                     <span className="w-5 h-5 rounded-full bg-indigo-50 text-indigo-500 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
                     <span className="text-[13px] text-slate-600 leading-relaxed">{item}</span>
                   </li>
@@ -196,14 +196,20 @@ const SkillDetailModal = ({ skill, onUseInChat, onClose }) => {
               </div>
             </div>
           )}
+
+          {/* Info note */}
+          <div className="px-4 py-3 rounded-xl bg-blue-50 border border-blue-100">
+            <p className="text-[11px] text-blue-600 leading-relaxed">
+              This skill is used automatically by the AI when relevant. You don't need to activate it — just ask your question and the AI will use the right skill for the job.
+            </p>
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex items-center justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-medium text-slate-500 hover:bg-slate-50">Close</button>
-          <button onClick={() => { onUseInChat(skill); onClose(); }}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-500 transition-colors">
-            <MessageSquare size={12} /> Use in Chat
+        <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex items-center justify-end">
+          <button onClick={onClose}
+            className="px-5 py-2 rounded-xl text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+            Close
           </button>
         </div>
       </div>
@@ -488,22 +494,27 @@ const DeleteConfirm = ({ skill, onConfirm, onCancel }) => (
   </div>
 );
 
-// ── Workflow Skill Card (read-only built-in) ───────────────────────────────
-const WorkflowCard = ({ skill, onOpen }) => {
+// ── Built-in Skill Card (read-only) ────────────────────────────────────────
+const BuiltinCard = ({ skill, onOpen }) => {
   const Icon = ICON_MAP[skill.icon] || Sparkles;
   const gradient = ICON_COLORS[skill.icon] || 'from-indigo-500 to-indigo-600';
 
   return (
     <button
       onClick={() => onOpen(skill)}
-      className="flex flex-col items-center p-5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-md transition-all text-center cursor-pointer"
+      className="flex flex-col items-center p-5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-md transition-all text-center cursor-pointer group"
     >
       <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-3 shadow-sm`}>
         <Icon size={20} className="text-white" />
       </div>
       <h3 className="text-[13px] font-semibold text-slate-800 truncate w-full">{skill.name}</h3>
-      <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-semibold mt-1.5">Workflow</span>
+      <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-semibold mt-1.5 flex items-center gap-1">
+        <Lock size={8} /> Built-in
+      </span>
       <p className="text-[10px] text-slate-400 mt-2 line-clamp-2 leading-relaxed">{skill.description}</p>
+      <span className="text-[10px] text-indigo-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+        <Eye size={10} /> View details
+      </span>
     </button>
   );
 };
@@ -712,7 +723,7 @@ export const SkillsLibrary = ({ skills, onCreate, onUpdate, onDelete, onGenerate
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {builtinSkills.map(skill => (
-                  <WorkflowCard key={skill.id} skill={skill} onOpen={handleOpenSkill} />
+                  <BuiltinCard key={skill.id} skill={skill} onOpen={handleOpenSkill} />
                 ))}
               </div>
             </div>
@@ -724,7 +735,6 @@ export const SkillsLibrary = ({ skills, onCreate, onUpdate, onDelete, onGenerate
       {viewingSkill && (
         <SkillDetailModal
           skill={viewingSkill}
-          onUseInChat={handleUseInChat}
           onClose={() => setViewingSkill(null)}
         />
       )}

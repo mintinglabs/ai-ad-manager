@@ -3,18 +3,30 @@ import api from '../services/api.js';
 
 const ACTIVE_KEY = 'aam_active_skill';
 
-// Fallback defaults so slash picker works even if API hasn't loaded yet
+// Fallback defaults when API hasn't loaded — must match all 18 built-in skills from server/skills/default/
 const DEFAULT_SKILLS = [
-  { id: 'performance_analyst', name: 'Performance Analyst', description: 'Deep-dive into campaign metrics, ROAS, CPA, CTR trends', icon: 'chart', isDefault: true,
-    content: 'You are a Performance Analyst. Pull all campaign data (spend, CTR, CPC, CPA, ROAS). Compare vs benchmarks. Trend analysis week-over-week. Rank campaigns by ROAS, flag below 1.0x. Diagnose: High CPM + Low CTR = creative fatigue; High CTR + Low conversion = landing page issue; Frequency >3 = saturation. Output: Executive Summary, Key Metrics Table, Trend Analysis, Top 3 Actions.' },
-  { id: 'creative_strategist', name: 'Creative Strategist', description: 'Ad copy, creative testing, fatigue detection', icon: 'palette', isDefault: true,
-    content: 'You are a Creative Strategist. Audit all active ads (CTR, CPA, frequency). Identify creative fatigue (frequency >3 + declining CTR). Rank creatives. Analyze copy patterns. Suggest 3 headline + 3 primary text variations using PAS, AIDA, Before/After frameworks. Output: Creative Scorecard, Fatigue Alerts, New Copy Ideas.' },
-  { id: 'budget_optimizer', name: 'Budget Optimizer', description: 'Budget allocation, spend efficiency, scaling recommendations', icon: 'dollar', isDefault: true,
-    content: 'You are a Budget Optimizer. Pull budget allocation and ROAS per campaign. Identify scaling opportunities (ROAS >2x, budget <80% spent). Identify waste (ROAS <1x for 3+ days). Recommend exact dollar reallocation amounts. Scale 20% every 3 days. Never kill campaigns in learning phase. Output: Current vs Recommended Budget Table, Expected Impact, Risk Assessment.' },
-  { id: 'audience_strategist', name: 'Audience Strategist', description: 'Audience analysis, targeting, lookalikes, overlap fixes', icon: 'users', isDefault: true,
-    content: 'You are an Audience Strategist. Audit all audiences with sizes. Check overlap (>30% = self-competition). Analyze performance by audience. Recommend: lookalikes (1%, 3%, 5%), interest audiences, exclusions. Funnel segmentation: Cold (broad + lookalikes), Warm (visitors, engagers), Hot (cart, checkout, purchasers). Output: Audience Map, Overlap Issues, Expansion Plan.' },
-  { id: 'inception_funnel_audit', name: 'Inception Funnel Audit', description: 'Full-funnel audit from awareness to conversion', icon: 'funnel', isDefault: true,
-    content: 'You are an Inception Funnel Auditor. Classify campaigns into TOFU (awareness: CPM, reach), MOFU (consideration: CTR, engagement), BOFU (conversion: ROAS, CPA). Score each stage 0-100. Calculate spend allocation across stages. Identify funnel gaps and leaks. Recommend budget shifts. Output: Funnel Score, Stage Breakdown, Gaps, Action Plan.' },
+  // ── Analytical ──
+  { id: 'insights-reporting', name: 'Insights & Reporting', description: 'Analyze Facebook ad performance with diagnostic statuses and strategic recommendations', icon: 'chart', isDefault: true },
+  { id: 'data-analysis', name: 'Data Analysis', description: 'Performance analysis, diagnostics, and business intelligence — overview, cost diagnostics, capital loss, scaling', icon: 'chart', isDefault: true },
+  { id: 'business-manager', name: 'Business Manager', description: 'Navigate Facebook Business Manager — view businesses, ad accounts, pages, pixels, and team members', icon: 'sparkles', isDefault: true },
+  // ── Strategic ──
+  { id: 'campaign-manager', name: 'Campaign Manager', description: 'Plan and configure Facebook ad campaigns — guided creation flow with diagnostic one-click fixes', icon: 'target', isDefault: true },
+  { id: 'targeting-audiences', name: 'Targeting & Audiences', description: 'Plan audience targeting strategies — custom audiences, lookalikes, saved audiences, and interest targeting', icon: 'users', isDefault: true },
+  { id: 'automation-rules', name: 'Automation Rules', description: 'Plan automation strategies — auto-pause, auto-scale, and notification rules with safety guardrails', icon: 'zap', isDefault: true },
+  // ── Operational ──
+  { id: 'ad-manager', name: 'Ad Manager', description: 'Create, update, delete, copy, and preview Facebook ads with read-first safety guardrails', icon: 'sparkles', isDefault: true },
+  { id: 'adset-manager', name: 'Ad Set Manager', description: 'Create, update, delete, and copy ad sets with targeting, budgets, bidding, and scheduling', icon: 'sparkles', isDefault: true },
+  { id: 'creative-manager', name: 'Creative Manager', description: 'Audit creative health — detect fatigue, analyze hook rates, recommend format pivots and copy refreshes', icon: 'palette', isDefault: true },
+  { id: 'tracking-conversions', name: 'Tracking & Conversions', description: 'Set up pixels, send server-side conversion events via CAPI, and create custom conversions', icon: 'target', isDefault: true },
+  { id: 'lead-ads', name: 'Lead Ads', description: 'Create lead generation forms, retrieve and export lead submissions, and connect forms to ads', icon: 'sparkles', isDefault: true },
+  { id: 'product-catalogs', name: 'Product Catalogs', description: 'Manage product catalogs, feeds, product sets, and batch operations for dynamic product ads', icon: 'sparkles', isDefault: true },
+  // ── Pipeline ──
+  { id: 'campaign-creation', name: 'Campaign Creation', description: 'Complete campaign creation — from strategy to launch. Guided, materials-based, boost, bulk, and clone', icon: 'target', isDefault: true },
+  { id: 'audience-creation', name: 'Audience Creation', description: 'Create all audience types — video, website, engagement, lookalike, saved, customer list', icon: 'users', isDefault: true },
+  { id: 'campaign-setup', name: 'Campaign Setup', description: 'Stage 1-2: Collect campaign strategy settings and audience targeting configuration', icon: 'target', isDefault: true },
+  { id: 'creative-assembly', name: 'Creative Assembly', description: 'Stage 3: Collect creative materials and auto-generate ad copy variations', icon: 'palette', isDefault: true },
+  { id: 'ad-launcher', name: 'Ad Launcher', description: 'Execution: Final review, create campaign + ad set + creative + ad, preflight, preview, activate', icon: 'zap', isDefault: true },
+  { id: 'bulk-campaign-setup', name: 'Bulk Campaign Setup', description: 'Create multiple campaigns at once from an uploaded document with campaign plan data', icon: 'zap', isDefault: true },
 ];
 
 export const useSkills = () => {
