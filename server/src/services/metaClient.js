@@ -1928,7 +1928,7 @@ export const getUniversalVideos = async (token, { adAccountId, pageId, igAccount
         source_instagram_media_id: v.source_instagram_media_id,
         permalink: v.permalink,
         is_ig: !!v.is_ig,
-        sources: [source],
+        sources: [...new Set([source, ...(v.sources || [])])],
         _ids: new Set([v.id])
       };
     } else {
@@ -1948,7 +1948,9 @@ export const getUniversalVideos = async (token, { adAccountId, pageId, igAccount
       if (v.updated_time && (!entry.updated_time || v.updated_time > entry.updated_time)) {
         entry.updated_time = v.updated_time;
       }
-      if (!entry.sources.includes(source)) entry.sources.push(source);
+      for (const s of [source, ...(v.sources || [])]) {
+        if (!entry.sources.includes(s)) entry.sources.push(s);
+      }
       entry._ids.add(v.id);
     }
   };
