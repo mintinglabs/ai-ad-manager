@@ -165,7 +165,7 @@ const YOUR_SOURCES = [
   { id: 'offline', label: 'Offline events', icon: Database, developing: true },
 ];
 const META_SOURCES = [
-  { id: 'video', label: 'Video', icon: Film },
+  { id: 'video', label: 'Video (FB+IG)', icon: Film },
   { id: 'ig', label: 'Instagram account', icon: Hash },
   { id: 'fb_page', label: 'Facebook Page', icon: FileText },
   { id: 'lead_ad', label: 'Lead Ad', icon: ClipboardCopy, developing: true },
