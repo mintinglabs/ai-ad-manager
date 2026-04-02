@@ -261,25 +261,27 @@ router.get('/instagram/:id/insights', async (req, res) => {
     // Profile-level insights (instagram_manage_insights)
     // Valid metrics: reach, follower_count, profile_views, website_clicks,
     // accounts_engaged, total_interactions, likes, comments, shares, saves, replies
-    const [reachRes, engagedRes, followerRes] = await Promise.all([
+    // Fetch each metric separately so one failure doesn't block others
+    const fetchMetric = (metric, opts = {}) =>
       metaClient.metaApi.get(`/${igId}/insights`, {
-        params: { access_token: token, metric: 'reach', period: 'day', since, until }
-      }),
-      metaClient.metaApi.get(`/${igId}/insights`, {
-        params: { access_token: token, metric: 'accounts_engaged,total_interactions,profile_views', metric_type: 'total_value', since, until }
-      }).catch(() => ({ data: { data: [] } })),
-      metaClient.metaApi.get(`/${igId}/insights`, {
-        params: { access_token: token, metric: 'follower_count', period: 'day', since, until }
-      }).catch(() => ({ data: { data: [] } }))
+        params: { access_token: token, metric, since, until, ...opts }
+      }).then(r => r.data.data || []).catch(() => []);
+
+    const [reachData, profileViewsData, engagedData, interactionsData, followerData] = await Promise.all([
+      fetchMetric('reach', { period: 'day' }),
+      fetchMetric('profile_views', { metric_type: 'total_value' }),
+      fetchMetric('accounts_engaged', { metric_type: 'total_value' }),
+      fetchMetric('total_interactions', { metric_type: 'total_value' }),
+      fetchMetric('follower_count', { period: 'day' }),
     ]);
 
-    // Sum daily values for period-based metrics
+    // Aggregate all metric results
     const profileInsights = {};
-    for (const metric of [...(reachRes.data.data || []), ...(engagedRes.data.data || []), ...(followerRes.data.data || [])]) {
+    const allMetrics = [...reachData, ...profileViewsData, ...engagedData, ...interactionsData, ...followerData];
+    for (const metric of allMetrics) {
       if (metric.total_value != null) {
         profileInsights[metric.name] = metric.total_value.value || 0;
       } else if (metric.values) {
-        // For follower_count, take latest value; for others, sum
         if (metric.name === 'follower_count') {
           const last = metric.values[metric.values.length - 1];
           profileInsights[metric.name] = last?.value || 0;
@@ -296,20 +298,29 @@ router.get('/instagram/:id/insights', async (req, res) => {
     const mediaItems = mediaRes.data.data || [];
 
     // Fetch insights for each media item
-    // Valid media metrics: reach, likes, comments, shares, saves, total_interactions
+    // Video/Reels use metric_type=total_value; images use period-based
     const mediaWithInsights = await Promise.all(mediaItems.map(async (item) => {
+      const ins = {};
+      // Try total_value metrics first (works for video/reels and newer API)
       try {
         const insRes = await metaClient.metaApi.get(`/${item.id}/insights`, {
-          params: { access_token: token, metric: 'reach,shares,saves' }
+          params: { access_token: token, metric: 'reach,shares,saves,total_interactions', metric_type: 'total_value' }
         });
-        const ins = {};
         for (const m of insRes.data.data || []) {
-          ins[m.name] = m.values?.[0]?.value || m.total_value?.value || 0;
+          ins[m.name] = m.total_value?.value ?? m.values?.[0]?.value ?? 0;
         }
-        return { ...item, insights: ins };
-      } catch {
-        return { ...item, insights: {} };
+      } catch (err) {
+        // Fallback: try without metric_type for older media types
+        try {
+          const insRes2 = await metaClient.metaApi.get(`/${item.id}/insights`, {
+            params: { access_token: token, metric: 'reach,saved,shares' }
+          });
+          for (const m of insRes2.data.data || []) {
+            ins[m.name] = m.values?.[0]?.value ?? 0;
+          }
+        } catch { /* skip */ }
       }
+      return { ...item, insights: ins };
     }));
 
     res.json({
