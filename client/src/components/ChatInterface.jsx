@@ -2266,7 +2266,7 @@ const useSuggestedSkill = (input, skills, activeSkill, slashSkills) => {
   return null;
 };
 
-const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, attachments, onRemoveAttachment, fileRef, isTyping, handleFileUpload, isOver, activeSkill, onDeactivateSkill, skills = [], onSlashSelect, slashSkills = [], onRemoveSlashSkill, onClearAllSlash, onToggleSkill, onManageSkills, token, onLogin, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount }) => {
+const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, attachments, onRemoveAttachment, fileRef, isTyping, handleFileUpload, isOver, activeSkill, onDeactivateSkill, skills = [], onSlashSelect, slashSkills = [], onRemoveSlashSkill, onClearAllSlash, onToggleSkill, onManageSkills, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount }) => {
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   // Slash command detection — show picker when input starts with "/"
@@ -2732,7 +2732,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
               activeSkill={activeSkill} onDeactivateSkill={onDeactivateSkill}
               skills={skills} onSlashSelect={handleSlashSelect} slashSkills={slashSkills} onRemoveSlashSkill={handleRemoveSlashSkill} onClearAllSlash={() => setSlashSkills([])}
               onToggleSkill={onToggleSkill} onManageSkills={onManageSkills}
-              token={token} onLogin={onLogin} isLoginLoading={isLoginLoading} loginError={loginError} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount}
+              token={token} onLogin={onLogin} onLogout={onLogout} isLoginLoading={isLoginLoading} loginError={loginError} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount}
             />
           </div>
 
