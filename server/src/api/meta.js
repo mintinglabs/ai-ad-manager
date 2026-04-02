@@ -244,6 +244,74 @@ router.get('/adaccounts/:id/pixels', async (req, res, next) => {
   }
 });
 
+// --- Instagram Insights (for App Review: instagram_manage_insights) ---
+// Returns live profile-level + media-level insights for a connected IG account
+router.get('/instagram/:id/insights', async (req, res) => {
+  const igId = req.params.id;
+  const token = req.token;
+  try {
+    const since = Math.floor(Date.now() / 1000) - 86400 * 7; // last 7 days
+    const until = Math.floor(Date.now() / 1000);
+
+    // Profile info (instagram_basic)
+    const profileRes = await metaClient.metaApi.get(`/${igId}`, {
+      params: { access_token: token, fields: 'id,username,name,profile_picture_url,media_count,followers_count' }
+    });
+
+    // Profile-level insights (instagram_manage_insights)
+    const [reachRes, engagedRes] = await Promise.all([
+      metaClient.metaApi.get(`/${igId}/insights`, {
+        params: { access_token: token, metric: 'reach,impressions', period: 'day', since, until }
+      }),
+      metaClient.metaApi.get(`/${igId}/insights`, {
+        params: { access_token: token, metric: 'accounts_engaged,total_interactions', period: 'day', metric_type: 'total_value', since, until }
+      }).catch(() => ({ data: { data: [] } })) // some accounts may not support these
+    ]);
+
+    // Sum daily values for reach/impressions
+    const profileInsights = {};
+    for (const metric of [...(reachRes.data.data || []), ...(engagedRes.data.data || [])]) {
+      if (metric.values) {
+        profileInsights[metric.name] = metric.values.reduce((sum, v) => sum + (v.value || 0), 0);
+      } else if (metric.total_value) {
+        profileInsights[metric.name] = metric.total_value.value || 0;
+      }
+    }
+
+    // Media-level insights (top 5 recent media)
+    const mediaRes = await metaClient.metaApi.get(`/${igId}/media`, {
+      params: { access_token: token, fields: 'id,media_type,caption,timestamp,permalink,like_count,comments_count,thumbnail_url,media_url', limit: 5 }
+    });
+    const mediaItems = mediaRes.data.data || [];
+
+    // Fetch insights for each media item
+    const mediaWithInsights = await Promise.all(mediaItems.map(async (item) => {
+      try {
+        const insRes = await metaClient.metaApi.get(`/${item.id}/insights`, {
+          params: { access_token: token, metric: 'reach,impressions' }
+        });
+        const ins = {};
+        for (const m of insRes.data.data || []) {
+          ins[m.name] = m.values?.[0]?.value || 0;
+        }
+        return { ...item, insights: ins };
+      } catch {
+        return { ...item, insights: {} };
+      }
+    }));
+
+    res.json({
+      profile: profileRes.data,
+      profileInsights,
+      media: mediaWithInsights,
+      fetchedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    const metaErr = err.response?.data?.error;
+    res.status(err.response?.status || 500).json({ error: metaErr?.message || err.message, code: metaErr?.code });
+  }
+});
+
 // --- Permission Trigger ---
 // Explicitly calls Meta API endpoints that require specific permissions
 // so they show as "triggered" in FB App Review dashboard

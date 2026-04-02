@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Users, Plus, RefreshCw, Trash2, Copy, Target, Globe, Hash, X, AlertTriangle, Search, Film, ClipboardCopy, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronUp, SlidersHorizontal, FolderOpen, Smartphone, ShoppingBag, BookOpen, CalendarDays, Database, FileText, Building2, ChevronRight, Link2, Lock } from 'lucide-react';
+import { Users, Plus, RefreshCw, Trash2, Copy, Target, Globe, Hash, X, AlertTriangle, Search, Film, ClipboardCopy, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronUp, SlidersHorizontal, FolderOpen, Smartphone, ShoppingBag, BookOpen, CalendarDays, Database, FileText, Building2, ChevronRight, Link2, Lock, LogOut } from 'lucide-react';
 import api from '../services/api.js';
 import { useBusinesses } from '../hooks/useBusinesses.js';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
@@ -1660,7 +1660,7 @@ const TikTokIcon = () => (
 );
 
 // ── Account Selector (for Audiences page header) ───────────────────────────
-const AccountSelector = ({ token, onLogin, selectedAccount, selectedBusiness, onSelectAccount }) => {
+const AccountSelector = ({ token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount }) => {
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState('business');
   const [activeBiz, setActiveBiz] = useState(selectedBusiness);
@@ -1692,6 +1692,15 @@ const AccountSelector = ({ token, onLogin, selectedAccount, selectedBusiness, on
         {selectedAccount ? selectedAccount.name : 'Select Ad Account'}
         <ChevronDown size={12} />
       </button>
+      {selectedAccount && (
+        <button
+          onClick={() => { onLogout?.(); setOpen(false); }}
+          className="ml-1 inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-transparent text-[10px] font-medium text-slate-400 hover:text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors"
+          title="Disconnect Meta account"
+        >
+          <LogOut size={11} /> Disconnect
+        </button>
+      )}
 
       {open && (
         <div className="absolute top-full left-0 mt-1 w-[280px] bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
@@ -1748,7 +1757,7 @@ const AccountSelector = ({ token, onLogin, selectedAccount, selectedBusiness, on
   );
 };
 
-export const AudienceManager = ({ adAccountId, onSendToChat, onBack, token, onLogin, selectedAccount, selectedBusiness, onSelectAccount }) => {
+export const AudienceManager = ({ adAccountId, onSendToChat, onBack, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount }) => {
   const [audiences, setAudiences] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -1943,6 +1952,7 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack, token, onLo
             <AccountSelector
               token={token}
               onLogin={onLogin}
+              onLogout={onLogout}
               selectedAccount={selectedAccount}
               selectedBusiness={selectedBusiness}
               onSelectAccount={onSelectAccount}
