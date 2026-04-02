@@ -9,7 +9,6 @@ import { SavedItemView } from './SavedItemView.jsx';
 import { StrategistConfig } from './StrategistConfig.jsx';
 import { SkillsLibrary } from './SkillsLibrary.jsx';
 import { AudienceManager } from './AudienceManager.jsx';
-import { InstagramInsights } from './InstagramInsights.jsx';
 
 // Use-case driven cards — categorized, battle-tested entry points
 const CARD_CATEGORIES = [
@@ -122,10 +121,6 @@ export const Dashboard = ({
     setActiveView({ type: 'skillsLibrary' });
   }, []);
 
-  const handleOpenIgInsights = useCallback(() => {
-    setActiveView({ type: 'igInsights' });
-  }, []);
-
   const handleAudienceToChat = useCallback((prompt) => {
     setActiveView({ type: 'chat' });
     sendMessage(prompt);
@@ -187,7 +182,6 @@ export const Dashboard = ({
         onToggleSkill={toggleSkill}
         onOpenAudiences={handleOpenAudiences}
         onOpenSkillsLibrary={handleOpenSkillsLibrary}
-        onOpenIgInsights={handleOpenIgInsights}
         token={token}
         onLogin={onLogin}
       />
@@ -224,14 +218,6 @@ export const Dashboard = ({
               onAddDoc={() => {}}
               onRemoveDoc={() => {}}
               onBack={() => setActiveView({ type: 'skillsLibrary' })}
-            />
-          ) : activeView.type === 'igInsights' ? (
-            <InstagramInsights
-              adAccountId={adAccountId}
-              onBack={() => setActiveView({ type: 'chat' })}
-              token={token}
-              onLogin={onLogin}
-              selectedAccount={selectedAccount}
             />
           ) : activeView.type === 'audiences' ? (
             <AudienceManager

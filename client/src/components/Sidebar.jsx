@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Zap, Plus, MessageSquare, Trash2, ChevronDown, ChevronLeft, ChevronRight, LogOut, FileText, Lightbulb, FolderOpen, Building2, Check, Globe, GripVertical, FolderPlus, X, Users, Sparkles, MoreVertical, Pin, Pencil, Menu, BarChart3 } from 'lucide-react';
+import { Zap, Plus, MessageSquare, Trash2, ChevronDown, ChevronLeft, ChevronRight, LogOut, FileText, Lightbulb, FolderOpen, Building2, Check, Globe, GripVertical, FolderPlus, X, Users, Sparkles, MoreVertical, Pin, Pencil, Menu } from 'lucide-react';
 import { groupSessionsByDate } from '../hooks/useChatSessions.js';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
 import { useBusinesses } from '../hooks/useBusinesses.js';
@@ -216,7 +216,6 @@ export const Sidebar = ({
   onRenameFolder,
   onReorderFolders,
   onOpenAudiences,
-  onOpenIgInsights,
   token,
   onLogin,
 }) => {
@@ -325,21 +324,6 @@ export const Sidebar = ({
         >
           <Users size={14} className={activeView?.type === 'audiences' ? 'text-blue-500' : 'text-slate-400'} />
           <span className="flex-1 text-left">Audiences</span>
-          <ChevronRight size={12} className="text-slate-300" />
-        </button>
-      </div>
-
-      {/* Instagram Insights */}
-      <div className="px-3 mb-1">
-        <button
-          onClick={onOpenIgInsights}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
-            ${activeView?.type === 'igInsights'
-              ? 'bg-pink-50 text-pink-700 border-pink-200'
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
-        >
-          <BarChart3 size={14} className={activeView?.type === 'igInsights' ? 'text-pink-500' : 'text-slate-400'} />
-          <span className="flex-1 text-left">IG Insights</span>
           <ChevronRight size={12} className="text-slate-300" />
         </button>
       </div>

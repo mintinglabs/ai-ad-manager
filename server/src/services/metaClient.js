@@ -1545,8 +1545,23 @@ export const getConnectedInstagramAccounts = async (token, adAccountId) => {
     ...rest,
     ...(pageIdMap.get(rest.id) && { pageId: pageIdMap.get(rest.id) }),
   }));
-  console.log(`[IG Discovery] TOTAL: ${result.length} accounts`, result.map(a => a.username));
-  return result;
+
+  // Filter out empty/inactive IG accounts (0 posts = deleted or unused, matches Meta UI behavior)
+  const filtered = [];
+  await Promise.all(result.map(async (acc) => {
+    try {
+      const { data } = await metaApi.get(`/${acc.id}`, {
+        params: { access_token: token, fields: 'id,media_count' }
+      });
+      if (data.media_count > 0) filtered.push(acc);
+      else console.log(`[IG Discovery] Filtered out @${acc.username} (0 posts)`);
+    } catch {
+      filtered.push(acc); // keep if we can't check (permission issue)
+    }
+  }));
+
+  console.log(`[IG Discovery] TOTAL: ${filtered.length} accounts (filtered from ${result.length})`, filtered.map(a => a.username));
+  return filtered;
 };
 
 // ─── Pages ───────────────────────────────────────────────────────────
