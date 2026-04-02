@@ -1692,15 +1692,6 @@ const AccountSelector = ({ token, onLogin, onLogout, selectedAccount, selectedBu
         {selectedAccount ? selectedAccount.name : 'Select Ad Account'}
         <ChevronDown size={12} />
       </button>
-      {selectedAccount && (
-        <button
-          onClick={() => { onLogout?.(); setOpen(false); }}
-          className="ml-1 inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-transparent text-[10px] font-medium text-slate-400 hover:text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors"
-          title="Disconnect Meta account"
-        >
-          <LogOut size={11} /> Disconnect
-        </button>
-      )}
 
       {open && (
         <div className="absolute top-full left-0 mt-1 w-[280px] bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
