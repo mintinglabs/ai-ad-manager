@@ -263,10 +263,10 @@ router.get('/instagram/:id/insights', async (req, res) => {
     // accounts_engaged, total_interactions, likes, comments, shares, saves, replies
     const [reachRes, engagedRes, followerRes] = await Promise.all([
       metaClient.metaApi.get(`/${igId}/insights`, {
-        params: { access_token: token, metric: 'reach,profile_views', period: 'day', since, until }
+        params: { access_token: token, metric: 'reach', period: 'day', since, until }
       }),
       metaClient.metaApi.get(`/${igId}/insights`, {
-        params: { access_token: token, metric: 'accounts_engaged,total_interactions', period: 'day', metric_type: 'total_value', since, until }
+        params: { access_token: token, metric: 'accounts_engaged,total_interactions,profile_views', metric_type: 'total_value', since, until }
       }).catch(() => ({ data: { data: [] } })),
       metaClient.metaApi.get(`/${igId}/insights`, {
         params: { access_token: token, metric: 'follower_count', period: 'day', since, until }
