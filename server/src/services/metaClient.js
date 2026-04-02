@@ -1692,15 +1692,43 @@ export const getIgMedia = async (token, igAccountId, { pageId, adAccountId, afte
         picture: v.thumbnail_url,
         created_time: v.timestamp,
         updated_time: v.timestamp,
-        // IG native views = organic + paid total (matches Meta Custom Audience picker);
-        // ad insights viewsMap = paid only — use as fallback
         three_second_views: igViews[v.id] || viewsMap[v.id] || 0,
         source_instagram_media_id: v.id,
         is_ig: true,
         sources: ['ig']
       }));
 
-      normalized.sort((a, b) => (b.three_second_views || 0) - (a.three_second_views || 0));
+      // Also fetch cross-posted Page videos and merge (these won't appear in IG media endpoint)
+      const igMediaIds = new Set(videos.map(v => v.id));
+      if (resolvedPageId) {
+        try {
+          const page = allPages.find(p => p.id === resolvedPageId);
+          const pageToken = page?.access_token || token;
+          const { data: pageData } = await metaApi.get(`/${resolvedPageId}/videos`, {
+            params: {
+              access_token: pageToken,
+              fields: 'id,title,description,source,picture,length,created_time,updated_time,views,source_instagram_media_id',
+              limit: 50
+            }
+          });
+          const crossposted = (pageData.data || []).filter(v =>
+            v.source_instagram_media_id && !igMediaIds.has(v.source_instagram_media_id)
+          );
+          for (const v of crossposted) {
+            normalized.push({
+              ...v,
+              // For cross-posted: ad views (covers IG+FB placements) + page organic views
+              three_second_views: viewsMap[v.id] || v.views || 0,
+              is_ig: true,
+              sources: ['ig', 'page']
+            });
+          }
+          console.log(`[getIgMedia] Merged ${crossposted.length} cross-posted Page videos`);
+        } catch { /* skip — page videos optional */ }
+      }
+
+      // Sort by date (newest first) to match Meta Custom Audience picker
+      normalized.sort((a, b) => new Date(b.created_time || b.timestamp || 0) - new Date(a.created_time || a.timestamp || 0));
       return { videos: normalized, nextCursor: data.paging?.next ? nextCursor : null };
     } catch (err) {
       console.log(`[getIgMedia] IG media endpoint failed (${err.response?.data?.error?.code || err.message}), trying page fallback...`);
