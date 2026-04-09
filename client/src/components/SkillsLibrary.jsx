@@ -123,10 +123,10 @@ const AddDropdown = ({ open, onClose, onSelect }) => {
   if (!open) return null;
 
   const options = [
-    { id: 'build', icon: <Sparkles size={16} className="text-indigo-500" />, label: 'Build with AI Ad Manager', desc: 'Build great skills through conversation' },
+    { id: 'build', icon: <Sparkles size={16} className="text-indigo-500" />, label: 'Build with AI Agent', desc: 'Build great skills through conversation' },
     { id: 'upload', icon: <Upload size={16} className="text-emerald-500" />, label: 'Upload a skill', desc: 'Upload .zip, .skill, or folder' },
-    { id: 'official', icon: <Check size={16} className="text-blue-500" />, label: 'Add from official', desc: 'Pre-built skills maintained by team' },
-    { id: 'github', icon: <GitBranch size={16} className="text-slate-500" />, label: 'Import from GitHub', desc: 'Paste a repository link to get started' },
+    { id: 'official', icon: <Check size={16} className="text-slate-300" />, label: 'Add from official', desc: 'Pre-built skills maintained by team', soon: true },
+    { id: 'github', icon: <GitBranch size={16} className="text-slate-300" />, label: 'Import from GitHub', desc: 'Paste a repository link to get started', soon: true },
   ];
 
   return (
@@ -134,12 +134,16 @@ const AddDropdown = ({ open, onClose, onSelect }) => {
       {options.map(opt => (
         <button
           key={opt.id}
-          onClick={() => { onSelect(opt.id); onClose(); }}
-          className="w-full flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left"
+          onClick={() => { if (!opt.soon) { onSelect(opt.id); onClose(); } }}
+          disabled={opt.soon}
+          className={`w-full flex items-start gap-3 px-4 py-3 transition-colors text-left ${opt.soon ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50'}`}
         >
           <div className="mt-0.5 shrink-0">{opt.icon}</div>
-          <div>
-            <p className="text-[13px] font-medium text-slate-800">{opt.label}</p>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <p className={`text-[13px] font-medium ${opt.soon ? 'text-slate-400' : 'text-slate-800'}`}>{opt.label}</p>
+              {opt.soon && <span className="text-[9px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">Soon</span>}
+            </div>
             <p className="text-[11px] text-slate-400 mt-0.5">{opt.desc}</p>
           </div>
         </button>

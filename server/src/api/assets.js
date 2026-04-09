@@ -61,7 +61,7 @@ router.get('/videos', async (req, res) => {
     const { adAccountId } = req.query;
     if (!adAccountId) return res.status(400).json({ error: 'adAccountId is required' });
 
-    const data = await metaClient.getAdVideos(req.token, adAccountId);
+    const data = await metaClient.getAdVideos(req.token, adAccountId, { viewsMap: {} });
     res.json(data);
   } catch (err) {
     const metaErr = err.response?.data?.error;

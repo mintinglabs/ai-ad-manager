@@ -1640,10 +1640,37 @@ const AccountSelector = ({ token, onLogin, onLogout, selectedAccount, selectedBu
 
   if (!token) {
     return (
-      <button onClick={onLogin}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
-        <Link2 size={12} /> Connect Facebook to get started
-      </button>
+      <div ref={ref} className="relative">
+        <button onClick={() => setOpen(v => !v)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
+          <Link2 size={12} /> Connect
+        </button>
+        {open && (
+          <div className="absolute top-full left-0 mt-1 w-[220px] bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
+            <div className="px-3 py-2 border-b border-slate-100">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Ad Platforms</p>
+            </div>
+            <div className="py-1">
+              <button onClick={() => { onLogin(); setOpen(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-slate-50 transition-colors">
+                <MetaIcon />
+                <span className="text-[12px] font-medium text-slate-700 flex-1">Meta Ads Manager</span>
+                <span className="text-[10px] font-medium text-blue-600">Connect</span>
+              </button>
+              <div className="w-full flex items-center gap-2.5 px-3 py-2.5 opacity-50">
+                <GoogleIcon />
+                <span className="text-[12px] font-medium text-slate-400 flex-1">Google Ads</span>
+                <span className="text-[9px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">Soon</span>
+              </div>
+              <div className="w-full flex items-center gap-2.5 px-3 py-2.5 opacity-50">
+                <TikTokIcon />
+                <span className="text-[12px] font-medium text-slate-400 flex-1">TikTok Ads</span>
+                <span className="text-[9px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">Soon</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -2053,36 +2080,9 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack, token, onLo
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {!adAccountId && (
-          <div className="text-center py-20">
-            <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-              <Lock size={24} className="text-slate-400" />
-            </div>
-            <p className="text-sm font-semibold text-slate-700 mb-1">
-              {!token ? 'Connect an ad platform to view audiences' : 'Select an ad account to view audiences'}
-            </p>
-            <p className="text-xs text-slate-400 mb-5 max-w-xs mx-auto">
-              {!token
-                ? 'Log in with Meta, Google, or TikTok to access and manage your audiences across platforms.'
-                : 'Choose an ad account from the selector above to load your audiences.'}
-            </p>
-            {!token && (
-              <div className="flex items-center justify-center gap-3">
-                <button onClick={onLogin}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-blue-600 text-white hover:bg-blue-500 transition-colors shadow-sm">
-                  <MetaIcon /> Connect Meta Ads
-                </button>
-                <button disabled
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium border border-slate-200 text-slate-400 cursor-not-allowed">
-                  <GoogleIcon /> Google Ads
-                  <span className="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded-full">Soon</span>
-                </button>
-                <button disabled
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium border border-slate-200 text-slate-400 cursor-not-allowed">
-                  <TikTokIcon /> TikTok Ads
-                  <span className="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded-full">Soon</span>
-                </button>
-              </div>
-            )}
+          <div className="flex flex-col items-center justify-center py-20">
+            <p className="text-sm font-semibold text-slate-700 mb-1">{!token ? 'Connect an ad platform' : 'Select an ad account'}</p>
+            <p className="text-xs text-slate-400">Use the account selector above to get started.</p>
           </div>
         )}
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Zap, Plus, MessageSquare, Trash2, ChevronDown, ChevronLeft, ChevronRight, LogOut, FileText, Lightbulb, FolderOpen, Building2, Check, Globe, GripVertical, FolderPlus, X, Users, Sparkles, MoreVertical, Pin, Pencil, Menu, BarChart3, Image, Calendar, TrendingUp, ClipboardList, Settings } from 'lucide-react';
+import { Zap, Plus, MessageSquare, Trash2, ChevronDown, ChevronLeft, ChevronRight, LogOut, FileText, Lightbulb, FolderOpen, Building2, Check, Globe, GripVertical, FolderPlus, X, Users, Sparkles, MoreVertical, Pin, Pencil, Menu, BarChart3, Image, Calendar, TrendingUp, ClipboardList, Settings, Palette } from 'lucide-react';
 import { groupSessionsByDate } from '../hooks/useChatSessions.js';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
 import { useBusinesses } from '../hooks/useBusinesses.js';
@@ -222,6 +222,7 @@ export const Sidebar = ({
   onOpenInstantForms,
   onOpenEventsManager,
   onOpenOptimizations,
+  onOpenAdLibrary,
   token,
   onLogin,
 }) => {
@@ -365,7 +366,7 @@ export const Sidebar = ({
           <ChevronRight size={12} className="text-slate-300" />
         </button>
 
-        {/* Creative Library */}
+        {/* Asset Library */}
         <button
           onClick={onOpenCreativeLibrary}
           className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
@@ -374,7 +375,20 @@ export const Sidebar = ({
               : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
         >
           <Image size={14} className={activeView?.type === 'creativeLibrary' ? 'text-pink-500' : 'text-slate-400'} />
-          <span className="flex-1 text-left">Creative Library</span>
+          <span className="flex-1 text-left">Asset Library</span>
+          <ChevronRight size={12} className="text-slate-300" />
+        </button>
+
+        {/* Ad Library */}
+        <button
+          onClick={onOpenAdLibrary}
+          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
+            ${activeView?.type === 'adLibrary'
+              ? 'bg-orange-50 text-orange-700 border-orange-200'
+              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
+        >
+          <Palette size={14} className={activeView?.type === 'adLibrary' ? 'text-orange-500' : 'text-slate-400'} />
+          <span className="flex-1 text-left">Ad Library</span>
           <ChevronRight size={12} className="text-slate-300" />
         </button>
 

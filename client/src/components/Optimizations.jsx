@@ -181,29 +181,10 @@ export const Optimizations = ({ adAccountId, token, onLogin, onLogout, selectedA
 
       {/* Content */}
       <div className="flex-1 overflow-auto px-6 py-4">
-        {!token ? (
+        {!token || !adAccountId ? (
           <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center mb-4">
-              <Zap size={28} className="text-amber-300" />
-            </div>
-            <p className="text-sm font-semibold text-slate-700 mb-1">Connect an ad platform to get optimizations</p>
-            <p className="text-xs text-slate-400 mb-5 max-w-xs mx-auto text-center">Log in with Meta, Google, or TikTok to scan your campaigns for optimization opportunities.</p>
-            <div className="flex items-center justify-center gap-3">
-              <button onClick={onLogin} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-blue-600 text-white hover:bg-blue-500 transition-colors shadow-sm">
-                <img src="/meta-icon.svg" alt="Meta" className="w-4 h-4" /> Connect Meta Ads
-              </button>
-              <button disabled className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium border border-slate-200 text-slate-400 cursor-not-allowed">
-                Google Ads <span className="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded-full">Soon</span>
-              </button>
-              <button disabled className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium border border-slate-200 text-slate-400 cursor-not-allowed">
-                TikTok Ads <span className="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded-full">Soon</span>
-              </button>
-            </div>
-          </div>
-        ) : !adAccountId ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <p className="text-sm font-semibold text-slate-700 mb-1">Select an ad account</p>
-            <p className="text-xs text-slate-400">Choose an ad account from the selector above.</p>
+            <p className="text-sm font-semibold text-slate-700 mb-1">{!token ? 'Connect an ad platform' : 'Select an ad account'}</p>
+            <p className="text-xs text-slate-400">Use the account selector above to get started.</p>
           </div>
         ) : recommendations.length === 0 && !loading ? (
           <div className="flex flex-col items-center justify-center py-16">

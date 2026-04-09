@@ -654,31 +654,10 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
 
       {/* Content */}
       <div className="flex-1 overflow-auto px-6 py-4">
-        {!token ? (
+        {!token || !adAccountId ? (
           <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-300"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-            </div>
-            <p className="text-sm font-semibold text-slate-700 mb-1">Connect an ad platform to view campaigns</p>
-            <p className="text-xs text-slate-400 mb-5 max-w-xs mx-auto text-center">
-              Log in with Meta, Google, or TikTok to access and manage your campaigns across platforms.
-            </p>
-            <div className="flex items-center justify-center gap-3">
-              <button onClick={onLogin} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-blue-600 text-white hover:bg-blue-500 transition-colors shadow-sm">
-                <MetaIcon /> Connect Meta Ads
-              </button>
-              <button disabled className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium border border-slate-200 text-slate-400 cursor-not-allowed">
-                <GoogleIcon /> Google Ads <span className="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded-full">Soon</span>
-              </button>
-              <button disabled className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium border border-slate-200 text-slate-400 cursor-not-allowed">
-                <TikTokIcon /> TikTok Ads <span className="text-[9px] bg-slate-100 px-1.5 py-0.5 rounded-full">Soon</span>
-              </button>
-            </div>
-          </div>
-        ) : !adAccountId ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <p className="text-sm font-semibold text-slate-700 mb-1">Select an ad account to view campaigns</p>
-            <p className="text-xs text-slate-400">Choose an ad account from the selector above.</p>
+            <p className="text-sm font-semibold text-slate-700 mb-1">{!token ? 'Connect an ad platform' : 'Select an ad account'}</p>
+            <p className="text-xs text-slate-400">Use the account selector above to get started.</p>
           </div>
         ) : loading && currentData.length === 0 ? (
           <div className="flex items-center justify-center py-20">

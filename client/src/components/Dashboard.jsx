@@ -15,6 +15,7 @@ import { AutomationRules } from './AutomationRules.jsx';
 import { InstantForms } from './InstantForms.jsx';
 import { EventsManager } from './EventsManager.jsx';
 import { Optimizations } from './Optimizations.jsx';
+import { AdLibrary } from './AdLibrary.jsx';
 
 const CARD_CATEGORIES = [];
 const QUICK_CHIPS = [];
@@ -130,6 +131,9 @@ export const Dashboard = ({
     setActiveView({ type: 'optimizations' });
   }, []);
 
+  const handleOpenAdLibrary = useCallback(() => {
+    setActiveView({ type: 'adLibrary' });
+  }, []);
 
   const [pendingInput, setPendingInput] = useState(null);
   const [pendingSlashSkill, setPendingSlashSkill] = useState(null);
@@ -246,6 +250,7 @@ export const Dashboard = ({
         onOpenInstantForms={handleOpenInstantForms}
         onOpenEventsManager={handleOpenEventsManager}
         onOpenOptimizations={handleOpenOptimizations}
+        onOpenAdLibrary={handleOpenAdLibrary}
         onOpenSkillsLibrary={handleOpenSkillsLibrary}
         token={token}
         onLogin={onLogin}
@@ -334,6 +339,17 @@ export const Dashboard = ({
           ) : activeView.type === 'eventsManager' ? (
             <EventsManager
               adAccountId={adAccountId}
+              token={token}
+              onLogin={onLogin}
+              onLogout={onLogout}
+              selectedAccount={selectedAccount}
+              selectedBusiness={selectedBusiness}
+              onSelectAccount={handleAccountSelect}
+            />
+          ) : activeView.type === 'adLibrary' ? (
+            <AdLibrary
+              adAccountId={adAccountId}
+              onBack={() => setActiveView({ type: 'chat' })}
               token={token}
               onLogin={onLogin}
               onLogout={onLogout}
