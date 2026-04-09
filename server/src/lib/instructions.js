@@ -158,7 +158,7 @@ ${BASE_OUTPUT_RULES}
 
 # FIRST ACTIONS (call ALL in parallel — speeds up card rendering)
 1. get_workflow_context()
-2. load_skill("audience-creation") — loads complete audience creation workflows with single-card pattern. Follow it precisely.
+2. load_skill("targeting-audiences") — loads audience creation workflows. Follow it precisely.
 3. get_ad_account_details()
 4. get_pages() — needed for video source, page engagement, lead ad, WhatsApp
 5. get_connected_instagram_accounts() — needed for IG engagement, IG video
@@ -182,12 +182,11 @@ If workflow contains insights_alert (from analyst), use diagnostic signals:
 - ⚠️ 創意衰退 + Freq > 2.5 → 受眾飽和，建議新 Lookalike 或擴展興趣
 - 🚀 爆發增長 → 搵類似受眾 scale
 
-# MID-CREATION HANDOFF (from campaign-setup Stage 2)
-If workflow_context has \`creation_stage: "stage2_custom_audience"\`, you are being called mid-campaign-creation.
-1. Help user build targeting (interests, demographics, behaviors) via targeting_search() + targeting_suggestions().
-2. Save the targeting spec to workflow_context: \`update_workflow_context({ data: { ...current, targeting_spec: {...}, audience_description: "...", creation_stage: "stage2" } })\`
-3. Transfer back to **executor** (not ad_manager): \`transfer_to_agent("executor")\`
-The executor will resume Stage 2 confirmation with the targeting spec you saved.
+# MID-CREATION HANDOFF
+If workflow_context has \`creation_stage\` set, you are being called mid-campaign-creation.
+1. Help user build targeting via targeting_search() + targeting_suggestions().
+2. Save the targeting spec to workflow_context.
+3. Transfer back to **executor**: \`transfer_to_agent("executor")\`
 
 # AFTER COMPLETING (normal audience work, not mid-creation)
 Transfer back to ad_manager.
@@ -219,13 +218,11 @@ If workflow contains insights_alert:
 - ⚠️ 創意衰退 → 深入分析邊個素材疲勞、建議替換
 - 🚨 預算流失 → 檢查素材有無問題導致零轉化
 
-# MID-CREATION SUPPORT (from creative-assembly Stage 3)
-If workflow_context has \`creation_stage: "stage3_creative_review"\`, you are being consulted mid-campaign-creation.
-The executor wants your opinion on the uploaded creative before generating copy.
-1. Analyze the visual using the provided media URLs.
-2. Check if user has existing running ads — compare the new creative's style/format to avoid overlap or suggest differentiation.
-3. Save your analysis to workflow_context: \`{ creative_analysis: "...", creative_suggestions: "..." }\`
-4. Transfer back to **executor**: \`transfer_to_agent("executor")\`
+# MID-CREATION SUPPORT
+If workflow_context has \`creation_stage\` set, you are being consulted mid-campaign-creation.
+1. Analyze the creative using provided media URLs.
+2. Save analysis to workflow_context.
+3. Transfer back to **executor**: \`transfer_to_agent("executor")\`
 
 # AFTER COMPLETING (normal creative audit, not mid-creation)
 Transfer back to ad_manager.
@@ -258,44 +255,13 @@ For pause/update/delete/rename requests:
 3. Ask "Should I proceed?" — wait for confirmation
 4. Execute, then verify
 
-# CREATION MODE — 3-Stage Flow
-Campaign creation uses 3 user-facing stages rendered as \`setupcard\` blocks in chat:
-
-## Stage 1: Strategy (campaign-setup skill)
-Collect: objective, destination, country, budget, page, CTA.
-Show all 3 stages as setupcards: Stage 1 = active, Stage 2+3 = pending.
-Objective picker is INSIDE Stage 1 card as \`type:"select"\` item — NOT a separate options block.
-Pre-fill with smart defaults. Items have \`editable:true\` — user clicks inline Edit to change.
-**CRITICAL: Stage 1 only calls 4 APIs**: get_workflow_context, get_ad_account_details, get_minimum_budgets, get_pages. NEVER call get_custom_audiences or get_saved_audiences in Stage 1.
-
-## Stage 2: Audience (campaign-setup skill)
-Now fetch get_custom_audiences() + get_saved_audiences().
-Collect: targeting strategy (Saved Audience / Custom Targeting / Lookalike). No Broad option.
-Stage 1 = done (collapsed), Stage 2 = active, Stage 3 = pending.
-For saved audiences: use \`type:"select"\` items inside setupcard for inline dropdown.
-For custom: transfer_to_agent("audience_strategist") — it saves targeting_spec to workflow_context and transfers back.
-Save to workflow_context, then load_skill("campaign-creation").
-
-## Stage 3: Creative (creative-assembly skill)
-Collect: ad format, media, ad copy (auto-generated copyvariations).
-Stage 1+2 = done (collapsed), Stage 3 = active.
-For pre-uploaded assets: skip upload, go straight to copy generation.
-For boost: skip entirely, go to execution.
-Save to workflow_context, then load_skill("campaign-creation").
-
-## Execution (ad-launcher skill)
-All 3 stages confirmed. Show final review card with editable names (campaign, ad set, ad).
-Create campaign → ad set → creative → ad (all PAUSED).
-Preflight → preview → activate on "go live".
-Max 2 confirmations: review + launch.
-
-## Edit Stage (going back)
-User can click "Edit" on a completed stage header. Reset creation_stage and re-render from that stage with fields pre-filled.
-
-## setupcard status values
-- \`status:"done"\` — completed stage, collapsed by default, green ✅
-- \`status:"active"\` — current stage, expanded, blue
-- \`status:"pending"\` — future stage, collapsed, grayed out
+# CREATION MODE
+load_skill("campaign-creation") — follow it. It defines what info to collect and how to execute.
+Key principles:
+- Parse what user already provided, only ask for missing pieces
+- Group questions — don't ask one field at a time
+- Confirm before executing
+- Create everything PAUSED, activate after user confirms
 
 ## setupcard item type:"select"
 For inline dropdowns inside setupcard items, use \`type:"select"\` with an \`options\` array:
