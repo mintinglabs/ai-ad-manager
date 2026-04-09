@@ -1621,7 +1621,7 @@ const adTools = [
 
 // ── Tool subsets for 5 sub-agents ────────────────────────────────────────────
 const _toolByName = Object.fromEntries(adTools.map(t => [t.name, t]));
-const pick = (...names) => names.map(n => _toolByName[n]).filter(Boolean);
+const pick = (...names) => [...new Set(names)].map(n => _toolByName[n]).filter(Boolean);
 
 // Analyst — all read-only operations (performance, creatives, audiences, tracking)
 const analystTools = pick(
@@ -1665,7 +1665,7 @@ const executorTools = pick(
   // Audience CRUD
   'create_custom_audience', 'create_lookalike_audience', 'create_saved_audience',
   'get_custom_audiences', 'get_saved_audiences',
-  'get_page_videos', 'get_ig_media', 'get_ig_posts', 'get_video',
+  'get_ig_posts', 'get_video',
   // Campaign CRUD
   'create_campaign', 'update_campaign', 'delete_campaign', 'copy_campaign',
   'get_campaigns', 'get_campaign_ad_sets', 'get_campaign_ads',
