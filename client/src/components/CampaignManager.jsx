@@ -25,18 +25,52 @@ const ALL_COLUMNS = [
   { id: 'clicks', label: 'Clicks', group: 'Engagement' },
   { id: 'ctr', label: 'CTR', group: 'Engagement' },
   { id: 'cpm', label: 'CPM', group: 'Cost' },
+  { id: 'cpc', label: 'CPC', group: 'Cost' },
   { id: 'frequency', label: 'Frequency', group: 'Delivery' },
   { id: 'conversions', label: 'Conversions', group: 'Performance' },
   { id: 'conv_value', label: 'Conv. Value', group: 'Performance' },
+  { id: 'link_clicks', label: 'Link Clicks', group: 'Engagement' },
+  { id: 'video_views', label: 'ThruPlays', group: 'Engagement' },
+  { id: 'cost_per_thruplay', label: 'Cost / ThruPlay', group: 'Cost' },
 ];
 
-const COLUMN_PRESETS = [
-  { id: 'performance', label: 'Performance', cols: ['status', 'budget', 'spent', 'results', 'cpa'] },
-  { id: 'full_performance', label: 'Full Performance', cols: ['status', 'budget', 'spent', 'results', 'cpa', 'roas', 'conv_value'] },
-  { id: 'delivery', label: 'Delivery', cols: ['status', 'budget', 'spent', 'impressions', 'reach', 'frequency'] },
-  { id: 'engagement', label: 'Engagement', cols: ['status', 'impressions', 'clicks', 'ctr', 'cpm'] },
-  { id: 'ecommerce', label: 'E-commerce', cols: ['status', 'budget', 'spent', 'results', 'cpa', 'roas', 'conversions', 'conv_value'] },
+// ── Metric Templates ──
+// Built-in templates (generic for all industries, auto-selected by objective)
+const BUILT_IN_TEMPLATES = [
+  { id: 'conversions',  label: 'Conversions',        desc: 'Sales & purchase performance',     cols: ['status', 'budget', 'spent', 'results', 'cpa', 'roas', 'conv_value'],             objectives: ['OUTCOME_SALES', 'CONVERSIONS', 'PRODUCT_CATALOG_SALES'] },
+  { id: 'leads',        label: 'Lead Generation',    desc: 'Lead volume & cost efficiency',    cols: ['status', 'budget', 'spent', 'results', 'cpa', 'clicks', 'ctr'],                  objectives: ['OUTCOME_LEADS', 'LEAD_GENERATION', 'MESSAGES'] },
+  { id: 'traffic',      label: 'Traffic & Clicks',   desc: 'Website visits & click metrics',   cols: ['status', 'budget', 'spent', 'link_clicks', 'clicks', 'cpc', 'ctr', 'reach'],     objectives: ['OUTCOME_TRAFFIC', 'LINK_CLICKS'] },
+  { id: 'awareness',    label: 'Reach & Awareness',  desc: 'Audience reach & brand exposure',  cols: ['status', 'budget', 'spent', 'impressions', 'reach', 'frequency', 'cpm'],         objectives: ['OUTCOME_AWARENESS', 'REACH', 'BRAND_AWARENESS'] },
+  { id: 'engagement',   label: 'Engagement',         desc: 'Interactions & content performance', cols: ['status', 'budget', 'spent', 'results', 'cpa', 'impressions', 'reach', 'ctr'],  objectives: ['OUTCOME_ENGAGEMENT', 'POST_ENGAGEMENT', 'VIDEO_VIEWS'] },
+  { id: 'video',        label: 'Video Performance',  desc: 'Video views & cost per view',      cols: ['status', 'budget', 'spent', 'video_views', 'cost_per_thruplay', 'impressions', 'reach'], objectives: [] },
+  { id: 'delivery',     label: 'Delivery Overview',  desc: 'Reach, frequency & delivery',      cols: ['status', 'budget', 'spent', 'impressions', 'reach', 'frequency', 'cpm', 'cpc'],  objectives: [] },
 ];
+
+// Get the best template for an objective
+const getTemplateForObjective = (objective) =>
+  BUILT_IN_TEMPLATES.find(t => t.objectives.includes(objective)) || BUILT_IN_TEMPLATES[0];
+
+// Load custom templates from localStorage
+const getCustomTemplates = () => {
+  try { return JSON.parse(localStorage.getItem('aam_metric_templates') || '[]'); } catch { return []; }
+};
+const saveCustomTemplates = (templates) => localStorage.setItem('aam_metric_templates', JSON.stringify(templates));
+
+// Objective display formatting
+const OBJECTIVE_LABELS = {
+  'OUTCOME_SALES': 'Sales', 'OUTCOME_LEADS': 'Leads', 'OUTCOME_TRAFFIC': 'Traffic',
+  'OUTCOME_ENGAGEMENT': 'Engagement', 'OUTCOME_AWARENESS': 'Awareness', 'OUTCOME_APP_PROMOTION': 'App Promotion',
+  'CONVERSIONS': 'Conversions', 'LEAD_GENERATION': 'Leads', 'LINK_CLICKS': 'Traffic',
+  'MESSAGES': 'Messages', 'PRODUCT_CATALOG_SALES': 'Sales', 'POST_ENGAGEMENT': 'Engagement',
+  'VIDEO_VIEWS': 'Video Views', 'REACH': 'Reach', 'BRAND_AWARENESS': 'Awareness', 'APP_INSTALLS': 'App Installs',
+};
+const OBJECTIVE_COLORS = {
+  'Sales': 'bg-emerald-50 text-emerald-600', 'Leads': 'bg-blue-50 text-blue-600', 'Traffic': 'bg-cyan-50 text-cyan-600',
+  'Engagement': 'bg-violet-50 text-violet-600', 'Awareness': 'bg-amber-50 text-amber-600', 'App Promotion': 'bg-pink-50 text-pink-600',
+  'Conversions': 'bg-emerald-50 text-emerald-600', 'Messages': 'bg-indigo-50 text-indigo-600',
+  'Video Views': 'bg-purple-50 text-purple-600', 'Reach': 'bg-amber-50 text-amber-600', 'App Installs': 'bg-pink-50 text-pink-600',
+};
+const fmtObjective = (obj) => OBJECTIVE_LABELS[obj] || obj?.replace(/_/g, ' ') || '';
 
 // ── Helpers ──
 const fmtNum = (n) => n != null ? Number(n).toLocaleString() : '—';
@@ -89,6 +123,12 @@ const extractMetrics = (item) => {
   const resultValue = actionValues.find(a => a.action_type === resultAction?.action_type);
   const resultCpa = costPerAction.find(a => a.action_type === resultAction?.action_type);
   const roas = resultValue && ins.spend ? (Number(resultValue.value) / Number(ins.spend)).toFixed(1) + 'x' : null;
+  // Additional metrics
+  const linkClicks = actions.find(a => a.action_type === 'link_click');
+  const videoViews = actions.find(a => a.action_type === 'video_view');
+  const costPerThruplay = costPerAction.find(a => a.action_type === 'video_view');
+  const cpc = ins.spend && ins.clicks ? (Number(ins.spend) / Number(ins.clicks)) : null;
+
   return {
     spent: ins.spend ? fmtCurrency(ins.spend) : '—',
     impressions: ins.impressions ? fmtNum(ins.impressions) : '—',
@@ -96,12 +136,16 @@ const extractMetrics = (item) => {
     clicks: ins.clicks ? fmtNum(ins.clicks) : '—',
     ctr: ins.ctr ? fmtPct(ins.ctr) : '—',
     cpm: ins.cpm ? fmtCurrency(ins.cpm) : '—',
+    cpc: cpc ? fmtCurrency(cpc) : '—',
     frequency: ins.frequency ? Number(ins.frequency).toFixed(2) : '—',
     results: resultAction ? fmtNum(resultAction.value) : '—',
     cpa: resultCpa ? fmtCurrency(resultCpa.value) : '—',
     roas: roas || '—',
     conversions: resultAction ? fmtNum(resultAction.value) : '—',
     conv_value: resultValue ? fmtCurrency(resultValue.value) : '—',
+    link_clicks: linkClicks ? fmtNum(linkClicks.value) : '—',
+    video_views: videoViews ? fmtNum(videoViews.value) : '—',
+    cost_per_thruplay: costPerThruplay ? fmtCurrency(costPerThruplay.value) : '—',
   };
 };
 
@@ -162,7 +206,7 @@ const ColumnDropdown = ({ columns, onSetColumns, onClose }) => {
       <div className="px-4 pt-4 pb-2">
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Quick presets</p>
         <div className="flex flex-wrap gap-1.5">
-          {COLUMN_PRESETS.map(p => (
+          {BUILT_IN_TEMPLATES.map(p => (
             <button key={p.id} onClick={() => setSelected(new Set(p.cols))}
               className="px-3 py-1.5 text-[11px] font-medium rounded-lg border border-slate-200 text-slate-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all">
               {p.label}
@@ -291,8 +335,9 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
 
   // Tab-based navigation like Meta Ads Manager
   const [activeTab, setActiveTab] = useState('campaigns'); // 'campaigns' | 'adsets' | 'ads'
-  const [selectedCampaign, setSelectedCampaign] = useState(null); // for filtering ad sets
-  const [selectedAdSet, setSelectedAdSet] = useState(null); // for filtering ads
+  // Multi-select navigation: checked IDs carry over to next level
+  const [checkedCampaignIds, setCheckedCampaignIds] = useState([]); // campaign IDs to filter ad sets
+  const [checkedAdSetIds, setCheckedAdSetIds] = useState([]); // ad set IDs to filter ads
 
   // Date range
   const [datePreset, setDatePreset] = useState('last_7d');
@@ -378,43 +423,97 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
 
   useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
 
-  // Navigate to ad sets when clicking a campaign
+  // Helper: fetch ad sets for multiple campaign IDs in parallel
+  const fetchAdSetsMulti = useCallback(async (campaignIds) => {
+    if (!campaignIds.length) return;
+    setLoading(true); setError(null);
+    try {
+      const results = await Promise.all(campaignIds.map(id =>
+        api.get(`/meta/campaigns/${id}/adsets`, { params: { limit: 20, date_preset: datePreset } }).then(r => r.data)
+      ));
+      const allItems = results.flatMap(r => (r.data || r || []).map(as => normAdSet(as)));
+      setAdSets(allItems);
+      setAdSetsPaging(null); // no single cursor for multi-fetch
+    } catch (err) {
+      setError(err.response?.data?.error || err.message);
+    } finally { setLoading(false); }
+  }, [datePreset]);
+
+  // Helper: fetch ads for multiple ad set IDs in parallel
+  const fetchAdsMulti = useCallback(async (adSetIds) => {
+    if (!adSetIds.length) return;
+    setLoading(true); setError(null);
+    try {
+      const results = await Promise.all(adSetIds.map(id =>
+        api.get(`/meta/adsets/${id}/ads`, { params: { limit: 20, date_preset: datePreset } }).then(r => r.data)
+      ));
+      const allItems = results.flatMap(r => (r.data || r || []).map(normAd));
+      setAds(allItems);
+      setAdsPaging(null);
+    } catch (err) {
+      setError(err.response?.data?.error || err.message);
+    } finally { setLoading(false); }
+  }, [datePreset]);
+
+  // Navigate to ad sets by clicking a single campaign name
   const drillIntoCampaign = useCallback((campaign) => {
-    setSelectedCampaign(campaign);
-    setSelectedAdSet(null);
+    setCheckedCampaignIds([campaign.id]);
+    setCheckedAdSetIds([]);
     setActiveTab('adsets');
     setSelectedIds(new Set());
     setSearch('');
     fetchAdSets(campaign.id);
   }, [fetchAdSets]);
 
-  // Navigate to ads when clicking an ad set
+  // Navigate to ads by clicking a single ad set name
   const drillIntoAdSet = useCallback((adSet) => {
-    setSelectedAdSet(adSet);
+    setCheckedAdSetIds([adSet.id]);
     setActiveTab('ads');
     setSelectedIds(new Set());
     setSearch('');
     fetchAds(adSet.id);
   }, [fetchAds]);
 
-  // Tab click handler — drill-down only like Meta Ads Manager
+  // Tab click handler — multi-select like Meta Ads Manager
   const handleTabClick = useCallback((tab) => {
-    setActiveTab(tab);
-    setSelectedIds(new Set());
     setSearch('');
     if (tab === 'campaigns') {
-      setSelectedCampaign(null);
-      setSelectedAdSet(null);
+      setActiveTab('campaigns');
+      setCheckedCampaignIds([]);
+      setCheckedAdSetIds([]);
+      setSelectedIds(new Set());
       fetchCampaigns();
     } else if (tab === 'adsets') {
-      setSelectedAdSet(null);
-      // Only fetch if a campaign is selected
-      if (selectedCampaign) fetchAdSets(selectedCampaign.id);
+      // Carry over checked campaigns, or fetch all
+      const ids = [...selectedIds];
+      setCheckedCampaignIds(ids);
+      setCheckedAdSetIds([]);
+      setActiveTab('adsets');
+      setSelectedIds(new Set());
+      if (ids.length > 0) fetchAdSetsMulti(ids);
+      else {
+        // Fetch all ad sets for account
+        setLoading(true); setError(null);
+        api.get(`/meta/adaccounts/${adAccountId}/adsets`, { params: { limit: 20, date_preset: datePreset } })
+          .then(({ data }) => { setAdSets((data.data || data || []).map(as => normAdSet(as))); setAdSetsPaging(data.paging || null); })
+          .catch(err => setError(err.response?.data?.error || err.message))
+          .finally(() => setLoading(false));
+      }
     } else if (tab === 'ads') {
-      // Only fetch if an ad set is selected
-      if (selectedAdSet) fetchAds(selectedAdSet.id);
+      const ids = [...selectedIds];
+      setCheckedAdSetIds(ids);
+      setActiveTab('ads');
+      setSelectedIds(new Set());
+      if (ids.length > 0) fetchAdsMulti(ids);
+      else {
+        setLoading(true); setError(null);
+        api.get(`/meta/adaccounts/${adAccountId}/ads`, { params: { limit: 20, date_preset: datePreset } })
+          .then(({ data }) => { setAds((data.data || data || []).map(normAd)); setAdsPaging(data.paging || null); })
+          .catch(err => setError(err.response?.data?.error || err.message))
+          .finally(() => setLoading(false));
+      }
     }
-  }, [selectedCampaign, selectedAdSet, fetchAdSets, fetchAds, fetchCampaigns]);
+  }, [selectedIds, adAccountId, datePreset, fetchCampaigns, fetchAdSetsMulti, fetchAdsMulti]);
 
   // Load more for current tab
   const handleLoadMore = useCallback(() => {
@@ -422,9 +521,9 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
     const after = paging?.cursors?.after;
     if (!after) return;
     if (activeTab === 'campaigns') fetchCampaigns(after);
-    else if (activeTab === 'adsets' && selectedCampaign) fetchAdSets(selectedCampaign.id, after);
-    else if (activeTab === 'ads' && selectedAdSet) fetchAds(selectedAdSet.id, after);
-  }, [activeTab, campaignsPaging, adSetsPaging, adsPaging, selectedCampaign, selectedAdSet, fetchCampaigns, fetchAdSets, fetchAds]);
+    else if (activeTab === 'adsets' && checkedCampaignIds.length === 1) fetchAdSets(checkedCampaignIds[0], after);
+    else if (activeTab === 'ads' && checkedAdSetIds.length === 1) fetchAds(checkedAdSetIds[0], after);
+  }, [activeTab, campaignsPaging, adSetsPaging, adsPaging, checkedCampaignIds, checkedAdSetIds, fetchCampaigns, fetchAdSets, fetchAds]);
 
   // Current data based on active tab
   const currentData = activeTab === 'campaigns' ? campaigns : activeTab === 'adsets' ? adSets : ads;
@@ -480,10 +579,6 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
     const ids = [...selectedIds];
     setUpdatingIds(new Set(ids));
     try {
-      const endpoint = activeTab === 'campaigns' ? '/meta/campaigns/bulk'
-        : activeTab === 'adsets' ? '/meta/adsets/bulk'
-        : '/meta/ads/bulk';
-      // Call individual updates (Meta API doesn't have a native bulk endpoint for this)
       await Promise.all(ids.map(id => {
         const ep = activeTab === 'campaigns' ? `/meta/campaigns/${id}`
           : activeTab === 'adsets' ? `/meta/adsets/${id}`
@@ -614,7 +709,7 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
               selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => { if (activeTab === 'campaigns') fetchCampaigns(); else if (activeTab === 'adsets') fetchAdSets(selectedCampaign?.id); else fetchAds(selectedAdSet?.id); }}
+            <button onClick={() => { if (activeTab === 'campaigns') fetchCampaigns(); else if (activeTab === 'adsets') { checkedCampaignIds.length ? fetchAdSetsMulti(checkedCampaignIds) : handleTabClick('adsets'); } else { checkedAdSetIds.length ? fetchAdsMulti(checkedAdSetIds) : handleTabClick('ads'); } }}
               disabled={loading}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
@@ -653,23 +748,26 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
             ))}
           </div>
           {/* Breadcrumb */}
-          {(selectedCampaign || selectedAdSet) && (
+          {(checkedCampaignIds.length > 0 || checkedAdSetIds.length > 0) && (
             <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
               <button onClick={() => handleTabClick('campaigns')} className="hover:text-blue-600 transition-colors">All Campaigns</button>
-              {selectedCampaign && (
+              {checkedCampaignIds.length > 0 && (
                 <>
                   <ChevronRight size={12} />
-                  <button onClick={() => drillIntoCampaign(selectedCampaign)}
-                    className={`hover:text-blue-600 transition-colors ${activeTab === 'adsets' ? 'text-slate-700 font-medium' : ''}`}>
-                    {selectedCampaign.name?.slice(0, 30)}{selectedCampaign.name?.length > 30 ? '...' : ''}
-                  </button>
+                  <span className={`${activeTab === 'adsets' ? 'text-slate-700 font-medium' : ''}`}>
+                    {checkedCampaignIds.length === 1
+                      ? (campaigns.find(c => c.id === checkedCampaignIds[0])?.name?.slice(0, 30) || checkedCampaignIds[0])
+                      : `${checkedCampaignIds.length} campaigns`}
+                  </span>
                 </>
               )}
-              {selectedAdSet && (
+              {checkedAdSetIds.length > 0 && (
                 <>
                   <ChevronRight size={12} />
                   <span className="text-slate-700 font-medium">
-                    {selectedAdSet.name?.slice(0, 30)}{selectedAdSet.name?.length > 30 ? '...' : ''}
+                    {checkedAdSetIds.length === 1
+                      ? (adSets.find(a => a.id === checkedAdSetIds[0])?.name?.slice(0, 30) || checkedAdSetIds[0])
+                      : `${checkedAdSetIds.length} ad sets`}
                   </span>
                 </>
               )}
@@ -739,16 +837,6 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
           <div className="flex flex-col items-center justify-center py-20">
             <p className="text-sm font-semibold text-slate-700 mb-1">{!token ? 'Connect an ad platform' : 'Select an ad account'}</p>
             <p className="text-xs text-slate-400">Use the account selector above to get started.</p>
-          </div>
-        ) : (activeTab === 'adsets' && !selectedCampaign) ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <p className="text-sm font-semibold text-slate-700 mb-1">Select a campaign first</p>
-            <p className="text-xs text-slate-400">Click on a campaign name to view its ad sets.</p>
-          </div>
-        ) : (activeTab === 'ads' && !selectedAdSet) ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <p className="text-sm font-semibold text-slate-700 mb-1">Select an ad set first</p>
-            <p className="text-xs text-slate-400">Click on an ad set name to view its ads.</p>
           </div>
         ) : loading && currentData.length === 0 ? (
           <div className="flex items-center justify-center py-20">
