@@ -214,10 +214,15 @@ router.post('/', async (req, res) => {
     };
 
     const { error } = await supabase.from('custom_skills').insert(row);
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) {
+      console.error('[skills] POST / insert error:', error);
+      return res.status(500).json({ error: error.message });
+    }
 
+    console.log('[skills] Created skill:', row.id, row.name);
     res.json({ ...row, isDefault: false, visibility: 'custom', updatedAt: new Date().toISOString() });
   } catch (err) {
+    console.error('[skills] POST / error:', err);
     res.status(500).json({ error: err.message });
   }
 });

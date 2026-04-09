@@ -261,11 +261,15 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
     }
   };
 
+  const [uploadError, setUploadError] = useState(null);
+
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setUploadError(null);
     try {
       const text = await file.text();
+      if (!text.trim()) { setUploadError('File is empty'); e.target.value = ''; return; }
       const match = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
       if (match) {
         const meta = {};
@@ -279,9 +283,11 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
           return;
         }
       }
+      // No frontmatter — use filename as name, full content as body
       await onCreate({ name: file.name.replace(/\.(skill|md|zip|txt)$/, ''), description: '', content: text, type: 'strategy' });
     } catch (err) {
       console.error('Failed to import skill file:', err);
+      setUploadError(err.response?.data?.error || err.message || 'Upload failed');
     }
     e.target.value = '';
   };
@@ -321,6 +327,14 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
     <div className="w-full h-full bg-gradient-to-br from-slate-50 via-white to-indigo-50/20 flex flex-col">
       {/* Hidden file input */}
       <input ref={fileInputRef} type="file" accept=".skill,.md,.zip,.txt" onChange={handleFileUpload} className="hidden" />
+
+      {/* Upload error */}
+      {uploadError && (
+        <div className="mx-8 mt-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg flex items-center justify-between">
+          <span>{uploadError}</span>
+          <button onClick={() => setUploadError(null)} className="text-red-400 hover:text-red-600"><X size={14} /></button>
+        </div>
+      )}
 
       {/* Header */}
       <div className="px-8 pt-8 pb-6 shrink-0">
