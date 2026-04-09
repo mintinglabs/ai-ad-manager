@@ -302,7 +302,7 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
     .map(s => ({
       ...s,
       isOfficial: s.visibility === 'official' || s.isDefault,
-      isPersonal: s.visibility === 'private',
+      isPersonal: s.visibility === 'private' || s.visibility === 'custom',
       updatedAt: s.updatedAt || (s.isDefault ? '2026-04-09' : new Date().toISOString()),
     }))
     .filter(s => {

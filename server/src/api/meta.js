@@ -199,6 +199,40 @@ router.get('/adsets/:id/ads', async (req, res, next) => {
   }
 });
 
+// All ad sets for an ad account
+router.get('/adaccounts/:id/adsets', async (req, res, next) => {
+  try {
+    const { data } = await metaClient.metaApi.get(`/${req.params.id}/adsets`, {
+      params: {
+        access_token: req.token,
+        limit: 200,
+        fields: 'id,name,campaign_id,status,effective_status,daily_budget,lifetime_budget,optimization_goal,insights.date_preset(last_7d){spend,impressions,clicks,ctr,cpm,reach,frequency,actions,action_values,cost_per_action_type}',
+      }
+    });
+    res.json(data?.data || []);
+  } catch (err) {
+    const metaErr = err.response?.data?.error;
+    res.status(err.response?.status || 500).json({ error: metaErr?.message || err.message, code: metaErr?.code });
+  }
+});
+
+// All ads for an ad account
+router.get('/adaccounts/:id/ads', async (req, res, next) => {
+  try {
+    const { data } = await metaClient.metaApi.get(`/${req.params.id}/ads`, {
+      params: {
+        access_token: req.token,
+        limit: 200,
+        fields: 'id,name,adset_id,status,effective_status,creative{id,thumbnail_url,image_url,video_id},insights.date_preset(last_7d){spend,impressions,clicks,ctr,cpm,reach,frequency,actions,action_values,cost_per_action_type}',
+      }
+    });
+    res.json(data?.data || []);
+  } catch (err) {
+    const metaErr = err.response?.data?.error;
+    res.status(err.response?.status || 500).json({ error: metaErr?.message || err.message, code: metaErr?.code });
+  }
+});
+
 // --- Ad Account Details ---
 router.get('/adaccounts/:id/details', async (req, res, next) => {
   try {
