@@ -345,7 +345,7 @@ export const Sidebar = ({
               : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
         >
           <BarChart3 size={14} className={activeView?.type === 'campaigns' ? 'text-emerald-500' : 'text-slate-400'} />
-          <span className="flex-1 text-left">Campaign Manager</span>
+          <span className="flex-1 text-left">Campaigns</span>
           <ChevronRight size={12} className="text-slate-300" />
         </button>
 
@@ -358,7 +358,7 @@ export const Sidebar = ({
               : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
         >
           <Users size={14} className={activeView?.type === 'audiences' ? 'text-blue-500' : 'text-slate-400'} />
-          <span className="flex-1 text-left">Audience Manager</span>
+          <span className="flex-1 text-left">Audiences</span>
           <ChevronRight size={12} className="text-slate-300" />
         </button>
 
