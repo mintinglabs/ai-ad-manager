@@ -2318,7 +2318,7 @@ const useSuggestedSkill = (input, skills, activeSkill, slashSkills) => {
   return suggested;
 };
 
-const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, attachments, onRemoveAttachment, fileRef, isTyping, handleFileUpload, isOver, activeSkill, activeSkills = [], onDeactivateSkill, skills = [], onSlashSelect, slashSkills = [], onRemoveSlashSkill, onClearAllSlash, onToggleSkill, onManageSkills, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, enabledSkillIds = [], activeSkillIds }) => {
+const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, attachments, onRemoveAttachment, onRetryUpload, fileRef, isTyping, handleFileUpload, isOver, activeSkill, activeSkills = [], onDeactivateSkill, skills = [], onSlashSelect, slashSkills = [], onRemoveSlashSkill, onClearAllSlash, onToggleSkill, onManageSkills, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, enabledSkillIds = [], activeSkillIds }) => {
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -2371,7 +2371,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
     <div className="relative">
       <div className={`bg-white/80 backdrop-blur-xl border rounded-2xl shadow-lg shadow-slate-200/50 transition-all
         ${isOver ? 'border-blue-400 ring-2 ring-blue-100' : 'border-slate-200'}`}>
-        <AttachmentBar attachments={attachments} onRemove={onRemoveAttachment} onRetry={uploadFile} />
+        <AttachmentBar attachments={attachments} onRemove={onRemoveAttachment} onRetry={onRetryUpload} />
         {/* Skill chips — shown above textarea */}
         {hasChips && (
           <div className="px-4 pt-3 pb-0 flex flex-wrap items-center gap-1.5">
@@ -2844,7 +2844,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
             <ChatInput
               input={input} setInput={setInput} onKeyDown={handleKeyDown}
               onSend={() => handleSend()} onStop={onStop} onFilesAdded={addFiles}
-              attachments={attachments} onRemoveAttachment={removeAttachment}
+              attachments={attachments} onRemoveAttachment={removeAttachment} onRetryUpload={uploadFile}
               fileRef={fileRef} isTyping={isTyping}
               handleFileUpload={handleFileInput} isOver={isDragOver}
               activeSkill={activeSkill} activeSkills={activeSkills} activeSkillIds={activeSkillIds} onDeactivateSkill={onDeactivateSkill}
@@ -2917,7 +2917,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
               <ChatInput
                 input={input} setInput={setInput} onKeyDown={handleKeyDown}
                 onSend={() => handleSend()} onStop={onStop} onFilesAdded={addFiles}
-                attachments={attachments} onRemoveAttachment={removeAttachment}
+                attachments={attachments} onRemoveAttachment={removeAttachment} onRetryUpload={uploadFile}
                 fileRef={fileRef} isTyping={isTyping}
                 handleFileUpload={handleFileInput} isOver={isDragOver}
                 activeSkill={activeSkill} activeSkills={activeSkills} activeSkillIds={activeSkillIds} onDeactivateSkill={onDeactivateSkill}
