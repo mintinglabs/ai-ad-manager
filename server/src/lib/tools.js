@@ -1673,7 +1673,6 @@ const executorTools = pick(
   'create_ad_set', 'update_ad_set', 'delete_ad_set', 'copy_ad_set',
   'get_ad_sets', 'get_ad_set', 'get_ad_set_ads',
   // Audience (for ad set targeting)
-  'get_custom_audiences', 'get_saved_audiences',
   'targeting_search', 'targeting_browse', 'targeting_suggestions', 'targeting_validation',
   'get_reach_estimate', 'get_delivery_estimate',
   // Creative assembly
