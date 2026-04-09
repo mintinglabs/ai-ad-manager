@@ -378,19 +378,6 @@ export const Sidebar = ({
           <ChevronRight size={12} className="text-slate-300" />
         </button>
 
-        {/* Instant Forms */}
-        <button
-          onClick={onOpenInstantForms}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
-            ${activeView?.type === 'instantForms'
-              ? 'bg-orange-50 text-orange-700 border-orange-200'
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
-        >
-          <ClipboardList size={14} className={activeView?.type === 'instantForms' ? 'text-orange-500' : 'text-slate-400'} />
-          <span className="flex-1 text-left">Instant Forms</span>
-          <ChevronRight size={12} className="text-slate-300" />
-        </button>
-
         {/* Events Manager */}
         <button
           onClick={onOpenEventsManager}
