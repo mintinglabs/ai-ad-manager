@@ -345,10 +345,7 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
       {/* Header */}
       <div className="px-8 pt-8 pb-6 shrink-0">
         <div className="flex items-center gap-3 mb-1">
-          <button onClick={onBack}
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
-            <ChevronLeft size={18} />
-          </button>
+          <Sparkles size={24} className="text-indigo-500 shrink-0" />
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Skills</h1>
             <p className="text-sm text-slate-400 mt-0.5">Prepackaged and repeatable best practices & tools for your agents</p>

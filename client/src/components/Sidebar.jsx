@@ -244,6 +244,24 @@ export const Sidebar = ({
   const [editingFolderId, setEditingFolderId] = useState(null);
   const [editFolderName, setEditFolderName] = useState('');
   const newFolderRef = useRef(null);
+  const [hoverExpanded, setHoverExpanded] = useState(false);
+  const hoverTimerRef = useRef(null);
+
+  // Effective open state: open from prop OR temporarily from hover
+  const isOpen = open || hoverExpanded;
+
+  const handleHamburgerEnter = () => {
+    if (open) return; // already permanently open
+    clearTimeout(hoverTimerRef.current);
+    setHoverExpanded(true);
+  };
+  const handleSidebarLeave = () => {
+    if (open) return; // permanently open, don't auto-collapse
+    hoverTimerRef.current = setTimeout(() => setHoverExpanded(false), 300);
+  };
+  const handleSidebarEnter = () => {
+    clearTimeout(hoverTimerRef.current);
+  };
 
   // Close context menu / collapsed history on outside click
   useEffect(() => {
@@ -316,13 +334,17 @@ export const Sidebar = ({
   ];
 
   return (
-    <aside style={{ width: open ? 260 : 52 }} className="shrink-0 bg-white/70 backdrop-blur-xl border-r border-slate-200 flex flex-col h-screen transition-all duration-200 ease-in-out z-20 relative overflow-hidden">
+    <aside style={{ width: isOpen ? 260 : 52 }}
+      onMouseEnter={handleSidebarEnter}
+      onMouseLeave={handleSidebarLeave}
+      className="shrink-0 bg-white/70 backdrop-blur-xl border-r border-slate-200 flex flex-col h-screen transition-all duration-200 ease-in-out z-20 relative overflow-hidden">
 
-      {/* Collapsed overlay — icon rail, absolutely positioned so it doesn't affect expanded layout */}
-      <div className={`absolute inset-0 flex flex-col items-center transition-opacity duration-150 ${open ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+      {/* Collapsed overlay — icon rail */}
+      <div className={`absolute inset-0 flex flex-col items-center transition-opacity duration-150 ${isOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         {/* Header */}
         <div className="h-[64px] w-full flex items-center justify-center shrink-0">
-          <button onClick={onToggle} className="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
+          <button onClick={onToggle} onMouseEnter={handleHamburgerEnter}
+            className="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
             <Menu size={18} />
           </button>
         </div>
@@ -356,13 +378,13 @@ export const Sidebar = ({
               ${collapsedHistoryOpen ? 'bg-slate-100 text-slate-600' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}>
             <MessageSquare size={16} />
             {!collapsedHistoryOpen && (
-              <span className="absolute left-full ml-2 px-2.5 py-1 text-[11px] font-medium text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[60] shadow-lg">Chats & Folders</span>
+              <span className="absolute left-full ml-2 px-2.5 py-1 text-[11px] font-medium text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[60] shadow-lg">All Tasks</span>
             )}
           </button>
           {collapsedHistoryOpen && (
             <div className="absolute left-full top-0 ml-2 w-[240px] bg-white border border-slate-200 rounded-xl shadow-xl z-[60] overflow-hidden max-h-[400px] flex flex-col">
               <div className="px-3 py-2 border-b border-slate-100">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chats & Folders</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">All Tasks</p>
               </div>
               <div className="flex-1 overflow-auto">
                 {sortedFolders.length > 0 && (
@@ -403,7 +425,7 @@ export const Sidebar = ({
       </div>
 
       {/* Expanded content — fades in/out */}
-      <div className={`flex flex-col h-full transition-opacity duration-150 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      <div className={`flex flex-col h-full transition-opacity duration-150 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
 
       {/* Header */}
       <div className="px-4 py-4 flex items-center justify-between">
@@ -413,7 +435,7 @@ export const Sidebar = ({
           </div>
           <span className="text-[15px] font-bold text-slate-800 tracking-tight">AI Ad Manager</span>
         </div>
-        <button onClick={onToggle} className="text-slate-400 hover:text-slate-600 transition-colors">
+        <button onClick={() => { setHoverExpanded(false); onToggle(); }} className="text-slate-400 hover:text-slate-600 transition-colors">
           <Menu size={18} />
         </button>
       </div>
@@ -567,7 +589,7 @@ export const Sidebar = ({
         {/* Folders Section */}
         <div className="mb-3">
           <div className="flex items-center justify-between px-3 py-1.5">
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Folders</p>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Chat Library</p>
             <button onClick={handleAddFolder} className="text-slate-300 hover:text-blue-500 transition-colors" title="Add folder">
               <FolderPlus size={13} />
             </button>
