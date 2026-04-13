@@ -56,12 +56,21 @@ export const Dashboard = ({
 
   const {
     projects, createProject, updateProject, deleteProject,
-    addTask, toggleTask, deleteTask, updateInstructions, addFile, deleteFile, toggleSkill: toggleProjectSkill,
+    addTask, toggleTask, deleteTask, updateInstructions, addFile, deleteFile, toggleSkill: toggleProjectSkill, addConnector, removeConnector,
   } = useProjects();
 
   const handleOpenProject = useCallback((projectId) => {
     setActiveView({ type: 'projectDetail', projectId });
-  }, []);
+    // Auto-switch to project's connected ad account
+    const proj = projects.find(p => p.id === projectId);
+    const connector = (proj?.connectors || [])[0];
+    if (connector?.accountId && connector.accountId !== selectedAccount?.id) {
+      const biz = connector.businessId ? { id: connector.businessId, name: connector.businessName } : selectedBusiness;
+      const acc = { id: connector.accountId, name: connector.accountName, account_id: connector.accountId.replace('act_', '') };
+      if (biz) onSwitchBusiness(biz);
+      onSwitchAccount(acc);
+    }
+  }, [projects, selectedAccount, selectedBusiness, onSwitchBusiness, onSwitchAccount]);
 
   const handleLanguageChange = useCallback((lang) => {
     setChatLanguage(lang);
@@ -379,6 +388,8 @@ export const Dashboard = ({
                 onAddFile={(file) => addFile(proj.id, file)}
                 onDeleteFile={(fileId) => deleteFile(proj.id, fileId)}
                 onToggleSkill={(skillId) => toggleProjectSkill(proj.id, skillId)}
+                onAddConnector={(connector) => addConnector(proj.id, connector)}
+                onRemoveConnector={(connectorId) => removeConnector(proj.id, connectorId)}
                 onOpenChat={() => setActiveView({ type: 'chat' })}
               />
             );

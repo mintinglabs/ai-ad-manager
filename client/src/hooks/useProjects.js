@@ -106,6 +106,21 @@ export const useProjects = () => {
     }));
   }, []);
 
+  const addConnector = useCallback((projectId, connector) => {
+    // connector: { type: 'meta', accountId, accountName, businessId, businessName }
+    const c = { id: `conn_${Date.now()}`, ...connector };
+    persist(prev => prev.map(p =>
+      p.id === projectId ? { ...p, connectors: [...(p.connectors || []), c], updatedAt: Date.now() } : p
+    ));
+    return c;
+  }, []);
+
+  const removeConnector = useCallback((projectId, connectorId) => {
+    persist(prev => prev.map(p =>
+      p.id === projectId ? { ...p, connectors: (p.connectors || []).filter(c => c.id !== connectorId), updatedAt: Date.now() } : p
+    ));
+  }, []);
+
   return {
     projects,
     createProject,
@@ -118,5 +133,7 @@ export const useProjects = () => {
     addFile,
     deleteFile,
     toggleSkill,
+    addConnector,
+    removeConnector,
   };
 };

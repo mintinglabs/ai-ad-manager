@@ -244,6 +244,8 @@ export const Sidebar = ({
   const [dragFolderId, setDragFolderId] = useState(null);
   const [dragOverFolderId, setDragOverFolderId] = useState(null);
   const [collapsedHistoryOpen, setCollapsedHistoryOpen] = useState(false);
+  const [addingProject, setAddingProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
   const [editingFolderId, setEditingFolderId] = useState(null);
   const [editFolderName, setEditFolderName] = useState('');
   const newFolderRef = useRef(null);
@@ -573,15 +575,31 @@ export const Sidebar = ({
         <div className="mb-3">
           <div className="flex items-center justify-between px-3 py-1.5">
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Projects</p>
-            <button onClick={() => {
-              const name = prompt('Project name:');
-              if (name?.trim()) onCreateProject(name.trim());
-            }} className="text-slate-300 hover:text-blue-500 transition-colors" title="New project">
+            <button onClick={() => setAddingProject(true)} className="text-slate-300 hover:text-blue-500 transition-colors" title="New project">
               <Plus size={13} />
             </button>
           </div>
 
-          {projects.length === 0 ? (
+          {/* Inline new project input */}
+          {addingProject && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5">
+              <FolderOpen size={13} className="text-blue-400 shrink-0" />
+              <input
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                onBlur={() => { if (newProjectName.trim()) { const p = onCreateProject(newProjectName.trim()); onOpenProject(p.id); } setAddingProject(false); setNewProjectName(''); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newProjectName.trim()) { const p = onCreateProject(newProjectName.trim()); onOpenProject(p.id); setAddingProject(false); setNewProjectName(''); }
+                  if (e.key === 'Escape') { setAddingProject(false); setNewProjectName(''); }
+                }}
+                placeholder="Project name..."
+                className="text-[12px] font-medium bg-blue-50 border border-blue-200 rounded-lg px-2 py-1 w-full focus:outline-none focus:ring-1 focus:ring-blue-300"
+                autoFocus
+              />
+            </div>
+          )}
+
+          {projects.length === 0 && !addingProject ? (
             <p className="px-3 py-2 text-[11px] text-slate-300 italic">No projects yet</p>
           ) : (
             projects.map(project => (

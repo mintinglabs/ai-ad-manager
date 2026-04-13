@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
-import { FolderOpen, Plus, ChevronRight, Check, Trash2, X, FileText, Upload, Sparkles, Settings, MoreHorizontal, Pencil, CheckCircle, Circle, Clock } from 'lucide-react';
+import { FolderOpen, Plus, ChevronRight, Check, Trash2, X, FileText, Upload, Sparkles, Settings, MoreHorizontal, Pencil, CheckCircle, Circle, Clock, Link2, Building2, ChevronDown } from 'lucide-react';
+import { useBusinesses } from '../hooks/useBusinesses.js';
+import { useAdAccounts } from '../hooks/useAdAccounts.js';
 
 const fmtDate = (ts) => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
 const fmtSize = (bytes) => bytes < 1024 ? `${bytes}B` : bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)}KB` : `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
@@ -196,8 +198,114 @@ const SkillsSection = ({ skillIds, skills, onToggle }) => {
   );
 };
 
+// ── Connectors Section ──
+const ConnectorsSection = ({ connectors, onAdd, onRemove }) => {
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerLevel, setPickerLevel] = useState('business'); // 'business' | 'accounts'
+  const [activeBiz, setActiveBiz] = useState(null);
+  const { businesses, isLoading: bizLoading } = useBusinesses();
+  const { adAccounts, isLoading: accLoading } = useAdAccounts(pickerLevel === 'accounts' ? activeBiz?.id : null);
+
+  const handleSelectAccount = (account) => {
+    onAdd({
+      type: 'meta',
+      accountId: account.id,
+      accountName: account.name,
+      businessId: activeBiz?.id,
+      businessName: activeBiz?.name,
+    });
+    setShowPicker(false);
+    setPickerLevel('business');
+    setActiveBiz(null);
+  };
+
+  const MetaIcon = () => (
+    <img src="/meta-icon.svg" alt="Meta" className="w-4 h-4 shrink-0" />
+  );
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-5">
+      <SectionHeader icon={Link2} title="Connectors" action={() => { setShowPicker(!showPicker); setPickerLevel('business'); }} actionLabel="Add" />
+      <p className="text-[11px] text-slate-400 mb-3">Link ad platform accounts to this project</p>
+
+      {/* Connected accounts */}
+      {(connectors || []).length > 0 && (
+        <div className="space-y-1 mb-3">
+          {connectors.map(c => (
+            <div key={c.id} className="group flex items-center gap-2.5 py-2 px-2 -mx-2 rounded-lg hover:bg-slate-50 transition-colors">
+              <MetaIcon />
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] font-medium text-slate-700 truncate">{c.accountName}</p>
+                <p className="text-[10px] text-slate-400">{c.businessName}</p>
+              </div>
+              <button onClick={() => onRemove(c.id)}
+                className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all">
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Account picker */}
+      {showPicker && (
+        <div className="border border-slate-200 rounded-lg overflow-hidden max-h-[250px] flex flex-col">
+          {pickerLevel === 'business' ? (
+            <>
+              <div className="px-3 py-2 bg-slate-50 border-b border-slate-100">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select Business</p>
+              </div>
+              <div className="flex-1 overflow-auto">
+                {bizLoading ? (
+                  <p className="text-[11px] text-slate-400 text-center py-4">Loading...</p>
+                ) : businesses.length === 0 ? (
+                  <p className="text-[11px] text-slate-400 text-center py-4">No businesses found</p>
+                ) : businesses.map(biz => (
+                  <button key={biz.id} onClick={() => { setActiveBiz(biz); setPickerLevel('accounts'); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-50 transition-colors">
+                    <Building2 size={13} className="text-slate-400 shrink-0" />
+                    <span className="text-[12px] text-slate-600 truncate flex-1">{biz.name}</span>
+                    <ChevronRight size={12} className="text-slate-300" />
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
+                <button onClick={() => setPickerLevel('business')} className="text-slate-400 hover:text-slate-600">
+                  <ChevronDown size={14} className="rotate-90" />
+                </button>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">{activeBiz?.name}</p>
+              </div>
+              <div className="flex-1 overflow-auto">
+                {accLoading ? (
+                  <p className="text-[11px] text-slate-400 text-center py-4">Loading accounts...</p>
+                ) : (Array.isArray(adAccounts) ? adAccounts : []).length === 0 ? (
+                  <p className="text-[11px] text-slate-400 text-center py-4">No ad accounts found</p>
+                ) : (Array.isArray(adAccounts) ? adAccounts : []).map(acc => {
+                  const alreadyConnected = (connectors || []).some(c => c.accountId === acc.id);
+                  return (
+                    <button key={acc.id} onClick={() => !alreadyConnected && handleSelectAccount(acc)}
+                      disabled={alreadyConnected}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-colors ${alreadyConnected ? 'opacity-40' : 'hover:bg-blue-50'}`}>
+                      <MetaIcon />
+                      <span className="text-[12px] text-slate-600 truncate flex-1">{acc.name}</span>
+                      {alreadyConnected && <Check size={12} className="text-emerald-500" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Main Component ──
-export const ProjectDetail = ({ project, skills = [], onUpdate, onDelete, onAddTask, onToggleTask, onDeleteTask, onUpdateInstructions, onAddFile, onDeleteFile, onToggleSkill, onOpenChat }) => {
+export const ProjectDetail = ({ project, skills = [], onUpdate, onDelete, onAddTask, onToggleTask, onDeleteTask, onUpdateInstructions, onAddFile, onDeleteFile, onToggleSkill, onAddConnector, onRemoveConnector, onOpenChat }) => {
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(project.name);
   const [showMenu, setShowMenu] = useState(false);
@@ -268,10 +376,27 @@ export const ProjectDetail = ({ project, skills = [], onUpdate, onDelete, onAddT
         </div>
       </div>
 
+      {/* Project input bar — our orange-glow style */}
+      <div className="px-8 py-4 shrink-0">
+        <div className="max-w-5xl mx-auto">
+          <div className="bg-white/80 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-lg shadow-slate-200/50 animate-[pulse-orange_3s_ease-in-out_infinite] px-4 py-3">
+            <p className="text-[12px] text-slate-400 mb-3">Tasks are independent for focus. Use project instructions and files for shared context.</p>
+            <div className="flex items-center gap-2">
+              <button onClick={() => {}} className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-orange-500 hover:border-orange-300 transition-colors">
+                <Plus size={14} />
+              </button>
+              <button onClick={onOpenChat} className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-orange-500 hover:border-orange-300 transition-colors" title="Open Chat">
+                <Link2 size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Content — two column layout like Manus */}
       <div className="flex-1 overflow-auto">
         <div className="max-w-5xl mx-auto px-8 py-6 flex gap-6">
-          {/* Left: Tasks + Chat input */}
+          {/* Left: Tasks */}
           <div className="flex-1 min-w-0">
             <TasksSection
               tasks={project.tasks || []}
@@ -281,11 +406,16 @@ export const ProjectDetail = ({ project, skills = [], onUpdate, onDelete, onAddT
             />
           </div>
 
-          {/* Right: Instructions, Files, Skills */}
+          {/* Right: Instructions, Connectors, Files, Skills */}
           <div className="w-[300px] shrink-0 space-y-4">
             <InstructionsSection
               instructions={project.instructions || ''}
               onUpdate={(text) => onUpdateInstructions(text)}
+            />
+            <ConnectorsSection
+              connectors={project.connectors || []}
+              onAdd={onAddConnector}
+              onRemove={onRemoveConnector}
             />
             <FilesSection
               files={project.files || []}
