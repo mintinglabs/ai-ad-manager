@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Search, RefreshCw, Loader2, X, Eye, Play, ChevronDown, Palette, ExternalLink, Megaphone, Layers, Calendar } from 'lucide-react';
 import { AccountSelector } from './AccountSelector.jsx';
+import { AskAIButton, AskAIPopup } from './AskAIPopup.jsx';
 import api from '../services/api.js';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
@@ -268,7 +269,8 @@ const DateFilter = ({ datePreset, setDatePreset, customFrom, setCustomFrom, cust
 };
 
 // ── Main Component ──
-export const AdLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount }) => {
+export const AdLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onSendToChat }) => {
+  const [showAskAI, setShowAskAI] = useState(false);
   const [ads, setAds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -366,10 +368,13 @@ export const AdLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAccou
             <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
               selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
           </div>
-          <button onClick={() => fetchAds()} disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
-            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <AskAIButton onClick={() => setShowAskAI(true)} />
+            <button onClick={() => fetchAds()} disabled={loading}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
+              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
+            </button>
+          </div>
         </div>
       </div>
 
@@ -436,6 +441,8 @@ export const AdLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAccou
       </div>
 
       {previewAd && <AdPreviewModal ad={previewAd} onClose={() => setPreviewAd(null)} />}
+
+      {showAskAI && <AskAIPopup onSubmit={onSendToChat} onClose={() => setShowAskAI(false)} context="Ad Library" />}
     </div>
   );
 };

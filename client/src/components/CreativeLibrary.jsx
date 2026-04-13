@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Search, RefreshCw, Image as ImageIcon, Film, Loader2, Trash2, X, Download, Clock, Maximize2, Grid, List } from 'lucide-react';
 import { AccountSelector } from './AccountSelector.jsx';
+import { AskAIButton, AskAIPopup } from './AskAIPopup.jsx';
 import api from '../services/api.js';
 
 // ── Helpers ──
@@ -145,7 +146,8 @@ const AssetCard = ({ asset, isVideo, selected, onSelect, onPreview, onDelete, vi
 };
 
 // ── Main Component ──
-export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onBack }) => {
+export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onBack, onSendToChat }) => {
+  const [showAskAI, setShowAskAI] = useState(false);
   const [images, setImages] = useState([]);
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -323,6 +325,7 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
               selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
           </div>
           <div className="flex items-center gap-2">
+            <AskAIButton onClick={() => setShowAskAI(true)} />
             <button onClick={fetchAssets} disabled={loading}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
@@ -528,6 +531,8 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
           </div>
         </>
       )}
+
+      {showAskAI && <AskAIPopup onSubmit={onSendToChat} onClose={() => setShowAskAI(false)} context="Asset Library" />}
     </div>
   );
 };

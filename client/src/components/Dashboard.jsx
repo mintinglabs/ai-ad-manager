@@ -329,6 +329,7 @@ export const Dashboard = ({
               selectedAccount={selectedAccount}
               selectedBusiness={selectedBusiness}
               onSelectAccount={handleAccountSelect}
+              onSendToChat={handleAudienceToChat}
             />
           ) : activeView.type === 'automationRules' ? (
             <AutomationRules
@@ -340,6 +341,7 @@ export const Dashboard = ({
               selectedAccount={selectedAccount}
               selectedBusiness={selectedBusiness}
               onSelectAccount={handleAccountSelect}
+              onSendToChat={handleAudienceToChat}
             />
           ) : activeView.type === 'instantForms' ? (
             <InstantForms
@@ -350,6 +352,7 @@ export const Dashboard = ({
               selectedAccount={selectedAccount}
               selectedBusiness={selectedBusiness}
               onSelectAccount={handleAccountSelect}
+              onSendToChat={handleAudienceToChat}
             />
           ) : activeView.type === 'eventsManager' ? (
             <EventsManager
@@ -360,6 +363,7 @@ export const Dashboard = ({
               selectedAccount={selectedAccount}
               selectedBusiness={selectedBusiness}
               onSelectAccount={handleAccountSelect}
+              onSendToChat={handleAudienceToChat}
             />
           ) : activeView.type === 'adLibrary' ? (
             <AdLibrary
@@ -370,6 +374,7 @@ export const Dashboard = ({
               onLogout={onLogout}
               selectedAccount={selectedAccount}
               selectedBusiness={selectedBusiness}
+              onSendToChat={handleAudienceToChat}
               onSelectAccount={handleAccountSelect}
             />
           ) : activeView.type === 'projectDetail' ? (() => {

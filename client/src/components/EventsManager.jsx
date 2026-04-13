@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Search, RefreshCw, Plus, Loader2, X, Activity, Radio, Clock, CheckCircle, AlertTriangle, XCircle, Zap, ChevronDown, Copy, Check, BarChart3, Hash } from 'lucide-react';
 import { AccountSelector } from './AccountSelector.jsx';
+import { AskAIButton, AskAIPopup } from './AskAIPopup.jsx';
 import api from '../services/api.js';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
@@ -228,7 +229,8 @@ const ConversionCard = ({ conversion, onDelete }) => (
 );
 
 // ── Main Component ──
-export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount }) => {
+export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onSendToChat }) => {
+  const [showAskAI, setShowAskAI] = useState(false);
   const [activeTab, setActiveTab] = useState('pixels'); // 'pixels' | 'conversions'
   const [pixels, setPixels] = useState([]);
   const [conversions, setConversions] = useState([]);
@@ -334,10 +336,13 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
             <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
               selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
           </div>
-          <button onClick={handleRefresh} disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
-            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <AskAIButton onClick={() => setShowAskAI(true)} />
+            <button onClick={handleRefresh} disabled={loading}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
+              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
+            </button>
+          </div>
         </div>
         {/* Tabs */}
         <div className="flex items-center gap-0 px-6">
@@ -424,6 +429,8 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
           </div>
         </>
       )}
+
+      {showAskAI && <AskAIPopup onSubmit={onSendToChat} onClose={() => setShowAskAI(false)} context="Events Manager" />}
     </div>
   );
 };

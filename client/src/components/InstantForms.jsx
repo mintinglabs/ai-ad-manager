@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Search, RefreshCw, Loader2, X, ChevronDown, FileText, Download, Clock, Eye, Plus, Archive, MessageSquare, Users, Trash2, AlertTriangle, Palette } from 'lucide-react';
+import { Search, RefreshCw, Loader2, X, ChevronDown, FileText, Download, Clock, Eye, Plus, Archive, MessageSquare, Users, Trash2, AlertTriangle, Palette, Zap, Smartphone } from 'lucide-react';
 import { AccountSelector } from './AccountSelector.jsx';
+import { AskAIButton, AskAIPopup } from './AskAIPopup.jsx';
 import api from '../services/api.js';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
@@ -19,6 +20,68 @@ const FIELD_PRESETS = [
   { key: 'country', label: 'Country', type: 'COUNTRY' },
   { key: 'date_of_birth', label: 'Date of Birth', type: 'DATE_OF_BIRTH' },
 ];
+
+// ── Form Templates ──
+const FORM_TEMPLATES = [
+  { id: 'appointment', name: 'Appointment Booking', desc: 'Optimized for clinic & salon consultations.', icon: Clock, color: 'text-blue-500 bg-blue-50' },
+  { id: 'lead_magnet', name: 'Lead Magnet / Guide', desc: 'Deliver PDF or coupon codes instantly.', icon: Download, color: 'text-emerald-500 bg-emerald-50' },
+  { id: 'flash_sale', name: 'Flash Sale Sign-up', desc: 'High-urgency forms for limited offers.', icon: Zap, color: 'text-orange-500 bg-orange-50' },
+];
+
+const FormTemplates = ({ onCreateFromTemplate }) => (
+  <div className="mb-6">
+    <div className="flex items-center justify-between mb-3">
+      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Quick Setup Templates</span>
+      <button className="text-[11px] text-orange-500 hover:text-orange-600 font-medium">View All Templates &gt;</button>
+    </div>
+    <div className="grid grid-cols-3 gap-3">
+      {FORM_TEMPLATES.map(t => {
+        const Icon = t.icon;
+        return (
+          <div key={t.id} className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-md transition-all hover:border-slate-300 group">
+            <div className={`w-9 h-9 rounded-lg ${t.color} flex items-center justify-center mb-2.5`}>
+              <Icon size={17} />
+            </div>
+            <h4 className="text-[12px] font-bold text-slate-800 mb-0.5">{t.name}</h4>
+            <p className="text-[10px] text-slate-400 mb-3 leading-relaxed">{t.desc}</p>
+            <button onClick={() => onCreateFromTemplate(t)}
+              className="w-full py-1.5 text-[10px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg transition-colors">
+              One-Click Create
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+);
+
+// ── Field type badge colors ──
+const FIELD_TYPE_COLORS = {
+  CUSTOM: 'bg-blue-50 text-blue-600',
+  FULL_NAME: 'bg-emerald-50 text-emerald-600',
+  EMAIL: 'bg-violet-50 text-violet-600',
+  PHONE: 'bg-amber-50 text-amber-600',
+  COMPANY_NAME: 'bg-cyan-50 text-cyan-600',
+  JOB_TITLE: 'bg-indigo-50 text-indigo-600',
+  CITY: 'bg-teal-50 text-teal-600',
+  STATE: 'bg-teal-50 text-teal-600',
+  ZIP: 'bg-slate-100 text-slate-500',
+  COUNTRY: 'bg-slate-100 text-slate-500',
+  DATE_OF_BIRTH: 'bg-pink-50 text-pink-600',
+};
+
+const FIELD_PLACEHOLDERS = {
+  FULL_NAME: '"John Doe"',
+  EMAIL: '"email@example.com"',
+  PHONE: '"+852 9000 0000"',
+  COMPANY_NAME: '"Company name"',
+  JOB_TITLE: '"Job title"',
+  CITY: '"City"',
+  STATE: '"State/Province"',
+  ZIP: '"Postal code"',
+  COUNTRY: '"Country"',
+  DATE_OF_BIRTH: '"DD/MM/YYYY"',
+};
 
 // ── Create form modal ──
 const CreateFormModal = ({ pageId, onClose, onCreated }) => {
@@ -413,86 +476,119 @@ const FormDetailPanel = ({ form, pageId, pageName, onClose, onArchive }) => {
 
   return (
     <div className="flex-1 overflow-auto bg-slate-50/50 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h2 className="text-[16px] font-bold text-slate-800">{form.name}</h2>
-          <div className="flex items-center gap-3 mt-1">
-            <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full
-              ${form.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}>
-              {form.status || 'Active'}
-            </span>
-            <span className="text-[11px] text-slate-400">{fmtDate(form.created_time)}</span>
-            {form.locale && <span className="text-[11px] text-slate-400">Locale: {form.locale}</span>}
+      <div className="flex gap-6">
+        {/* Left: Form details */}
+        <div className="flex-1 min-w-0">
+          {/* Header */}
+          <div className="flex items-start justify-between mb-5">
+            <div>
+              <h2 className="text-[16px] font-bold text-slate-800">{form.name}</h2>
+              <div className="flex items-center gap-2 mt-1.5">
+                {form.status === 'ACTIVE' && (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    Live on Meta Ads · {pageName || 'Your Page'}
+                  </span>
+                )}
+                {form.status !== 'ACTIVE' && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 border border-slate-200">
+                    {form.status || 'Active'}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={downloadCSV} disabled={downloading}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-[11px] font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 shadow-sm">
+                <Download size={12} /> {downloading ? 'Downloading...' : 'Download CSV'}
+              </button>
+              <button className="w-8 h-8 rounded-lg hover:bg-slate-200 flex items-center justify-center text-slate-400 border border-slate-200">
+                <Clock size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* Lead count card */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5 mb-4 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
+              <Users size={20} className="text-blue-500" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-[28px] font-bold text-slate-800 leading-none">
+                  {form.leads_count != null ? Number(form.leads_count).toLocaleString() : '—'}
+                </p>
+                <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                  <Zap size={9} /> +12%
+                </span>
+              </div>
+              <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider mt-1">Total Leads Collected</p>
+            </div>
+          </div>
+
+          {/* Form fields */}
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-4">
+            <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+              <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Form Fields ({questions.length})
+              </h3>
+              <button className="flex items-center gap-1 text-[10px] font-medium text-orange-500 hover:text-orange-600">
+                <Plus size={11} /> Add Field
+              </button>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {questions.map((q, i) => (
+                <div key={i} className="flex items-center gap-3 px-4 py-3">
+                  <span className="w-6 h-6 rounded-md bg-orange-50 flex items-center justify-center shrink-0">
+                    <span className="text-[10px] font-bold text-orange-500">{i + 1}</span>
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[12px] font-semibold text-slate-700">{q.label || q.key}</p>
+                      {q.type && (
+                        <span className={`text-[8px] font-bold uppercase px-1.5 py-0.5 rounded ${FIELD_TYPE_COLORS[q.type] || 'bg-slate-100 text-slate-500'}`}>
+                          {q.type}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-0.5 italic">
+                      Preview Placeholder: {FIELD_PLACEHOLDERS[q.type] || `"${q.label || 'Enter your answer'}"`}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Technical Metadata */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">Technical Metadata</h3>
+            <div className="grid grid-cols-3 gap-4 text-[11px]">
+              <div>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Form ID</p>
+                <p className="font-mono text-slate-600">{form.id}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Connected Account</p>
+                <p className="text-slate-600">{pageName || '—'}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Privacy Policy</p>
+                {form.privacy_policy_url ? (
+                  <a href={form.privacy_policy_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline font-medium">View Active URL</a>
+                ) : <p className="text-slate-400">—</p>}
+              </div>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={downloadCSV} disabled={downloading}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50">
-            <Download size={12} /> {downloading ? 'Downloading...' : 'Download CSV'}
-          </button>
-          {form.status === 'ACTIVE' && (
-            <button onClick={onArchive}
-              className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg border border-slate-200 transition-colors">
-              <Archive size={12} /> Archive
-            </button>
-          )}
-          <button onClick={onClose}
-            className="w-7 h-7 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-400">
-            <X size={14} />
-          </button>
-        </div>
-      </div>
 
-      {/* Lead count card */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4 flex items-center gap-4">
-        <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
-          <Users size={20} className="text-blue-500" />
-        </div>
-        <div>
-          <p className="text-[24px] font-bold text-slate-800 leading-none">
-            {form.leads_count != null ? Number(form.leads_count).toLocaleString() : '—'}
-          </p>
-          <p className="text-[11px] text-slate-400 mt-0.5">Total leads collected</p>
-        </div>
-      </div>
-
-      {/* Form fields */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-4">
-        <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
-          <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-            Form Fields ({questions.length})
-          </h3>
-        </div>
-        <div className="divide-y divide-slate-100">
-          {questions.map((q, i) => (
-            <div key={i} className="flex items-center gap-3 px-4 py-3">
-              <span className="w-6 h-6 rounded-md bg-orange-50 flex items-center justify-center shrink-0">
-                <span className="text-[10px] font-bold text-orange-500">{i + 1}</span>
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-medium text-slate-700">{q.label || q.key}</p>
-                {q.type && <p className="text-[10px] text-slate-400 mt-0.5">{q.type}</p>}
-              </div>
-              {q.key && (
-                <span className="text-[9px] font-mono text-slate-300 bg-slate-50 px-1.5 py-0.5 rounded">{q.key}</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Form info */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4">
-        <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">Details</h3>
-        <div className="space-y-2 text-[11px]">
-          <div className="flex justify-between"><span className="text-slate-400">Form ID</span><span className="font-mono text-slate-600">{form.id}</span></div>
-          <div className="flex justify-between"><span className="text-slate-400">Page</span><span className="text-slate-600">{pageName || '—'}</span></div>
-          {form.privacy_policy_url && (
-            <div className="flex justify-between"><span className="text-slate-400">Privacy Policy</span>
-              <a href={form.privacy_policy_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate max-w-[200px]">{form.privacy_policy_url}</a>
-            </div>
-          )}
+        {/* Right: Device Preview */}
+        <div className="w-[340px] shrink-0">
+          <div className="flex items-center gap-1.5 mb-3">
+            <Smartphone size={12} className="text-slate-400" />
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Device Preview</span>
+          </div>
+          <FormPhonePreview form={form} pageName={pageName} />
         </div>
       </div>
     </div>
@@ -677,7 +773,8 @@ const FormPhonePreview = ({ form, pageName }) => {
 };
 
 // ── Main Component ──
-export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount }) => {
+export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onSendToChat }) => {
+  const [showAskAI, setShowAskAI] = useState(false);
   const [forms, setForms] = useState([]);
   const [pages, setPages] = useState([]);
   const [selectedPage, setSelectedPage] = useState(null);
@@ -765,15 +862,18 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
               <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <FileText size={20} className="text-orange-500" />
                 Instant Forms
+                {!loading && activeCount > 0 && (
+                  <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                    {activeCount} active
+                  </span>
+                )}
               </h1>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {loading ? 'Loading...' : `${forms.length} forms · ${activeCount} active`}
-              </p>
             </div>
             <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
               selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
           </div>
           <div className="flex items-center gap-2">
+            <AskAIButton onClick={() => setShowAskAI(true)} />
             <button onClick={() => setShowCreate(true)} disabled={!selectedPage}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 transition-colors disabled:opacity-50">
               <Plus size={13} /> New Form
@@ -813,8 +913,8 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
 
       {/* Content — master-detail layout */}
       <div className="flex-1 flex min-h-0">
-        {/* Left: Form list */}
-        <div className={`${selectedForm ? 'w-[340px] shrink-0 border-r border-slate-200' : 'flex-1'} overflow-auto`}>
+        {/* Left: Form list sidebar */}
+        <div className="w-[280px] shrink-0 border-r border-slate-200 overflow-auto bg-white">
           <div className="py-2">
             {!token || !adAccountId ? (
               <div className="flex flex-col items-center justify-center py-20 px-6">
@@ -827,16 +927,16 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
                 <span className="ml-2 text-sm text-slate-400">Loading forms...</span>
               </div>
             ) : filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 px-6">
-                <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
-                  <FileText size={28} className="text-slate-300" />
+              <div className="flex flex-col items-center justify-center py-16 px-4">
+                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
+                  <FileText size={22} className="text-slate-300" />
                 </div>
-                <p className="text-sm font-semibold text-slate-700 mb-1">{search ? 'No matching forms' : 'No instant forms yet'}</p>
-                <p className="text-xs text-slate-400 mb-4">Create lead forms to capture leads from your ads.</p>
+                <p className="text-[12px] font-semibold text-slate-700 mb-1">{search ? 'No matching forms' : 'No forms yet'}</p>
+                <p className="text-[10px] text-slate-400 mb-3 text-center">Create lead forms to capture leads from your ads.</p>
                 {!search && (
                   <button onClick={() => setShowCreate(true)} disabled={!selectedPage}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 transition-colors">
-                    <Plus size={13} /> Create First Form
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold text-white bg-orange-500 hover:bg-orange-600 transition-colors">
+                    <Plus size={11} /> Create First Form
                   </button>
                 )}
               </div>
@@ -845,22 +945,23 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
                 {filtered.map(form => (
                   <button key={form.id} onClick={() => setSelectedForm(form)}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b border-slate-100 transition-colors
-                      ${selectedForm?.id === form.id ? 'bg-blue-50 border-l-2 border-l-blue-500' : 'hover:bg-slate-50 border-l-2 border-l-transparent'}`}>
+                      ${selectedForm?.id === form.id ? 'bg-blue-50/60 border-l-2 border-l-blue-500' : 'hover:bg-slate-50 border-l-2 border-l-transparent'}`}>
                     <div className="flex-1 min-w-0">
                       <p className="text-[12px] font-semibold text-slate-800 truncate">{form.name}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className={`inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full
-                          ${form.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-                          {form.status || 'Active'}
-                        </span>
                         <span className="text-[10px] text-slate-400">{(form.questions || []).length} fields</span>
                         {form.leads_count != null && (
                           <span className="text-[10px] text-blue-500 font-medium">{Number(form.leads_count).toLocaleString()} leads</span>
                         )}
                       </div>
-                      <span className="text-[10px] text-slate-300 mt-0.5 block">{fmtDate(form.created_time)}</span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className={`inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full
+                          ${form.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                          {form.status || 'Active'}
+                        </span>
+                        <span className="text-[9px] text-slate-300">{fmtDate(form.created_time)}</span>
+                      </div>
                     </div>
-                    <ChevronDown size={14} className="text-slate-300 -rotate-90 shrink-0" />
                   </button>
                 ))}
                 {formsPaging?.next && (
@@ -874,8 +975,8 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
           </div>
         </div>
 
-        {/* Right: Form detail panel */}
-        {selectedForm && (
+        {/* Right: Form detail panel or Templates */}
+        {selectedForm ? (
           <FormDetailPanel
             form={selectedForm}
             pageId={selectedPage?.id}
@@ -883,6 +984,10 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
             onClose={() => setSelectedForm(null)}
             onArchive={() => setArchiveTarget(selectedForm)}
           />
+        ) : (
+          <div className="flex-1 overflow-auto bg-slate-50/50 p-6">
+            <FormTemplates onCreateFromTemplate={() => setShowCreate(true)} />
+          </div>
         )}
       </div>
 
@@ -912,6 +1017,8 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
           </div>
         </>
       )}
+
+      {showAskAI && <AskAIPopup onSubmit={onSendToChat} onClose={() => setShowAskAI(false)} context="Instant Forms" />}
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Search, RefreshCw, Plus, Loader2, Trash2, X, Play, Pause, ChevronDown, Clock, AlertTriangle, CheckCircle, Settings2, Edit3 } from 'lucide-react';
+import { Search, RefreshCw, Plus, Loader2, Trash2, X, Play, Pause, ChevronDown, ChevronRight, Clock, AlertTriangle, CheckCircle, Settings2, Edit3, Sparkles, ArrowRight, TrendingUp, Zap, Target, BarChart3, Shield } from 'lucide-react';
 import { AccountSelector } from './AccountSelector.jsx';
+import { AskAIButton, AskAIPopup } from './AskAIPopup.jsx';
 import api from '../services/api.js';
 
 // ── Helpers ──
@@ -56,6 +57,72 @@ const SCHEDULE_OPTIONS = [
   { value: 'DAILY', label: 'Once daily' },
   { value: 'CUSTOM', label: 'Custom schedule' },
 ];
+
+// ── Rule Templates ──
+const RULE_TEMPLATES = [
+  { id: 'scale', name: 'Scale Winning Ads', desc: 'Increase budget by 20% if ROAS > 3.0', icon: TrendingUp, color: 'text-emerald-500 bg-emerald-50',
+    prefill: { name: 'Scale Winning Ads', actionType: 'CHANGE_BUDGET', budgetAction: 'INCREASE', budgetAmount: '20', budgetUnit: 'PERCENTAGE', conditions: [{ field: 'roas', operator: 'GREATER_THAN', value: '3', time_preset: 'LAST_7_DAYS' }] } },
+  { id: 'pause_roas', name: 'Pause Low ROAS', desc: 'Stop ads if ROAS falls below 1.2', icon: Shield, color: 'text-red-500 bg-red-50',
+    prefill: { name: 'Pause Low ROAS', actionType: 'PAUSE', conditions: [{ field: 'roas', operator: 'LESS_THAN', value: '1.2', time_preset: 'LAST_7_DAYS' }] } },
+  { id: 'weekend', name: 'Weekend Boost', desc: 'Increase budget on Fri-Sun mornings', icon: Zap, color: 'text-orange-500 bg-orange-50',
+    prefill: { name: 'Weekend Boost', actionType: 'CHANGE_BUDGET', budgetAction: 'INCREASE', budgetAmount: '30', budgetUnit: 'PERCENTAGE', conditions: [{ field: 'roas', operator: 'GREATER_THAN', value: '2', time_preset: 'LAST_3_DAYS' }] } },
+  { id: 'fatigue', name: 'Anti-Fatigue', desc: 'Pause if Frequency > 5 in 7 days', icon: Target, color: 'text-teal-500 bg-teal-50',
+    prefill: { name: 'Anti-Fatigue', actionType: 'PAUSE', conditions: [{ field: 'frequency', operator: 'GREATER_THAN', value: '5', time_preset: 'LAST_7_DAYS' }] } },
+  { id: 'cost_cap', name: 'Cost Cap Protection', desc: 'Decrease bid if CPA > $25', icon: BarChart3, color: 'text-blue-500 bg-blue-50',
+    prefill: { name: 'Cost Cap Protection', actionType: 'CHANGE_BID', conditions: [{ field: 'cost_per_result', operator: 'GREATER_THAN', value: '25', time_preset: 'LAST_7_DAYS' }] } },
+  { id: 'cleanup', name: 'Nightly Cleanup', desc: 'Pause ads with 0 conversions', icon: Clock, color: 'text-red-500 bg-red-50',
+    prefill: { name: 'Nightly Cleanup', actionType: 'PAUSE', conditions: [{ field: 'results', operator: 'LESS_THAN', value: '1', time_preset: 'LAST_7_DAYS' }] } },
+];
+
+// ── AI Rule Generator ──
+const AIRuleGenerator = ({ onGenerate }) => {
+  const [prompt, setPrompt] = useState('');
+  return (
+    <div className="bg-gradient-to-r from-violet-50 to-blue-50 rounded-xl border border-violet-200/60 p-4 mb-5">
+      <div className="flex gap-2">
+        <div className="flex items-center gap-2 shrink-0 mr-1">
+          <Sparkles size={15} className="text-violet-500" />
+        </div>
+        <input value={prompt} onChange={e => setPrompt(e.target.value)}
+          placeholder="Describe a rule in plain English (e.g., 'Pause any campaign if ROAS drops below 2')"
+          className="flex-1 px-3.5 py-2.5 text-[12px] rounded-lg border border-violet-200 bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-300 placeholder:text-slate-400"
+          onKeyDown={e => { if (e.key === 'Enter' && prompt.trim()) { onGenerate(prompt); setPrompt(''); } }} />
+        <button onClick={() => { if (prompt.trim()) { onGenerate(prompt); setPrompt(''); } }} disabled={!prompt.trim()}
+          className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-[12px] font-semibold text-white bg-violet-600 hover:bg-violet-500 transition-colors shadow-sm disabled:opacity-40 shrink-0">
+          Generate Rule <ArrowRight size={13} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ── Quick Setup Templates ──
+const QuickTemplates = ({ onUseTemplate }) => (
+  <div className="mb-6">
+    <div className="flex items-center justify-between mb-3">
+      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Quick Setup Templates</span>
+      <button className="text-[11px] text-violet-500 hover:text-violet-600 font-medium">View All Templates</button>
+    </div>
+    <div className="grid grid-cols-3 gap-3">
+      {RULE_TEMPLATES.map(t => {
+        const Icon = t.icon;
+        return (
+          <div key={t.id} className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-md transition-all hover:border-slate-300 group">
+            <div className={`w-9 h-9 rounded-lg ${t.color} flex items-center justify-center mb-2.5`}>
+              <Icon size={17} />
+            </div>
+            <h4 className="text-[12px] font-bold text-slate-800 mb-0.5">{t.name}</h4>
+            <p className="text-[10px] text-slate-400 mb-3 leading-relaxed">{t.desc}</p>
+            <button onClick={() => onUseTemplate(t)}
+              className="w-full py-1.5 text-[10px] font-bold uppercase tracking-wider text-violet-600 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg transition-colors">
+              One-Click Enable
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+);
 
 // ── Select dropdown ──
 const Select = ({ value, options, onChange, placeholder, className = '' }) => (
@@ -273,65 +340,82 @@ const RuleModal = ({ rule, onSave, onClose }) => {
 // ── Rule card ──
 const RuleCard = ({ rule, onToggle, onEdit, onDelete, onViewHistory, updating }) => {
   const isActive = rule.status === 'ENABLED';
-  const actionLabel = ACTION_TYPES.find(a => a.value === rule.execution_spec?.execution_type)?.label || rule.execution_spec?.execution_type || 'Unknown';
-  const entityLabel = ENTITY_TYPES.find(e => e.value === rule.evaluation_spec?.entity_type)?.label || 'Objects';
+  const actionType = rule.execution_spec?.execution_type || '';
+  const actionLabel = ACTION_TYPES.find(a => a.value === actionType)?.label || actionType || 'Unknown';
   const scheduleLabel = SCHEDULE_OPTIONS.find(s => s.value === rule.schedule_spec?.schedule_type)?.label || rule.schedule_spec?.schedule_type || 'Custom';
 
   return (
     <div className={`bg-white rounded-xl border overflow-hidden transition-all hover:shadow-md ${isActive ? 'border-slate-200' : 'border-slate-200 opacity-60'}`}>
       <div className="px-5 py-4">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="text-[13px] font-bold text-slate-800 truncate">{rule.name}</h3>
-              <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-                {isActive ? 'Active' : 'Paused'}
-              </span>
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            {/* Colored letter avatar */}
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-[14px] font-bold shrink-0
+              ${isActive ? 'bg-violet-100 text-violet-600' : 'bg-slate-100 text-slate-400'}`}>
+              {rule.name?.charAt(0)?.toUpperCase() || 'R'}
             </div>
-            <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-400">
-              <span className="flex items-center gap-1">
-                <Settings2 size={11} /> {actionLabel}
-              </span>
-              <span>→ {entityLabel}</span>
-              <span className="flex items-center gap-1">
-                <Clock size={11} /> {scheduleLabel}
-              </span>
-            </div>
-            {rule.evaluation_spec?.filters?.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {rule.evaluation_spec.filters.map((f, i) => (
-                  <span key={i} className="text-[10px] bg-slate-50 border border-slate-200 rounded-md px-2 py-0.5 text-slate-500">
-                    {METRIC_FIELDS.find(m => m.value === f.field)?.label || f.field} {OPERATORS.find(o => o.value === f.operator)?.label || f.operator} {f.value}
-                  </span>
-                ))}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="text-[13px] font-bold text-slate-800 truncate">{rule.name}</h3>
+                <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                  {isActive ? 'Active' : 'Paused'}
+                </span>
               </div>
-            )}
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1">
+                  <Zap size={9} /> {actionType.replace(/_/g, '_')}
+                </span>
+                <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                  <Clock size={10} /> {scheduleLabel}
+                </span>
+              </div>
+              {rule.evaluation_spec?.filters?.length > 0 && (
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                  {rule.evaluation_spec.filters.map((f, i) => (
+                    <span key={i} className="text-[10px] bg-slate-50 border border-slate-200 rounded-md px-2 py-0.5 text-slate-600 font-medium">
+                      {METRIC_FIELDS.find(m => m.value === f.field)?.label || f.field} <span className="text-slate-400 font-normal">{OPERATORS.find(o => o.value === f.operator)?.label || f.operator}</span> {f.value}
+                    </span>
+                  ))}
+                  {rule.evaluation_spec?.time_preset && (
+                    <span className="text-[10px] bg-slate-50 border border-slate-200 rounded-md px-2 py-0.5 text-slate-600 font-medium">
+                      Time <span className="text-slate-400 font-normal">preset</span>
+                    </span>
+                  )}
+                  <span className="text-[10px] bg-slate-50 border border-slate-200 rounded-md px-2 py-0.5 text-slate-600 font-medium">
+                    Entity <span className="text-slate-400 font-normal">type</span>
+                  </span>
+                  <button className="text-[10px] text-blue-500 hover:text-blue-600 font-medium flex items-center gap-0.5 px-1.5 py-0.5">
+                    <Plus size={10} /> Add Filter
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-          <button onClick={() => onToggle(rule.id, isActive)}
-            disabled={updating}
-            className={`w-10 h-[22px] rounded-full transition-colors duration-200 relative shrink-0 ${updating ? 'opacity-50' : ''} ${isActive ? 'bg-blue-500' : 'bg-slate-200'}`}>
-            <span className={`absolute top-[3px] left-[3px] w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${isActive ? 'translate-x-[18px]' : ''}`} />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={() => onToggle(rule.id, isActive)}
+              disabled={updating}
+              className={`w-10 h-[22px] rounded-full transition-colors duration-200 relative ${updating ? 'opacity-50' : ''} ${isActive ? 'bg-blue-500' : 'bg-slate-200'}`}>
+              <span className={`absolute top-[3px] left-[3px] w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${isActive ? 'translate-x-[18px]' : ''}`} />
+            </button>
+            <button onClick={() => onEdit(rule)}
+              className="w-7 h-7 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 flex items-center justify-center transition-colors">
+              <Edit3 size={13} />
+            </button>
+            <button onClick={() => onDelete(rule.id)}
+              className="w-7 h-7 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors">
+              <Trash2 size={13} />
+            </button>
+          </div>
         </div>
       </div>
       <div className="px-5 py-2.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
         <span className="text-[10px] text-slate-300">
-          Created {fmtDate(rule.created_time)}
+          Created {fmtDate(rule.created_time)} · Last check 2 hours ago
         </span>
-        <div className="flex items-center gap-1">
-          <button onClick={() => onViewHistory(rule.id)}
-            className="px-2 py-1 text-[10px] font-medium text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
-            History
-          </button>
-          <button onClick={() => onEdit(rule)}
-            className="px-2 py-1 text-[10px] font-medium text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors">
-            <Edit3 size={12} />
-          </button>
-          <button onClick={() => onDelete(rule.id)}
-            className="px-2 py-1 text-[10px] font-medium text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors">
-            <Trash2 size={12} />
-          </button>
-        </div>
+        <button onClick={() => onViewHistory(rule.id)}
+          className="text-[10px] font-medium text-violet-500 hover:text-violet-600 flex items-center gap-0.5 transition-colors">
+          View Execution History <ChevronRight size={11} />
+        </button>
       </div>
     </div>
   );
@@ -391,7 +475,8 @@ const HistoryModal = ({ ruleId, onClose }) => {
 };
 
 // ── Main Component ──
-export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onBack }) => {
+export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onBack, onSendToChat }) => {
+  const [showAskAI, setShowAskAI] = useState(false);
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -471,14 +556,18 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
                 <Settings2 size={20} className="text-violet-500" />
                 Automation Rules
               </h1>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {loading ? 'Loading...' : `${activeCount} active · ${pausedCount} paused`}
+              <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
+                {loading ? 'Loading...' : (<>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  {activeCount} active · {pausedCount} paused
+                </>)}
               </p>
             </div>
             <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
               selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
           </div>
           <div className="flex items-center gap-2">
+            <AskAIButton onClick={() => setShowAskAI(true)} />
             <button onClick={fetchRules} disabled={loading}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
@@ -491,20 +580,12 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="px-6 py-3 flex items-center gap-3 shrink-0 bg-white border-b border-slate-100">
-        <div className="relative flex-1 max-w-sm">
+      {/* Search bar */}
+      <div className="px-6 py-3 shrink-0 bg-white border-b border-slate-100">
+        <div className="relative max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search rules..."
             className="w-full pl-9 pr-3 py-2 text-[12px] rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 placeholder:text-slate-300" />
-        </div>
-        <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden">
-          {[['all', 'All'], ['active', 'Active'], ['paused', 'Paused']].map(([val, label]) => (
-            <button key={val} onClick={() => setStatusFilter(val)}
-              className={`px-3.5 py-2 text-[11px] font-medium transition-colors ${statusFilter === val ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
-              {label}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -520,39 +601,70 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
             <p className="text-sm font-semibold text-slate-700 mb-1">{!token ? 'Connect an ad platform' : 'Select an ad account'}</p>
             <p className="text-xs text-slate-400">Use the account selector above to get started.</p>
           </div>
-        ) : loading && rules.length === 0 ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 size={24} className="animate-spin text-slate-400" />
-            <span className="ml-2 text-sm text-slate-400">Loading rules...</span>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
-              <Settings2 size={28} className="text-slate-300" />
-            </div>
-            <p className="text-sm font-semibold text-slate-700 mb-1">{search ? 'No matching rules' : 'No automation rules yet'}</p>
-            <p className="text-xs text-slate-400 mb-5">{search ? 'Try a different search' : 'Create rules to automatically manage your campaigns.'}</p>
-            {!search && (
-              <button onClick={() => { setEditingRule(null); setShowCreate(true); }}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-violet-600 text-white hover:bg-violet-500 transition-colors shadow-sm">
-                <Plus size={13} /> Create Your First Rule
-              </button>
-            )}
-          </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {filtered.map(rule => (
-              <RuleCard
-                key={rule.id}
-                rule={rule}
-                onToggle={handleToggle}
-                onEdit={(r) => { setEditingRule(r); setShowCreate(true); }}
-                onDelete={handleDelete}
-                onViewHistory={setHistoryRuleId}
-                updating={updatingIds.has(rule.id)}
-              />
-            ))}
-          </div>
+          <>
+            {/* AI Rule Generator */}
+            <AIRuleGenerator onGenerate={(prompt) => onSendToChat?.(`[Context: Automation Rules]\nGenerate an automation rule: ${prompt}`)} />
+
+            {/* Quick Setup Templates */}
+            <QuickTemplates onUseTemplate={(t) => {
+              setEditingRule({
+                name: t.prefill.name,
+                execution_spec: { execution_type: t.prefill.actionType },
+                evaluation_spec: { filters: t.prefill.conditions },
+                schedule_spec: { schedule_type: 'DAILY' },
+              });
+              setShowCreate(true);
+            }} />
+
+            {/* YOUR RULES section */}
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Your Rules</span>
+              <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden">
+                {[['all', 'All'], ['active', 'Active'], ['paused', 'Paused']].map(([val, label]) => (
+                  <button key={val} onClick={() => setStatusFilter(val)}
+                    className={`px-3 py-1.5 text-[10px] font-medium transition-colors ${statusFilter === val ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {loading && rules.length === 0 ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 size={24} className="animate-spin text-slate-400" />
+                <span className="ml-2 text-sm text-slate-400">Loading rules...</span>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                  <Settings2 size={28} className="text-slate-300" />
+                </div>
+                <p className="text-sm font-semibold text-slate-700 mb-1">{search ? 'No matching rules' : 'No automation rules yet'}</p>
+                <p className="text-xs text-slate-400 mb-5">{search ? 'Try a different search' : 'Create rules to automatically manage your campaigns.'}</p>
+                {!search && (
+                  <button onClick={() => { setEditingRule(null); setShowCreate(true); }}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-violet-600 text-white hover:bg-violet-500 transition-colors shadow-sm">
+                    <Plus size={13} /> Create Your First Rule
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filtered.map(rule => (
+                  <RuleCard
+                    key={rule.id}
+                    rule={rule}
+                    onToggle={handleToggle}
+                    onEdit={(r) => { setEditingRule(r); setShowCreate(true); }}
+                    onDelete={handleDelete}
+                    onViewHistory={setHistoryRuleId}
+                    updating={updatingIds.has(rule.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -569,6 +681,8 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
       {historyRuleId && (
         <HistoryModal ruleId={historyRuleId} onClose={() => setHistoryRuleId(null)} />
       )}
+
+      {showAskAI && <AskAIPopup onSubmit={onSendToChat} onClose={() => setShowAskAI(false)} context="Automation Rules" />}
     </div>
   );
 };
