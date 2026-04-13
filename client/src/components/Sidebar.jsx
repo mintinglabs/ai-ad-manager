@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Zap, Plus, MessageSquare, Trash2, ChevronDown, ChevronLeft, ChevronRight, LogOut, FileText, Lightbulb, FolderOpen, Building2, Check, Globe, GripVertical, FolderPlus, X, Users, Sparkles, MoreVertical, Pin, Pencil, Menu, BarChart3, Image, Calendar, TrendingUp, ClipboardList, Settings, Palette } from 'lucide-react';
+import { Zap, Plus, MessageSquare, Trash2, ChevronDown, ChevronLeft, ChevronRight, LogOut, FileText, Lightbulb, FolderOpen, Building2, Check, Globe, GripVertical, FolderPlus, X, Users, Sparkles, MoreVertical, Pin, Pencil, Menu, BarChart3, Image, Calendar, TrendingUp, ClipboardList, Settings, Palette, LayoutGrid } from 'lucide-react';
 import { groupSessionsByDate } from '../hooks/useChatSessions.js';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
 import { useBusinesses } from '../hooks/useBusinesses.js';
@@ -248,6 +248,7 @@ export const Sidebar = ({
   const [newProjectName, setNewProjectName] = useState('');
   const [collapsedProjectsOpen, setCollapsedProjectsOpen] = useState(false);
   const [collapsedModulesOpen, setCollapsedModulesOpen] = useState(false);
+  const [manageAdsOpen, setManageAdsOpen] = useState(true);
   const [editingFolderId, setEditingFolderId] = useState(null);
   const [editFolderName, setEditFolderName] = useState('');
   const newFolderRef = useRef(null);
@@ -359,7 +360,7 @@ export const Sidebar = ({
           <button onClick={() => { setCollapsedModulesOpen(v => !v); setCollapsedProjectsOpen(false); setCollapsedHistoryOpen(false); }}
             className={`group w-full h-[36px] rounded-xl flex items-center justify-center transition-colors
               ${collapsedModulesOpen || modules.some(m => m.type && activeView?.type === m.type) ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}>
-            <BarChart3 size={16} />
+            <LayoutGrid size={16} />
             {!collapsedModulesOpen && (
               <span className="absolute left-full ml-2 px-2.5 py-1 text-[11px] font-medium text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[60] shadow-lg">Manage Ads</span>
             )}
@@ -487,8 +488,9 @@ export const Sidebar = ({
         </button>
       </div>
 
-      {/* All navigation items — flat list */}
+      {/* Navigation */}
       <div className="px-3 mb-2">
+        {/* Skills */}
         <button
           onClick={onOpenSkillsLibrary}
           className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
@@ -501,122 +503,34 @@ export const Sidebar = ({
           <ChevronRight size={12} className="text-slate-300" />
         </button>
 
-        {/* Campaigns */}
+        {/* Manage Ads — collapsible group */}
         <button
-          onClick={onOpenCampaigns}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
-            ${activeView?.type === 'campaigns'
-              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
-        >
-          <BarChart3 size={14} className={activeView?.type === 'campaigns' ? 'text-emerald-500' : 'text-slate-400'} />
-          <span className="flex-1 text-left">Campaigns</span>
-          <ChevronRight size={12} className="text-slate-300" />
-        </button>
-
-        {/* Audiences */}
-        <button
-          onClick={onOpenAudiences}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
-            ${activeView?.type === 'audiences'
+          onClick={() => setManageAdsOpen(v => !v)}
+          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border mt-1
+            ${modules.some(m => m.type && activeView?.type === m.type)
               ? 'bg-blue-50 text-blue-700 border-blue-200'
               : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
         >
-          <Users size={14} className={activeView?.type === 'audiences' ? 'text-blue-500' : 'text-slate-400'} />
-          <span className="flex-1 text-left">Audiences</span>
-          <ChevronRight size={12} className="text-slate-300" />
+          <LayoutGrid size={14} className={modules.some(m => m.type && activeView?.type === m.type) ? 'text-blue-500' : 'text-slate-400'} />
+          <span className="flex-1 text-left">Manage Ads</span>
+          <ChevronDown size={12} className={`text-slate-300 transition-transform ${manageAdsOpen ? '' : '-rotate-90'}`} />
         </button>
 
-        {/* Asset Library */}
-        <button
-          onClick={onOpenCreativeLibrary}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
-            ${activeView?.type === 'creativeLibrary'
-              ? 'bg-pink-50 text-pink-700 border-pink-200'
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
-        >
-          <Image size={14} className={activeView?.type === 'creativeLibrary' ? 'text-pink-500' : 'text-slate-400'} />
-          <span className="flex-1 text-left">Asset Library</span>
-          <ChevronRight size={12} className="text-slate-300" />
-        </button>
-
-        {/* Ad Library */}
-        <button
-          onClick={onOpenAdLibrary}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
-            ${activeView?.type === 'adLibrary'
-              ? 'bg-orange-50 text-orange-700 border-orange-200'
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
-        >
-          <Palette size={14} className={activeView?.type === 'adLibrary' ? 'text-orange-500' : 'text-slate-400'} />
-          <span className="flex-1 text-left">Ad Library</span>
-          <ChevronRight size={12} className="text-slate-300" />
-        </button>
-
-        {/* Instant Forms (Lead Gen) */}
-        <button
-          onClick={onOpenInstantForms}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
-            ${activeView?.type === 'instantForms'
-              ? 'bg-orange-50 text-orange-700 border-orange-200'
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
-        >
-          <ClipboardList size={14} className={activeView?.type === 'instantForms' ? 'text-orange-500' : 'text-slate-400'} />
-          <span className="flex-1 text-left">Instant Forms</span>
-          <ChevronRight size={12} className="text-slate-300" />
-        </button>
-
-        {/* Events Manager */}
-        <button
-          onClick={onOpenEventsManager}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
-            ${activeView?.type === 'eventsManager'
-              ? 'bg-cyan-50 text-cyan-700 border-cyan-200'
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
-        >
-          <TrendingUp size={14} className={activeView?.type === 'eventsManager' ? 'text-cyan-500' : 'text-slate-400'} />
-          <span className="flex-1 text-left">Events Manager</span>
-          <ChevronRight size={12} className="text-slate-300" />
-        </button>
-
-        {/* Automation Rules */}
-        <button
-          onClick={onOpenAutomationRules}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
-            ${activeView?.type === 'automationRules'
-              ? 'bg-violet-50 text-violet-700 border-violet-200'
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
-        >
-          <Settings size={14} className={activeView?.type === 'automationRules' ? 'text-violet-500' : 'text-slate-400'} />
-          <span className="flex-1 text-left">Automation Rules</span>
-          <ChevronRight size={12} className="text-slate-300" />
-        </button>
-
-        {/* Optimizations */}
-        <button
-          onClick={() => {}}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
-            ${activeView?.type === 'optimizations'
-              ? 'bg-amber-50 text-amber-700 border-amber-200'
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
-        >
-          <Zap size={14} className={activeView?.type === 'optimizations' ? 'text-amber-500' : 'text-slate-400'} />
-          <span className="flex-1 text-left">Optimizations</span>
-          <span className="text-[9px] text-slate-300 font-medium">Soon</span>
-        </button>
-
-        {/* Report */}
-        <button
-          onClick={() => {}}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
-            ${activeView?.type === 'report'
-              ? 'bg-slate-100 text-slate-700 border-slate-300'
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
-        >
-          <ClipboardList size={14} className={activeView?.type === 'report' ? 'text-slate-500' : 'text-slate-400'} />
-          <span className="flex-1 text-left">Report</span>
-          <span className="text-[9px] text-slate-300 font-medium">Soon</span>
-        </button>
+        {manageAdsOpen && (
+          <div className="ml-3 pl-3 border-l border-slate-100 mt-0.5">
+            {modules.map(({ icon: Icon, type, action, label }) => {
+              const isActive = type && activeView?.type === type;
+              return (
+                <button key={label} onClick={action}
+                  className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all
+                    ${isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}>
+                  <Icon size={13} className={isActive ? 'text-blue-500' : 'text-slate-400'} />
+                  <span className="flex-1 text-left">{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Scrollable area: Projects first, then All Tasks */}
