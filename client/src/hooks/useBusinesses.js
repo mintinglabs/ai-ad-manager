@@ -16,7 +16,7 @@ export const useBusinesses = () => {
     setIsLoading(true);
     api.get('/meta/businesses')
       .then(({ data }) => { setBusinesses(Array.isArray(data) ? data : []); setError(null); })
-      .catch(err => { setBusinesses([]); setError(err.message || 'Failed to load businesses'); })
+      .catch(err => { setBusinesses([]); setError(err.response?.data?.error || err.message || 'Failed to load businesses'); })
       .finally(() => setIsLoading(false));
   }, []);
 

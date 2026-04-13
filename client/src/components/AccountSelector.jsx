@@ -15,7 +15,7 @@ export const AccountSelector = ({ token, onLogin, onLogout, selectedAccount, sel
   const [level, setLevel] = useState('business');
   const [activeBiz, setActiveBiz] = useState(selectedBusiness);
   const ref = useRef(null);
-  const { businesses, isLoading: bizLoading } = useBusinesses();
+  const { businesses, isLoading: bizLoading, error: bizError, refetch: refetchBiz } = useBusinesses();
   const { adAccounts: accounts, isLoading: accLoading } = useAdAccounts(activeBiz?.id);
 
   useEffect(() => {
@@ -81,7 +81,11 @@ export const AccountSelector = ({ token, onLogin, onLogout, selectedAccount, sel
                 {bizLoading ? (
                   <div className="px-3 py-4 text-center text-[11px] text-slate-400">Loading businesses...</div>
                 ) : businesses.length === 0 ? (
-                  <div className="px-3 py-4 text-center text-[11px] text-slate-400">No businesses found</div>
+                  <div className="px-3 py-4 text-center">
+                    <p className="text-[11px] text-slate-400">{bizError || 'No businesses found'}</p>
+                    <button onClick={(e) => { e.stopPropagation(); refetchBiz(); }}
+                      className="mt-1.5 text-[10px] text-blue-500 hover:underline">Retry</button>
+                  </div>
                 ) : businesses.map(biz => (
                   <button key={biz.id} onClick={() => { setActiveBiz(biz); setLevel('accounts'); }}
                     className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors ${biz.id === selectedBusiness?.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
