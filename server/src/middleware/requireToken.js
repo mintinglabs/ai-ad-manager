@@ -6,7 +6,7 @@ export const requireToken = (req, res, next) => {
   if (auth?.startsWith('Bearer ')) {
     req.token = auth.slice(7);
   }
-  if (!req.token && process.env.META_DEMO_TOKEN) {
+  if (!req.token && process.env.META_DEMO_TOKEN && process.env.NODE_ENV !== 'production') {
     req.token = process.env.META_DEMO_TOKEN;
   }
   if (!req.token) {

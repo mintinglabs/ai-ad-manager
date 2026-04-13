@@ -30,7 +30,7 @@ const SidebarAccountPicker = ({ selectedAccount, selectedBusiness, onSelect, tok
   const [activeBiz, setActiveBiz] = useState(null);
   const [confirmSwitch, setConfirmSwitch] = useState(null); // { business, account }
   const ref = useRef(null);
-  const { businesses, isLoading: bizLoading } = useBusinesses();
+  const { businesses, isLoading: bizLoading, error: bizError, refetch: refetchBiz } = useBusinesses();
   const { adAccounts, isLoading: accLoading } = useAdAccounts(level === 'accounts' ? activeBiz?.id : null);
   const accounts = Array.isArray(adAccounts) ? adAccounts : [];
   const recentAccounts = getRecentAccounts();
@@ -106,7 +106,11 @@ const SidebarAccountPicker = ({ selectedAccount, selectedBusiness, onSelect, tok
                   {bizLoading ? (
                     <div className="px-3 py-6 text-center text-xs text-slate-400">Loading...</div>
                   ) : businesses.length === 0 ? (
-                    <div className="px-3 py-6 text-center text-xs text-slate-400">No businesses found</div>
+                    <div className="px-3 py-6 text-center">
+                      <p className="text-xs text-slate-400">{bizError || 'No businesses found'}</p>
+                      <button onClick={(e) => { e.stopPropagation(); refetchBiz(); }}
+                        className="mt-2 text-[10px] text-blue-500 hover:underline">Retry</button>
+                    </div>
                   ) : businesses.map((biz) => (
                     <button key={biz.id} onClick={() => handleBizClick(biz)}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors
