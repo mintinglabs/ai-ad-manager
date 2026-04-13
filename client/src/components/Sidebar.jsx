@@ -247,21 +247,23 @@ export const Sidebar = ({
   const [addingProject, setAddingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [collapsedProjectsOpen, setCollapsedProjectsOpen] = useState(false);
+  const [collapsedModulesOpen, setCollapsedModulesOpen] = useState(false);
   const [editingFolderId, setEditingFolderId] = useState(null);
   const [editFolderName, setEditFolderName] = useState('');
   const newFolderRef = useRef(null);
 
   // Close context menu / collapsed flyouts on outside click
   useEffect(() => {
-    if (!contextMenu && !collapsedHistoryOpen && !collapsedProjectsOpen) return;
+    if (!contextMenu && !collapsedHistoryOpen && !collapsedProjectsOpen && !collapsedModulesOpen) return;
     const handler = (e) => {
       if (contextMenu && contextRef.current && !contextRef.current.contains(e.target)) setContextMenu(null);
       if (collapsedHistoryOpen) setCollapsedHistoryOpen(false);
       if (collapsedProjectsOpen) setCollapsedProjectsOpen(false);
+      if (collapsedModulesOpen) setCollapsedModulesOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [contextMenu, collapsedHistoryOpen, collapsedProjectsOpen]);
+  }, [contextMenu, collapsedHistoryOpen, collapsedProjectsOpen, collapsedModulesOpen]);
 
   const grouped = groupSessionsByDate(sessions);
   const sortedFolders = [...folders].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -317,10 +319,6 @@ export const Sidebar = ({
     { icon: Zap, type: 'optimizations', action: () => {}, label: 'Optimizations' },
     { icon: FileText, type: 'report', action: () => {}, label: 'Report' },
   ];
-  const allItems = [
-    { icon: Sparkles, label: 'Skills', action: onOpenSkillsLibrary, type: 'skillsLibrary' },
-    ...modules,
-  ];
 
   return (
     <aside style={{ width: open ? 260 : 52 }}
@@ -343,22 +341,50 @@ export const Sidebar = ({
             <span className="absolute left-full ml-2 px-2.5 py-1 text-[11px] font-medium text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[60] shadow-lg">New Task</span>
           </button>
         </div>
-        {/* Module icons */}
-        <div className="flex flex-col items-center w-full px-1.5 gap-0.5 shrink-0">
-          {allItems.map(({ icon: Icon, type, action, label }) => {
-            const isActive = type && activeView?.type === type;
-            return (
-              <button key={label} onClick={action}
-                className={`group relative w-full h-[36px] rounded-xl flex items-center justify-center transition-colors
-                  ${isActive ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}>
-                <Icon size={16} />
-                <span className="absolute left-full ml-2 px-2.5 py-1 text-[11px] font-medium text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[60] shadow-lg">{label}</span>
-              </button>
-            );
-          })}
+        {/* Skills */}
+        <div className="w-full px-1.5 shrink-0">
+          <button onClick={onOpenSkillsLibrary}
+            className={`group relative w-full h-[36px] rounded-xl flex items-center justify-center transition-colors
+              ${activeView?.type === 'skillsLibrary' ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}>
+            <Sparkles size={16} />
+            <span className="absolute left-full ml-2 px-2.5 py-1 text-[11px] font-medium text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[60] shadow-lg">Skills</span>
+          </button>
         </div>
+
         {/* Divider */}
         <div className="w-6 h-px bg-slate-200 my-2" />
+
+        {/* Manage Ads — single icon with flyout for all modules */}
+        <div className="relative w-full px-1.5 shrink-0">
+          <button onClick={() => { setCollapsedModulesOpen(v => !v); setCollapsedProjectsOpen(false); setCollapsedHistoryOpen(false); }}
+            className={`group w-full h-[36px] rounded-xl flex items-center justify-center transition-colors
+              ${collapsedModulesOpen || modules.some(m => m.type && activeView?.type === m.type) ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}>
+            <BarChart3 size={16} />
+            {!collapsedModulesOpen && (
+              <span className="absolute left-full ml-2 px-2.5 py-1 text-[11px] font-medium text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[60] shadow-lg">Manage Ads</span>
+            )}
+          </button>
+          {collapsedModulesOpen && (
+            <div className="absolute left-full top-0 ml-2 w-[220px] bg-white border border-slate-200 rounded-xl shadow-xl z-[60] overflow-hidden flex flex-col">
+              <div className="px-3 py-2 border-b border-slate-100">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Manage Ads</p>
+              </div>
+              <div className="py-1">
+                {modules.map(({ icon: Icon, type, action, label }) => {
+                  const isActive = type && activeView?.type === type;
+                  return (
+                    <button key={label} onClick={() => { action(); setCollapsedModulesOpen(false); }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors
+                        ${isActive ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-600'}`}>
+                      <Icon size={14} className={isActive ? 'text-blue-500' : 'text-slate-400'} />
+                      <span className="text-[12px] font-medium">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Projects flyout */}
         <div className="relative w-full px-1.5 shrink-0">
