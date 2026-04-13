@@ -2375,8 +2375,10 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
 
   return (
     <div className="relative">
-      <div className={`bg-white/80 backdrop-blur-xl border rounded-2xl shadow-lg shadow-slate-200/50 transition-all
-        ${isOver ? 'border-blue-400 ring-2 ring-blue-100' : 'border-slate-200'}`}>
+      <div className={`bg-white/80 backdrop-blur-xl border rounded-2xl shadow-lg transition-all
+        ${isOver ? 'border-blue-400 ring-2 ring-blue-100'
+          : input ? 'border-orange-300 ring-2 ring-orange-100 shadow-orange-100/50'
+          : 'border-slate-200 shadow-slate-200/50 animate-[pulse-orange_3s_ease-in-out_infinite]'}`}>
         <AttachmentBar attachments={attachments} onRemove={onRemoveAttachment} onRetry={onRetryUpload} />
         {/* Skill chips — shown above textarea */}
         {hasChips && (

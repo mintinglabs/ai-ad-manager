@@ -244,24 +244,6 @@ export const Sidebar = ({
   const [editingFolderId, setEditingFolderId] = useState(null);
   const [editFolderName, setEditFolderName] = useState('');
   const newFolderRef = useRef(null);
-  const [hoverExpanded, setHoverExpanded] = useState(false);
-  const hoverTimerRef = useRef(null);
-
-  // Effective open state: open from prop OR temporarily from hover
-  const isOpen = open || hoverExpanded;
-
-  const handleHamburgerEnter = () => {
-    if (open) return; // already permanently open
-    clearTimeout(hoverTimerRef.current);
-    setHoverExpanded(true);
-  };
-  const handleSidebarLeave = () => {
-    if (open) return; // permanently open, don't auto-collapse
-    hoverTimerRef.current = setTimeout(() => setHoverExpanded(false), 300);
-  };
-  const handleSidebarEnter = () => {
-    clearTimeout(hoverTimerRef.current);
-  };
 
   // Close context menu / collapsed history on outside click
   useEffect(() => {
@@ -334,16 +316,14 @@ export const Sidebar = ({
   ];
 
   return (
-    <aside style={{ width: isOpen ? 260 : 52 }}
-      onMouseEnter={handleSidebarEnter}
-      onMouseLeave={handleSidebarLeave}
+    <aside style={{ width: open ? 260 : 52 }}
       className="shrink-0 bg-white/70 backdrop-blur-xl border-r border-slate-200 flex flex-col h-screen transition-all duration-200 ease-in-out z-20 relative overflow-hidden">
 
       {/* Collapsed overlay — icon rail */}
-      <div className={`absolute inset-0 flex flex-col items-center transition-opacity duration-150 ${isOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+      <div className={`absolute inset-0 flex flex-col items-center transition-opacity duration-150 ${open ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         {/* Header */}
         <div className="h-[64px] w-full flex items-center justify-center shrink-0">
-          <button onClick={onToggle} onMouseEnter={handleHamburgerEnter}
+          <button onClick={onToggle}
             className="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
             <Menu size={18} />
           </button>
@@ -425,7 +405,7 @@ export const Sidebar = ({
       </div>
 
       {/* Expanded content — fades in/out */}
-      <div className={`flex flex-col h-full transition-opacity duration-150 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      <div className={`flex flex-col h-full transition-opacity duration-150 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
 
       {/* Header */}
       <div className="px-4 py-4 flex items-center justify-between">
@@ -435,7 +415,7 @@ export const Sidebar = ({
           </div>
           <span className="text-[15px] font-bold text-slate-800 tracking-tight">AI Ad Manager</span>
         </div>
-        <button onClick={() => { setHoverExpanded(false); onToggle(); }} className="text-slate-400 hover:text-slate-600 transition-colors">
+        <button onClick={onToggle} className="text-slate-400 hover:text-slate-600 transition-colors">
           <Menu size={18} />
         </button>
       </div>
@@ -597,7 +577,7 @@ export const Sidebar = ({
 
           {sortedFolders.map(folder => {
             const folderItems = savedItems.filter(i => (i.folderId || (i.type === 'report' ? 'reports' : i.type === 'strategy' ? 'strategies' : '')) === folder.id);
-            const isOpen = openFolders[folder.id] ?? true;
+            const open = openFolders[folder.id] ?? true;
             const isDefault = folder.id === 'reports' || folder.id === 'strategies';
             const folderIcon = folder.id === 'reports' ? <FileText size={13} className="text-blue-400" />
               : folder.id === 'strategies' ? <Lightbulb size={13} className="text-amber-400" />
@@ -616,7 +596,7 @@ export const Sidebar = ({
                 <div className="flex items-center gap-1.5 group px-1">
                   <GripVertical size={14} className="text-slate-300 cursor-grab shrink-0 hover:text-slate-500 transition-colors" />
                   <button
-                    onClick={() => setOpenFolders(prev => ({ ...prev, [folder.id]: !isOpen }))}
+                    onClick={() => setOpenFolders(prev => ({ ...prev, [folder.id]: !open }))}
                     className="flex-1 flex items-center gap-2 px-2 py-2 text-[12px] font-medium text-slate-500 hover:text-slate-700 transition-colors min-w-0"
                   >
                     {folderIcon}
@@ -635,7 +615,7 @@ export const Sidebar = ({
                         {folder.name} ({folderItems.length})
                       </span>
                     )}
-                    {isOpen ? <ChevronDown size={12} className="shrink-0 text-slate-300" /> : <ChevronRight size={12} className="shrink-0 text-slate-300" />}
+                    {open ? <ChevronDown size={12} className="shrink-0 text-slate-300" /> : <ChevronRight size={12} className="shrink-0 text-slate-300" />}
                   </button>
                   {!isDefault && editingFolderId !== folder.id && (
                     <button onClick={() => onDeleteFolder?.(folder.id)}
@@ -645,14 +625,14 @@ export const Sidebar = ({
                     </button>
                   )}
                 </div>
-                {isOpen && folderItems.length > 0 && folderItems.map(item => (
+                {open && folderItems.length > 0 && folderItems.map(item => (
                   <button key={item.id} onClick={() => onViewSavedItem(item)}
                     className={`w-full flex items-center gap-2 pl-10 pr-3 py-1.5 text-[12px] text-slate-500 hover:bg-slate-50 hover:text-slate-700 rounded-lg transition-colors text-left
                       ${activeView?.type === 'saved' && activeView?.itemId === item.id ? 'bg-blue-50 text-blue-700' : ''}`}>
                     <span className="truncate">{item.title}</span>
                   </button>
                 ))}
-                {isOpen && folderItems.length === 0 && (
+                {open && folderItems.length === 0 && (
                   <p className="pl-10 pr-3 py-1 text-[11px] text-slate-300 italic">Empty</p>
                 )}
               </div>

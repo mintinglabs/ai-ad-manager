@@ -352,43 +352,8 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
           </div>
         </div>
 
-        {/* Search + Filter + Add button */}
+        {/* Search + Add button */}
         <div className="flex items-center gap-3 mt-5">
-          {/* Filter dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setFilterOpen(!filterOpen)}
-              className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-colors shadow-sm ${
-                filterType !== 'all'
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-500'
-                  : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300'
-              }`}
-            >
-              <Filter size={15} />
-            </button>
-            {filterOpen && (
-              <>
-                <div className="fixed inset-0 z-[70]" onClick={() => setFilterOpen(false)} />
-                <div className="absolute left-0 top-full mt-2 w-48 bg-white rounded-xl shadow-2xl border border-slate-200 z-[80] py-1.5">
-                  {[
-                    { value: 'all', label: 'All type' },
-                    { value: 'private', label: 'Custom' },
-                    { value: 'official', label: 'Official' },
-                  ].map(opt => (
-                    <button
-                      key={opt.value}
-                      onClick={() => { setFilterType(opt.value); setFilterOpen(false); }}
-                      className="w-full flex items-center justify-between px-4 py-2.5 text-[13px] text-slate-700 hover:bg-slate-50"
-                    >
-                      <span>{opt.label}</span>
-                      {filterType === opt.value && <Check size={14} className="text-indigo-500" />}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-
           {/* Search bar */}
           <div className="flex-1 relative">
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -415,6 +380,21 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
               onSelect={handleAddSelect}
             />
           </div>
+        </div>
+
+        {/* Filter tabs */}
+        <div className="flex items-center gap-1 mt-4 bg-slate-100 rounded-lg p-0.5">
+          {[
+            { value: 'all', label: 'All Skills' },
+            { value: 'official', label: 'Official Skills' },
+            { value: 'private', label: 'Custom Skills' },
+          ].map(tab => (
+            <button key={tab.value} onClick={() => setFilterType(tab.value)}
+              className={`flex-1 px-3 py-2 rounded-md text-[12px] font-medium transition-colors
+                ${filterType === tab.value ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* GitHub import bar */}
