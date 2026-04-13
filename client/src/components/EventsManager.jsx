@@ -1,9 +1,10 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Search, RefreshCw, Plus, Loader2, X, Activity, Radio, Clock, CheckCircle, AlertTriangle, XCircle, Zap, ChevronDown, Copy, Check } from 'lucide-react';
+import { Search, RefreshCw, Plus, Loader2, X, Activity, Radio, Clock, CheckCircle, AlertTriangle, XCircle, Zap, ChevronDown, Copy, Check, BarChart3, Hash } from 'lucide-react';
 import { AccountSelector } from './AccountSelector.jsx';
 import api from '../services/api.js';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+const fmtNumber = (n) => n != null ? Number(n).toLocaleString() : '—';
 
 // ── Pixel status badge ──
 const PixelStatus = ({ pixel }) => {
@@ -11,7 +12,6 @@ const PixelStatus = ({ pixel }) => {
   const hoursAgo = lastFired ? (Date.now() - lastFired) / 3600000 : Infinity;
   const isActive = hoursAgo < 24;
   const isStale = hoursAgo >= 24 && hoursAgo < 72;
-  const isInactive = hoursAgo >= 72 || !lastFired;
 
   return (
     <div className="flex items-center gap-1.5">
@@ -26,7 +26,7 @@ const PixelStatus = ({ pixel }) => {
   );
 };
 
-// ── Pixel card ──
+// ── Copy code button ──
 const CopyCodeButton = ({ code }) => {
   const [copied, setCopied] = useState(false);
   const handleCopy = (e) => {
@@ -44,49 +44,122 @@ const CopyCodeButton = ({ code }) => {
   );
 };
 
-const PixelCard = ({ pixel, onViewStats, expanded, onToggle }) => (
-  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-all">
-    <button onClick={onToggle} className="w-full px-5 py-4 flex items-start justify-between text-left">
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-          <Radio size={18} className="text-blue-500" />
+// ── Event color mapping ──
+const EVENT_COLORS = {
+  PageView: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200', icon: '🌐' },
+  ViewContent: { bg: 'bg-sky-50', text: 'text-sky-600', border: 'border-sky-200', icon: '👁' },
+  AddToCart: { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200', icon: '🛒' },
+  InitiateCheckout: { bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-200', icon: '💳' },
+  Purchase: { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-200', icon: '💰' },
+  Lead: { bg: 'bg-violet-50', text: 'text-violet-600', border: 'border-violet-200', icon: '📋' },
+  CompleteRegistration: { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-200', icon: '✅' },
+  Search: { bg: 'bg-cyan-50', text: 'text-cyan-600', border: 'border-cyan-200', icon: '🔍' },
+  AddPaymentInfo: { bg: 'bg-pink-50', text: 'text-pink-600', border: 'border-pink-200', icon: '💳' },
+  Contact: { bg: 'bg-teal-50', text: 'text-teal-600', border: 'border-teal-200', icon: '📞' },
+  Subscribe: { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-200', icon: '🔔' },
+};
+const getEventColor = (name) => EVENT_COLORS[name] || { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', icon: '📊' };
+
+// ── Pixel card with inline events ──
+const PixelCard = ({ pixel, expanded, onToggle, events, eventsLoading }) => {
+  const [showCode, setShowCode] = useState(false);
+  const totalEvents = events?.reduce((sum, e) => sum + (Number(e.count ?? e.value ?? 0)), 0) || 0;
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-all">
+      <button onClick={onToggle} className="w-full px-5 py-4 flex items-start justify-between text-left">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+            <Radio size={18} className="text-blue-500" />
+          </div>
+          <div>
+            <h3 className="text-[13px] font-bold text-slate-800">{pixel.name}</h3>
+            <p className="text-[10px] text-slate-400 mt-1 font-mono">{pixel.id}</p>
+            <div className="flex items-center gap-3 mt-2">
+              <PixelStatus pixel={pixel} />
+              {pixel.last_fired_time && (
+                <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                  <Clock size={10} /> Last fired: {fmtDate(pixel.last_fired_time)}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
-        <div>
-          <h3 className="text-[13px] font-bold text-slate-800">{pixel.name}</h3>
-          <p className="text-[10px] text-slate-400 mt-1 font-mono">{pixel.id}</p>
-          <div className="flex items-center gap-3 mt-2">
-            <PixelStatus pixel={pixel} />
-            {pixel.last_fired_time && (
-              <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                <Clock size={10} /> Last fired: {fmtDate(pixel.last_fired_time)}
-              </span>
+        <ChevronDown size={16} className={`text-slate-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+      </button>
+
+      {expanded && (
+        <div className="border-t border-slate-100">
+          {/* Events section */}
+          <div className="px-5 py-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                <Activity size={12} /> Events Received
+              </h4>
+              {totalEvents > 0 && (
+                <span className="text-[10px] text-slate-400">{fmtNumber(totalEvents)} total events</span>
+              )}
+            </div>
+
+            {eventsLoading ? (
+              <div className="flex items-center gap-2 py-4 justify-center">
+                <Loader2 size={14} className="animate-spin text-slate-400" />
+                <span className="text-[11px] text-slate-400">Loading events...</span>
+              </div>
+            ) : !events || events.length === 0 ? (
+              <div className="py-4 text-center">
+                <p className="text-[12px] text-slate-400">No events received yet</p>
+                <p className="text-[10px] text-slate-300 mt-1">Install the pixel code on your website to start tracking</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {events.map((evt, i) => {
+                  const name = evt.event || evt.name || evt.event_name || 'Unknown';
+                  const count = evt.count ?? evt.value ?? 0;
+                  const lastReceived = evt.last_received || evt.last_fired_time || evt.timestamp;
+                  const colors = getEventColor(name);
+                  return (
+                    <div key={i} className={`flex items-center justify-between px-3 py-2.5 rounded-lg border ${colors.bg} ${colors.border}`}>
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-[14px]">{colors.icon}</span>
+                        <div>
+                          <p className={`text-[12px] font-semibold ${colors.text}`}>{name}</p>
+                          {lastReceived && (
+                            <p className="text-[10px] text-slate-400 mt-0.5">Last: {fmtDate(lastReceived)}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-[14px] font-bold ${colors.text} tabular-nums`}>{fmtNumber(count)}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
-        </div>
-      </div>
-      <ChevronDown size={16} className={`text-slate-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />
-    </button>
-    {expanded && (
-      <div className="px-5 pb-4 border-t border-slate-100 pt-3">
-        <div className="flex items-center gap-2 mb-3">
-          <button onClick={() => onViewStats(pixel.id)}
-            className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg transition-colors">
-            <Activity size={12} /> View Stats
-          </button>
-        </div>
-        {pixel.code && (
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pixel Code</p>
-              <CopyCodeButton code={pixel.code} />
+
+          {/* Pixel code section */}
+          {pixel.code && (
+            <div className="px-5 pb-4 border-t border-slate-100 pt-3">
+              <div className="flex items-center justify-between mb-1">
+                <button onClick={() => setShowCode(!showCode)}
+                  className="text-[10px] font-bold text-slate-400 uppercase tracking-wider hover:text-slate-600 flex items-center gap-1">
+                  <Hash size={10} /> Pixel Code
+                  <ChevronDown size={10} className={`transition-transform ${showCode ? 'rotate-180' : ''}`} />
+                </button>
+                <CopyCodeButton code={pixel.code} />
+              </div>
+              {showCode && (
+                <pre className="text-[10px] text-slate-500 bg-slate-50 rounded-lg p-3 overflow-x-auto max-h-[100px] border border-slate-200 mt-2">{pixel.code}</pre>
+              )}
             </div>
-            <pre className="text-[10px] text-slate-500 bg-slate-50 rounded-lg p-3 overflow-x-auto max-h-[100px] border border-slate-200">{pixel.code}</pre>
-          </div>
-        )}
-      </div>
-    )}
-  </div>
-);
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ── Custom conversion card ──
 const ConversionCard = ({ conversion, onDelete }) => (
@@ -128,62 +201,6 @@ const ConversionCard = ({ conversion, onDelete }) => (
   </div>
 );
 
-// ── Stats modal ──
-const StatsModal = ({ pixelId, onClose }) => {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!pixelId) return;
-    setLoading(true);
-    api.get(`/pixels/${pixelId}/stats`).then(({ data }) => {
-      setStats(data);
-    }).catch(console.error).finally(() => setLoading(false));
-  }, [pixelId]);
-
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={onClose} />
-      <div className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[500px] max-h-[70vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
-          <h3 className="text-sm font-bold text-slate-800">Pixel Stats</h3>
-          <button onClick={onClose} className="w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400">
-            <X size={14} />
-          </button>
-        </div>
-        <div className="flex-1 overflow-auto p-5">
-          {loading ? (
-            <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-slate-400" /></div>
-          ) : !stats || (Array.isArray(stats) && stats.length === 0) ? (
-            <div className="py-12 text-center text-[13px] text-slate-400">No stats data available</div>
-          ) : (
-            <div className="border border-slate-200 rounded-lg overflow-hidden">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="px-4 py-2.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Event</th>
-                    <th className="px-4 py-2.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-right">Count</th>
-                    <th className="px-4 py-2.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-right">Last Received</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(Array.isArray(stats) ? stats : stats.data || [stats]).map((row, i) => (
-                    <tr key={i} className={`border-b border-slate-100 last:border-0 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
-                      <td className="px-4 py-2.5 text-[12px] font-medium text-slate-700">{row.event || row.name || row.event_name || '—'}</td>
-                      <td className="px-4 py-2.5 text-[12px] text-slate-600 text-right font-mono">{row.count ?? row.value ?? '—'}</td>
-                      <td className="px-4 py-2.5 text-[12px] text-slate-500 text-right">{fmtDate(row.last_received || row.last_fired_time || row.timestamp)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
-    </>
-  );
-};
-
 // ── Main Component ──
 export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount }) => {
   const [activeTab, setActiveTab] = useState('pixels'); // 'pixels' | 'conversions'
@@ -192,7 +209,9 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [expandedPixel, setExpandedPixel] = useState(null);
-  const [statsPixelId, setStatsPixelId] = useState(null);
+  const [pixelEvents, setPixelEvents] = useState({}); // { [pixelId]: events[] }
+  const [eventsLoading, setEventsLoading] = useState({});
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const fetchPixels = useCallback(async () => {
     if (!adAccountId) return;
@@ -201,6 +220,8 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
     try {
       const { data } = await api.get('/pixels', { params: { adAccountId } });
       setPixels(data || []);
+      // Auto-expand first pixel
+      if (data?.length && !expandedPixel) setExpandedPixel(data[0].id);
     } catch (err) {
       setError(err.response?.data?.error || err.message);
     } finally {
@@ -224,15 +245,43 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
 
   useEffect(() => { fetchPixels(); fetchConversions(); }, [fetchPixels, fetchConversions]);
 
-  const handleDeleteConversion = useCallback(async (id) => {
-    if (!confirm('Delete this custom conversion?')) return;
+  // Fetch events when a pixel is expanded
+  useEffect(() => {
+    if (!expandedPixel || pixelEvents[expandedPixel]) return;
+    setEventsLoading(prev => ({ ...prev, [expandedPixel]: true }));
+    api.get(`/pixels/${expandedPixel}/stats`).then(({ data }) => {
+      const events = Array.isArray(data) ? data : data?.data || [data];
+      // Filter out empty/invalid entries
+      const valid = events.filter(e => e && (e.event || e.name || e.event_name));
+      setPixelEvents(prev => ({ ...prev, [expandedPixel]: valid }));
+    }).catch(err => {
+      console.error('Failed to load pixel events:', err);
+      setPixelEvents(prev => ({ ...prev, [expandedPixel]: [] }));
+    }).finally(() => {
+      setEventsLoading(prev => ({ ...prev, [expandedPixel]: false }));
+    });
+  }, [expandedPixel, pixelEvents]);
+
+  const handleTogglePixel = useCallback((pixelId) => {
+    setExpandedPixel(prev => prev === pixelId ? null : pixelId);
+  }, []);
+
+  const handleDeleteConversion = useCallback(async () => {
+    if (!deleteConfirm) return;
     try {
-      await api.delete(`/conversions/${id}`);
-      setConversions(prev => prev.filter(c => c.id !== id));
+      await api.delete(`/conversions/${deleteConfirm}`);
+      setConversions(prev => prev.filter(c => c.id !== deleteConfirm));
+      setDeleteConfirm(null);
     } catch (err) {
       console.error('Delete failed:', err);
     }
-  }, []);
+  }, [deleteConfirm]);
+
+  const handleRefresh = useCallback(() => {
+    setPixelEvents({}); // clear cached events
+    fetchPixels();
+    fetchConversions();
+  }, [fetchPixels, fetchConversions]);
 
   const currentData = activeTab === 'pixels' ? pixels : conversions;
 
@@ -254,14 +303,14 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
             <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
               selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
           </div>
-          <button onClick={() => { fetchPixels(); fetchConversions(); }} disabled={loading}
+          <button onClick={handleRefresh} disabled={loading}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
         </div>
         {/* Tabs */}
         <div className="flex items-center gap-0 px-6">
-          {[['pixels', 'Pixels'], ['conversions', 'Custom Conversions']].map(([tab, label]) => (
+          {[['pixels', `Pixels (${pixels.length})`], ['conversions', `Custom Conversions (${conversions.length})`]].map(([tab, label]) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`px-4 py-2.5 text-[12px] font-semibold border-b-2 transition-colors ${activeTab === tab ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>
               {label}
@@ -298,8 +347,9 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
               {pixels.map(pixel => (
                 <PixelCard key={pixel.id} pixel={pixel}
                   expanded={expandedPixel === pixel.id}
-                  onToggle={() => setExpandedPixel(prev => prev === pixel.id ? null : pixel.id)}
-                  onViewStats={setStatsPixelId} />
+                  onToggle={() => handleTogglePixel(pixel.id)}
+                  events={pixelEvents[pixel.id]}
+                  eventsLoading={eventsLoading[pixel.id]} />
               ))}
             </div>
           )
@@ -315,14 +365,33 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
           ) : (
             <div className="space-y-3">
               {conversions.map(conv => (
-                <ConversionCard key={conv.id} conversion={conv} onDelete={handleDeleteConversion} />
+                <ConversionCard key={conv.id} conversion={conv} onDelete={setDeleteConfirm} />
               ))}
             </div>
           )
         )}
       </div>
 
-      {statsPixelId && <StatsModal pixelId={statsPixelId} onClose={() => setStatsPixelId(null)} />}
+      {/* Delete confirmation */}
+      {deleteConfirm && (
+        <>
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40" onClick={() => setDeleteConfirm(null)} />
+          <div className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[360px] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="px-5 pt-5 pb-3">
+              <h3 className="text-sm font-bold text-slate-900 mb-1">Delete this custom conversion?</h3>
+              <p className="text-xs text-slate-500">This cannot be undone.</p>
+            </div>
+            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-100">
+              <button onClick={() => setDeleteConfirm(null)}
+                className="px-4 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-50">Cancel</button>
+              <button onClick={handleDeleteConversion}
+                className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-red-600 hover:bg-red-500 transition-colors">
+                Delete
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

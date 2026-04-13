@@ -1139,7 +1139,10 @@ export const updatePixel = async (token, pixelId, updates) => {
 
 export const getPixelStats = async (token, pixelId) => {
   const { data } = await metaApi.get(`/${pixelId}/stats`, {
-    params: { access_token: token }
+    params: {
+      access_token: token,
+      aggregation: 'event',
+    }
   });
   return data?.data || [];
 };

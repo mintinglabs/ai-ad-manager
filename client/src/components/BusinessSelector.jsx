@@ -100,7 +100,7 @@ export const BusinessSelector = ({ onSelect, onBack }) => {
           <div className="mt-8 flex flex-col items-center gap-2">
             <p className="text-xs text-slate-400">Data fetched via <code className="bg-slate-100 px-1 rounded font-mono">GET /me/businesses</code> · <code className="bg-slate-100 px-1 rounded font-mono">business_management</code></p>
             <div className="flex items-center justify-center gap-2 flex-wrap">
-              {['ads_read', 'ads_management', 'business_management', 'instagram_basic', 'instagram_manage_insights', 'pages_read_engagement', 'pages_show_list'].map((p) => (
+              {['ads_read', 'ads_management', 'business_management', 'instagram_basic', 'instagram_manage_insights', 'leads_retrieval', 'pages_manage_ads', 'pages_read_engagement', 'pages_show_list'].map((p) => (
                 <span key={p} className="inline-flex items-center gap-1 text-xs bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-0.5 rounded-full font-mono">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                   {p}

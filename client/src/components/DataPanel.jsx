@@ -183,7 +183,7 @@ export const DataPanel = ({ adAccountId, selectedAccount, campaigns, insights, p
           <p className="text-xs text-slate-400 font-mono">{adAccountId} · Meta Graph API v25.0</p>
         </div>
         <div className="hidden sm:flex items-center gap-1 flex-wrap justify-end">
-          {['ads_read', 'ads_management', 'business_management', 'instagram_basic', 'instagram_manage_insights', 'pages_read_engagement', 'pages_show_list'].map(p => (
+          {['ads_read', 'ads_management', 'business_management', 'instagram_basic', 'instagram_manage_insights', 'leads_retrieval', 'pages_manage_ads', 'pages_read_engagement', 'pages_show_list'].map(p => (
             <span key={p} className="inline-flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-600 border border-emerald-200 px-1.5 py-0.5 rounded font-mono whitespace-nowrap">
               <span className="w-1 h-1 rounded-full bg-emerald-400" />{p}
             </span>
