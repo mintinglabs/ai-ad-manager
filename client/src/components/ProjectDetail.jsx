@@ -309,6 +309,7 @@ export const ProjectDetail = ({ project, skills = [], onUpdate, onDelete, onAddT
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(project.name);
   const [showMenu, setShowMenu] = useState(false);
+  const [chatInput, setChatInput] = useState('');
 
   const handleSaveName = () => {
     if (nameValue.trim() && nameValue !== project.name) {
@@ -376,17 +377,38 @@ export const ProjectDetail = ({ project, skills = [], onUpdate, onDelete, onAddT
         </div>
       </div>
 
-      {/* Project input bar — our orange-glow style */}
+      {/* Project chat input — matches main chat input style */}
       <div className="px-8 py-4 shrink-0">
         <div className="max-w-5xl mx-auto">
-          <div className="bg-white/80 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-lg shadow-slate-200/50 animate-[pulse-orange_3s_ease-in-out_infinite] px-4 py-3">
-            <p className="text-[12px] text-slate-400 mb-3">Tasks are independent for focus. Use project instructions and files for shared context.</p>
-            <div className="flex items-center gap-2">
-              <button onClick={() => {}} className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-orange-500 hover:border-orange-300 transition-colors">
-                <Plus size={14} />
-              </button>
-              <button onClick={onOpenChat} className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-orange-500 hover:border-orange-300 transition-colors" title="Open Chat">
-                <Link2 size={14} />
+          <div className={`bg-white/80 backdrop-blur-xl border rounded-2xl shadow-lg transition-all
+            ${chatInput ? 'border-orange-300 ring-2 ring-orange-100 shadow-orange-100/50' : 'border-slate-200 shadow-slate-200/50 animate-[pulse-orange_3s_ease-in-out_infinite]'}`}>
+            <div className="px-4 pt-4 pb-3">
+              <textarea
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && chatInput.trim()) { e.preventDefault(); onAddTask(chatInput.trim()); setChatInput(''); } }}
+                placeholder="Manage ads, create skills, analyze performance... (type / for skills)"
+                rows={1}
+                className="w-full resize-none text-sm bg-transparent text-slate-800 placeholder:text-slate-400 focus:outline-none overflow-y-auto"
+                style={{ lineHeight: '1.5', maxHeight: '120px' }}
+              />
+            </div>
+            <div className="px-4 pb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <button className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
+                  <Plus size={16} />
+                </button>
+                {(project.connectors || []).length > 0 && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-200 text-[11px] font-medium text-emerald-700 bg-emerald-50">
+                    <Link2 size={11} />
+                    {project.connectors[0].accountName}
+                  </span>
+                )}
+              </div>
+              <button onClick={() => { if (chatInput.trim()) { onAddTask(chatInput.trim()); setChatInput(''); } }}
+                disabled={!chatInput.trim()}
+                className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-30">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
               </button>
             </div>
           </div>
