@@ -240,17 +240,21 @@ export const Sidebar = ({
   const [newFolderName, setNewFolderName] = useState('');
   const [dragFolderId, setDragFolderId] = useState(null);
   const [dragOverFolderId, setDragOverFolderId] = useState(null);
+  const [collapsedHistoryOpen, setCollapsedHistoryOpen] = useState(false);
   const [editingFolderId, setEditingFolderId] = useState(null);
   const [editFolderName, setEditFolderName] = useState('');
   const newFolderRef = useRef(null);
 
-  // Close context menu on outside click
+  // Close context menu / collapsed history on outside click
   useEffect(() => {
-    if (!contextMenu) return;
-    const handler = (e) => { if (contextRef.current && !contextRef.current.contains(e.target)) setContextMenu(null); };
+    if (!contextMenu && !collapsedHistoryOpen) return;
+    const handler = (e) => {
+      if (contextMenu && contextRef.current && !contextRef.current.contains(e.target)) setContextMenu(null);
+      if (collapsedHistoryOpen) setCollapsedHistoryOpen(false);
+    };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [contextMenu]);
+  }, [contextMenu, collapsedHistoryOpen]);
 
   const grouped = groupSessionsByDate(sessions);
   const sortedFolders = [...folders].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -300,57 +304,118 @@ export const Sidebar = ({
     const modules = [
       { icon: BarChart3, type: 'campaigns', action: onOpenCampaigns, label: 'Campaigns' },
       { icon: Users, type: 'audiences', action: onOpenAudiences, label: 'Audiences' },
-      { icon: Image, type: 'creativeLibrary', action: onOpenCreativeLibrary, label: 'Assets' },
+      { icon: Image, type: 'creativeLibrary', action: onOpenCreativeLibrary, label: 'Asset Library' },
       { icon: Palette, type: 'adLibrary', action: onOpenAdLibrary, label: 'Ad Library' },
-      { icon: ClipboardList, type: 'instantForms', action: onOpenInstantForms, label: 'Forms' },
-      { icon: TrendingUp, type: 'eventsManager', action: onOpenEventsManager, label: 'Events' },
-      { icon: Settings, type: 'automationRules', action: onOpenAutomationRules, label: 'Rules' },
+      { icon: ClipboardList, type: 'instantForms', action: onOpenInstantForms, label: 'Instant Forms' },
+      { icon: TrendingUp, type: 'eventsManager', action: onOpenEventsManager, label: 'Events Manager' },
+      { icon: Settings, type: 'automationRules', action: onOpenAutomationRules, label: 'Automation Rules' },
+      { icon: Zap, type: 'optimizations', action: () => {}, label: 'Optimizations' },
+      { icon: FileText, type: 'report', action: () => {}, label: 'Report' },
+    ];
+    const allItems = [
+      { icon: Sparkles, label: 'Skills', action: onOpenSkillsLibrary, type: 'skillsLibrary' },
+      ...modules,
     ];
     return (
-      <aside
-        onMouseEnter={onToggle}
-        className="w-[52px] shrink-0 bg-white/70 backdrop-blur-xl border-r border-slate-200 flex flex-col h-screen items-center py-3 gap-0.5 transition-all"
-      >
-        {/* App logo */}
-        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md shadow-orange-200/50 mb-1">
-          <Zap size={16} className="text-white" />
+      <aside className="w-[52px] shrink-0 bg-white/70 backdrop-blur-xl border-r border-slate-200 flex flex-col h-screen items-center">
+        {/* Header — same height as expanded (px-4 py-4 = 64px total) */}
+        <div className="h-[64px] w-full flex items-center justify-center shrink-0">
+          <button onClick={onToggle} title="Expand sidebar"
+            className="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
+            <Menu size={18} />
+          </button>
         </div>
 
-        {/* New chat */}
-        <button onClick={onNewChat} title="New Chat"
-          className="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors mb-1">
-          <Plus size={16} />
-        </button>
+        {/* New Chat — taller to match expanded button with mb-2 */}
+        <div className="w-full px-1.5 mb-1.5 shrink-0">
+          <button onClick={onNewChat}
+            className="group relative w-full h-[40px] rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors border border-slate-200">
+            <Plus size={16} />
+            <span className="absolute left-full ml-2 px-2.5 py-1 text-[11px] font-medium text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-lg">New Chat</span>
+          </button>
+        </div>
 
-        {/* Skills */}
-        <button onClick={onToggleSkill} title="Skills"
-          className="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
-          <Sparkles size={16} />
-        </button>
+        {/* All module items */}
+        <div className="flex flex-col items-center w-full px-1.5 gap-0.5 shrink-0">
+          {allItems.map(({ icon: Icon, type, action, label }) => {
+            const isActive = type && activeView?.type === type;
+            return (
+              <button key={label} onClick={action}
+                className={`group relative w-full h-[36px] rounded-xl flex items-center justify-center transition-colors
+                  ${isActive ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}>
+                <Icon size={16} />
+                <span className="absolute left-full ml-2 px-2.5 py-1 text-[11px] font-medium text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-lg">{label}</span>
+              </button>
+            );
+          })}
+        </div>
 
         {/* Divider */}
-        <div className="w-6 h-px bg-slate-200 my-1.5" />
+        <div className="w-6 h-px bg-slate-200 my-2" />
 
-        {/* Module icons */}
-        {modules.map(({ icon: Icon, type, action, label }) => {
-          const isActive = activeView?.type === type;
-          return (
-            <button key={type} onClick={() => { action(); }}
-              title={label}
-              className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors
-                ${isActive ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}>
-              <Icon size={15} />
-            </button>
-          );
-        })}
+        {/* History — single icon, click to show flyout with folders + recent chats */}
+        <div className="relative w-full px-1.5 shrink-0">
+          <button onClick={() => setCollapsedHistoryOpen(v => !v)}
+            className={`group w-full h-[36px] rounded-xl flex items-center justify-center transition-colors
+              ${collapsedHistoryOpen ? 'bg-slate-100 text-slate-600' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}>
+            <MessageSquare size={16} />
+            {!collapsedHistoryOpen && (
+              <span className="absolute left-full ml-2 px-2.5 py-1 text-[11px] font-medium text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-lg">Chats & Folders</span>
+            )}
+          </button>
+
+          {/* Flyout menu */}
+          {collapsedHistoryOpen && (
+            <div className="absolute left-full top-0 ml-2 w-[240px] bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden max-h-[400px] flex flex-col">
+              <div className="px-3 py-2 border-b border-slate-100">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chats & Folders</p>
+              </div>
+
+              <div className="flex-1 overflow-auto">
+                {/* Folders */}
+                {sortedFolders.length > 0 && (
+                  <div className="px-2 py-1.5">
+                    <p className="text-[9px] font-bold text-slate-300 uppercase tracking-wider px-2 mb-1">Folders</p>
+                    {sortedFolders.map(folder => (
+                      <button key={folder.id} onClick={() => { setCollapsedHistoryOpen(false); onToggle(); }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 text-left transition-colors">
+                        <FolderOpen size={13} className="text-slate-400 shrink-0" />
+                        <span className="text-[11px] text-slate-600 truncate">{folder.name}</span>
+                        <span className="text-[9px] text-slate-300 ml-auto shrink-0">{(folder.sessionIds || []).length}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Recent conversations */}
+                <div className="px-2 py-1.5">
+                  <p className="text-[9px] font-bold text-slate-300 uppercase tracking-wider px-2 mb-1">Recent</p>
+                  {sessions.slice(0, 10).map(s => (
+                    <button key={s.id} onClick={() => { onSwitchSession(s.id); setCollapsedHistoryOpen(false); }}
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors
+                        ${s.id === activeSessionId ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-600'}`}>
+                      <MessageSquare size={12} className="shrink-0 text-slate-400" />
+                      <span className="text-[11px] truncate">{s.title || 'Untitled'}</span>
+                    </button>
+                  ))}
+                  {sessions.length === 0 && (
+                    <p className="text-[10px] text-slate-400 px-2 py-2">No conversations yet</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Spacer */}
         <div className="flex-1" />
 
         {/* User avatar */}
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shrink-0 shadow-sm cursor-pointer" title="Andy Wong"
-          onClick={onToggle}>
-          <span className="text-white text-[10px] font-bold">A</span>
+        <div className="pb-4">
+          <div className="group relative w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shrink-0 shadow-sm">
+            <span className="text-white text-[10px] font-bold">A</span>
+            <span className="absolute left-full ml-2 px-2.5 py-1 text-[11px] font-medium text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 shadow-lg">Andy Wong</span>
+          </div>
         </div>
       </aside>
     );
@@ -383,9 +448,8 @@ export const Sidebar = ({
         </button>
       </div>
 
-      {/* Tools */}
-      <div className="px-3 mb-1">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-1">Tools</p>
+      {/* All navigation items — flat list */}
+      <div className="px-3 mb-2">
         <button
           onClick={onOpenSkillsLibrary}
           className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
@@ -397,11 +461,6 @@ export const Sidebar = ({
           <span className="flex-1 text-left">Skills</span>
           <ChevronRight size={12} className="text-slate-300" />
         </button>
-      </div>
-
-      {/* Manage */}
-      <div className="px-3 mb-2">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-1 mt-2">Manage</p>
 
         {/* Campaigns */}
         <button

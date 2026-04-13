@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Menu } from 'lucide-react';
+import { Menu, Zap } from 'lucide-react';
 import { useChatSessions } from '../hooks/useChatSessions.js';
 import { useSkills } from '../hooks/useSkills.js';
 import { ChatInterface } from './ChatInterface.jsx';
