@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Search, RefreshCw, Loader2, X, ChevronDown, FileText, Download, Clock, Eye, Plus, Archive, MessageSquare, Users, Trash2, AlertTriangle } from 'lucide-react';
+import { Search, RefreshCw, Loader2, X, ChevronDown, FileText, Download, Clock, Eye, Plus, Archive, MessageSquare, Users, Trash2, AlertTriangle, Palette } from 'lucide-react';
 import { AccountSelector } from './AccountSelector.jsx';
 import api from '../services/api.js';
 
@@ -380,6 +380,183 @@ const LeadsModal = ({ form, pageId, onClose }) => {
   );
 };
 
+// ── Interactive phone preview (multi-step like Facebook) ──
+const FormPhonePreview = ({ form, pageName }) => {
+  const questions = form.questions || [];
+  // Steps: 0=intro, 1..N=one question per step, N+1=privacy+submit, N+2=thank you
+  const totalSteps = questions.length + 3;
+  const [step, setStep] = useState(0);
+
+  // Reset step when form changes
+  useEffect(() => { setStep(0); }, [form.id]);
+
+  const progress = ((step + 1) / totalSteps) * 100;
+
+  const getPlaceholder = (q) => {
+    const map = {
+      EMAIL: 'email@example.com', PHONE: '+852 9XXX XXXX', FULL_NAME: 'Your full name',
+      COMPANY_NAME: 'Company name', JOB_TITLE: 'Job title', CITY: 'City',
+      STATE: 'State/Province', ZIP: 'Postal code', COUNTRY: 'Country',
+      DATE_OF_BIRTH: 'DD/MM/YYYY',
+    };
+    return map[q.type] || 'Enter your answer';
+  };
+
+  return (
+    <div className="flex justify-center">
+      <div className="w-[320px]">
+        {/* Phone frame */}
+        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-200 overflow-hidden">
+          {/* Notch */}
+          <div className="h-7 bg-slate-900 flex items-center justify-center relative">
+            <div className="w-20 h-[18px] bg-slate-900 rounded-b-2xl absolute -bottom-0" />
+            <div className="w-12 h-1.5 bg-slate-700 rounded-full" />
+          </div>
+
+          {/* Progress bar */}
+          <div className="h-1 bg-slate-100">
+            <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${progress}%` }} />
+          </div>
+
+          {/* Screen content */}
+          <div className="min-h-[420px] flex flex-col">
+            {/* Step 0: Intro */}
+            {step === 0 && (
+              <div className="flex-1 flex flex-col">
+                {/* Ad creative placeholder */}
+                <div className="w-full h-28 bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center">
+                  <div className="text-center">
+                    <Palette size={28} className="text-slate-300 mx-auto" />
+                    <p className="text-[9px] text-slate-400 mt-1">The image creative used in your ad will appear</p>
+                  </div>
+                </div>
+                {/* Page info + form name */}
+                <div className="p-5 flex-1 flex flex-col">
+                  <div className="flex items-center gap-2.5 mb-4">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <FileText size={16} className="text-blue-500" />
+                    </div>
+                    <div>
+                      <p className="text-[12px] font-semibold text-slate-700">{pageName || 'Your Page'}</p>
+                    </div>
+                  </div>
+                  <h3 className="text-[16px] font-bold text-slate-800 leading-snug">{form.name}</h3>
+                  <p className="text-[11px] text-slate-500 mt-2">{questions.length} question{questions.length !== 1 ? 's' : ''} to complete</p>
+                  <div className="flex-1" />
+                </div>
+              </div>
+            )}
+
+            {/* Steps 1..N: One question per step */}
+            {step >= 1 && step <= questions.length && (() => {
+              const q = questions[step - 1];
+              const label = q.label || q.key || `Question ${step}`;
+              const hasOptions = q.options && q.options.length > 0;
+              return (
+                <div className="flex-1 flex flex-col p-5">
+                  <p className="text-[10px] text-slate-400 mb-1">Question {step} of {questions.length}</p>
+                  <h3 className="text-[14px] font-bold text-slate-800 mb-4">{label}</h3>
+                  {hasOptions ? (
+                    <div className="space-y-2">
+                      {q.options.map((opt, i) => (
+                        <div key={i} className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-[12px] text-slate-600 hover:border-blue-300 hover:bg-blue-50/30 cursor-pointer transition-colors">
+                          {typeof opt === 'string' ? opt : opt.value || opt.label || `Option ${i + 1}`}
+                        </div>
+                      ))}
+                    </div>
+                  ) : q.type === 'CUSTOM' ? (
+                    <textarea className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-[12px] text-slate-400 h-24 resize-none" placeholder={getPlaceholder(q)} readOnly />
+                  ) : (
+                    <input className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-[12px] text-slate-400" placeholder={getPlaceholder(q)} readOnly />
+                  )}
+                  {q.type && (
+                    <p className="text-[9px] text-slate-300 mt-2 font-mono">{q.type}{q.key ? ` · ${q.key}` : ''}</p>
+                  )}
+                  <div className="flex-1" />
+                </div>
+              );
+            })()}
+
+            {/* Privacy + Submit step */}
+            {step === questions.length + 1 && (
+              <div className="flex-1 flex flex-col p-5">
+                <h3 className="text-[14px] font-bold text-slate-800 mb-3">Review and submit</h3>
+                <div className="space-y-2 mb-4">
+                  {questions.map((q, i) => (
+                    <div key={i} className="flex items-center justify-between py-2 border-b border-slate-100">
+                      <span className="text-[11px] text-slate-500">{q.label || q.key}</span>
+                      <span className="text-[11px] text-slate-300">{getPlaceholder(q)}</span>
+                    </div>
+                  ))}
+                </div>
+                {form.privacy_policy_url && (
+                  <p className="text-[10px] text-slate-400 mb-4 leading-relaxed">
+                    By pressing Submit below, you agree that {pageName || 'this business'} may use the info you provided according to their{' '}
+                    <span className="text-blue-500 underline">privacy policy</span> and{' '}
+                    <span className="text-blue-500 underline">Meta's privacy policy</span>.
+                  </p>
+                )}
+                <div className="flex-1" />
+                <button onClick={() => setStep(step + 1)}
+                  className="w-full py-3 rounded-xl bg-blue-600 text-white text-[13px] font-semibold hover:bg-blue-700 transition-colors">
+                  Submit
+                </button>
+              </div>
+            )}
+
+            {/* Thank you step */}
+            {step === questions.length + 2 && (
+              <div className="flex-1 flex flex-col items-center justify-center p-5 text-center">
+                <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
+                  <span className="text-2xl">✓</span>
+                </div>
+                <h3 className="text-[16px] font-bold text-slate-800 mb-2">Thank you!</h3>
+                <p className="text-[12px] text-slate-500 mb-1">Your information has been submitted.</p>
+                <p className="text-[11px] text-slate-400">{pageName || 'This business'} will be in touch.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Navigation buttons */}
+          <div className="px-5 pb-4 flex items-center gap-3">
+            {step > 0 && step < totalSteps - 1 && (
+              <button onClick={() => setStep(Math.max(0, step - 1))}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-[12px] font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                Back
+              </button>
+            )}
+            {step < questions.length + 1 && (
+              <button onClick={() => setStep(Math.min(totalSteps - 1, step + 1))}
+                className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-[12px] font-semibold hover:bg-blue-700 transition-colors">
+                {step === 0 ? 'Start' : 'Next'}
+              </button>
+            )}
+            {step === totalSteps - 1 && (
+              <button onClick={() => setStep(0)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-[12px] font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                Restart Preview
+              </button>
+            )}
+          </div>
+
+          {/* Home indicator */}
+          <div className="h-5 flex items-center justify-center">
+            <div className="w-24 h-1 bg-slate-200 rounded-full" />
+          </div>
+        </div>
+
+        {/* Step indicator */}
+        <div className="flex items-center justify-center gap-1.5 mt-3">
+          {Array.from({ length: totalSteps }).map((_, i) => (
+            <button key={i} onClick={() => setStep(i)}
+              className={`w-2 h-2 rounded-full transition-colors ${i === step ? 'bg-blue-500' : 'bg-slate-200 hover:bg-slate-300'}`} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Main Component ──
 export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount }) => {
   const [forms, setForms] = useState([]);
@@ -389,6 +566,7 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState(null);
+  const [selectedForm, setSelectedForm] = useState(null);
   const [viewingForm, setViewingForm] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState(null);
@@ -506,58 +684,93 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
 
       {error && <div className="mx-6 mt-3 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{error}</div>}
 
-      {/* Content */}
-      <div className="flex-1 overflow-auto px-6 py-4">
-        {!token || !adAccountId ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <p className="text-sm font-semibold text-slate-700 mb-1">{!token ? 'Connect an ad platform' : 'Select an ad account'}</p>
-            <p className="text-xs text-slate-400">Use the account selector above to get started.</p>
-          </div>
-        ) : loading && forms.length === 0 ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 size={24} className="animate-spin text-slate-400" />
-            <span className="ml-2 text-sm text-slate-400">Loading forms...</span>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
-              <FileText size={28} className="text-slate-300" />
-            </div>
-            <p className="text-sm font-semibold text-slate-700 mb-1">{search ? 'No matching forms' : 'No instant forms yet'}</p>
-            <p className="text-xs text-slate-400 mb-4">Create lead forms to capture leads from your ads.</p>
-            {!search && (
-              <button onClick={() => setShowCreate(true)} disabled={!selectedPage}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 transition-colors">
-                <Plus size={13} /> Create First Form
-              </button>
+      {/* Content — master-detail layout */}
+      <div className="flex-1 flex min-h-0">
+        {/* Left: Form list */}
+        <div className={`${selectedForm ? 'w-[340px] shrink-0 border-r border-slate-200' : 'flex-1'} overflow-auto`}>
+          <div className="py-2">
+            {!token || !adAccountId ? (
+              <div className="flex flex-col items-center justify-center py-20 px-6">
+                <p className="text-sm font-semibold text-slate-700 mb-1">{!token ? 'Connect an ad platform' : 'Select an ad account'}</p>
+                <p className="text-xs text-slate-400">Use the account selector above to get started.</p>
+              </div>
+            ) : loading && forms.length === 0 ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 size={24} className="animate-spin text-slate-400" />
+                <span className="ml-2 text-sm text-slate-400">Loading forms...</span>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 px-6">
+                <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                  <FileText size={28} className="text-slate-300" />
+                </div>
+                <p className="text-sm font-semibold text-slate-700 mb-1">{search ? 'No matching forms' : 'No instant forms yet'}</p>
+                <p className="text-xs text-slate-400 mb-4">Create lead forms to capture leads from your ads.</p>
+                {!search && (
+                  <button onClick={() => setShowCreate(true)} disabled={!selectedPage}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 transition-colors">
+                    <Plus size={13} /> Create First Form
+                  </button>
+                )}
+              </div>
+            ) : (
+              filtered.map(form => (
+                <button key={form.id} onClick={() => setSelectedForm(form)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b border-slate-100 transition-colors
+                    ${selectedForm?.id === form.id ? 'bg-blue-50 border-l-2 border-l-blue-500' : 'hover:bg-slate-50 border-l-2 border-l-transparent'}`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-semibold text-slate-800 truncate">{form.name}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full
+                        ${form.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                        {form.status || 'Active'}
+                      </span>
+                      <span className="text-[10px] text-slate-400">{(form.questions || []).length} fields</span>
+                      <span className="text-[10px] text-slate-300">{fmtDate(form.created_time)}</span>
+                    </div>
+                  </div>
+                  <ChevronDown size={14} className="text-slate-300 -rotate-90 shrink-0" />
+                </button>
+              ))
             )}
           </div>
-        ) : (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/80">
-                  <th className="py-2.5 px-4 w-8"></th>
-                  <th className="py-2.5 px-4 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Form Name</th>
-                  <th className="py-2.5 px-4 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                  <th className="py-2.5 px-4 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fields</th>
-                  <th className="py-2.5 px-4 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Created</th>
-                  <th className="py-2.5 px-4 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(form => (
-                  <FormRow
-                    key={form.id}
-                    form={form}
-                    expanded={expandedId === form.id}
-                    onToggle={() => setExpandedId(prev => prev === form.id ? null : form.id)}
-                    onViewLeads={setViewingForm}
-                    onArchive={setArchiveTarget}
-                  />
-                ))}
-              </tbody>
-            </table>
+        </div>
+
+        {/* Right: Form preview */}
+        {selectedForm && (
+          <div className="flex-1 overflow-auto bg-slate-50/50 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-[15px] font-bold text-slate-800">{selectedForm.name}</h2>
+                <p className="text-[11px] text-slate-400 mt-0.5">Form preview — may not exactly match Facebook</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setViewingForm(selectedForm)}
+                  className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200 transition-colors">
+                  <Eye size={12} /> View Leads
+                </button>
+                {selectedForm.status === 'ACTIVE' && (
+                  <button onClick={() => setArchiveTarget(selectedForm)}
+                    className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg border border-slate-200 transition-colors">
+                    <Archive size={12} /> Archive
+                  </button>
+                )}
+                <button onClick={() => setSelectedForm(null)}
+                  className="w-7 h-7 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-400">
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+
+            {/* Interactive phone mockup */}
+            <FormPhonePreview form={selectedForm} pageName={selectedPage?.name} />
+
+            {/* Form metadata */}
+            <div className="mt-4 flex items-center justify-center gap-4 text-[10px] text-slate-400">
+              {selectedForm.locale && <span>Locale: {selectedForm.locale}</span>}
+              <span className="font-mono">ID: {selectedForm.id}</span>
+              <span>Created: {fmtDate(selectedForm.created_time)}</span>
+            </div>
           </div>
         )}
       </div>

@@ -295,7 +295,35 @@ export const Sidebar = ({
     setEditFolderName('');
   };
 
-  if (!open) return null;
+  // Collapsed icon rail
+  if (!open) {
+    const modules = [
+      { icon: BarChart3, type: 'campaigns', action: onOpenCampaigns, color: 'emerald' },
+      { icon: Users, type: 'audiences', action: onOpenAudiences, color: 'blue' },
+      { icon: Image, type: 'creativeLibrary', action: onOpenCreativeLibrary, color: 'pink' },
+      { icon: Palette, type: 'adLibrary', action: onOpenAdLibrary, color: 'orange' },
+      { icon: ClipboardList, type: 'instantForms', action: onOpenInstantForms, color: 'orange' },
+      { icon: TrendingUp, type: 'eventsManager', action: onOpenEventsManager, color: 'cyan' },
+      { icon: Settings, type: 'automationRules', action: onOpenAutomationRules, color: 'violet' },
+    ];
+    return (
+      <aside className="w-[52px] shrink-0 bg-white/70 backdrop-blur-xl border-r border-slate-200 flex flex-col h-screen items-center py-3 gap-1">
+        {/* Expand button */}
+        <button onClick={onToggle} className="w-9 h-9 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors mb-2">
+          <Menu size={18} />
+        </button>
+        {/* Module icons */}
+        {modules.map(({ icon: Icon, type, action, color }) => (
+          <button key={type} onClick={() => { action(); onToggle(); }}
+            title={type.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}
+            className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors
+              ${activeView?.type === type ? `bg-${color}-50 text-${color}-500` : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}>
+            <Icon size={16} />
+          </button>
+        ))}
+      </aside>
+    );
+  }
 
   return (
     <aside className="w-[260px] shrink-0 bg-white/70 backdrop-blur-xl border-r border-slate-200 flex flex-col h-screen">
