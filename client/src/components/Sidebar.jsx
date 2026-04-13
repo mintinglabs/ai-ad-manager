@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Zap, Plus, MessageSquare, Trash2, ChevronDown, ChevronLeft, ChevronRight, LogOut, FileText, Lightbulb, FolderOpen, Building2, Check, Globe, GripVertical, FolderPlus, X, Users, Sparkles, MoreVertical, Pin, Pencil, Menu, BarChart3, Image, Calendar, TrendingUp, ClipboardList, Settings, Palette, LayoutGrid } from 'lucide-react';
+import { Zap, Plus, MessageSquare, Trash2, ChevronDown, ChevronLeft, ChevronRight, LogOut, FileText, Lightbulb, FolderOpen, Building2, Check, Globe, GripVertical, FolderPlus, X, Users, Sparkles, MoreVertical, Pin, Pencil, Menu, BarChart3, Image, Calendar, TrendingUp, ClipboardList, Settings, Palette, LayoutGrid, ListTodo } from 'lucide-react';
 import { groupSessionsByDate } from '../hooks/useChatSessions.js';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
 import { useBusinesses } from '../hooks/useBusinesses.js';
@@ -254,13 +254,16 @@ export const Sidebar = ({
   const newFolderRef = useRef(null);
 
   // Close context menu / collapsed flyouts on outside click
+  const sidebarRef = useRef(null);
   useEffect(() => {
     if (!contextMenu && !collapsedHistoryOpen && !collapsedProjectsOpen && !collapsedModulesOpen) return;
     const handler = (e) => {
+      // Don't close if click is inside sidebar (flyout buttons live there)
+      if (sidebarRef.current?.contains(e.target)) return;
       if (contextMenu && contextRef.current && !contextRef.current.contains(e.target)) setContextMenu(null);
-      if (collapsedHistoryOpen) setCollapsedHistoryOpen(false);
-      if (collapsedProjectsOpen) setCollapsedProjectsOpen(false);
-      if (collapsedModulesOpen) setCollapsedModulesOpen(false);
+      setCollapsedHistoryOpen(false);
+      setCollapsedProjectsOpen(false);
+      setCollapsedModulesOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -322,7 +325,7 @@ export const Sidebar = ({
   ];
 
   return (
-    <aside style={{ width: open ? 260 : 52 }}
+    <aside ref={sidebarRef} style={{ width: open ? 260 : 52 }}
       className={`shrink-0 bg-white/70 backdrop-blur-xl border-r border-slate-200 flex flex-col h-screen transition-all duration-200 ease-in-out z-20 relative ${open ? 'overflow-hidden' : 'overflow-visible'}`}>
 
       {/* Collapsed overlay — icon rail */}
@@ -352,8 +355,7 @@ export const Sidebar = ({
           </button>
         </div>
 
-        {/* Divider */}
-        <div className="w-6 h-px bg-slate-200 my-2" />
+
 
         {/* Manage Ads — single icon with flyout for all modules */}
         <div className="relative w-full px-1.5 shrink-0">
@@ -428,7 +430,7 @@ export const Sidebar = ({
           <button onClick={() => { setCollapsedHistoryOpen(v => !v); setCollapsedProjectsOpen(false); }}
             className={`group w-full h-[36px] rounded-xl flex items-center justify-center transition-colors
               ${collapsedHistoryOpen ? 'bg-slate-100 text-slate-600' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}>
-            <MessageSquare size={16} />
+            <ListTodo size={16} />
             {!collapsedHistoryOpen && (
               <span className="absolute left-full ml-2 px-2.5 py-1 text-[11px] font-medium text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[60] shadow-lg">All Tasks</span>
             )}
@@ -443,7 +445,7 @@ export const Sidebar = ({
                   <button key={s.id} onClick={() => { onSwitchSession(s.id); setCollapsedHistoryOpen(false); }}
                     className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-colors
                       ${s.id === activeSessionId ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-600'}`}>
-                    <MessageSquare size={12} className="shrink-0 text-slate-400" />
+                    <ListTodo size={12} className="shrink-0 text-slate-400" />
                     <span className="text-[11px] truncate">{s.title || 'Untitled'}</span>
                   </button>
                 ))}
@@ -590,7 +592,7 @@ export const Sidebar = ({
           </div>
           {sessions.length === 0 ? (
             <div className="px-3 py-6 text-center">
-              <MessageSquare size={20} className="text-slate-200 mx-auto mb-2" />
+              <ListTodo size={20} className="text-slate-200 mx-auto mb-2" />
               <p className="text-[11px] text-slate-400">No tasks yet</p>
             </div>
           ) : (
@@ -607,7 +609,7 @@ export const Sidebar = ({
                       <div key={session.id} className="relative">
                         {renamingSession === session.id ? (
                           <div className="flex items-center gap-2 px-3 py-2">
-                            <MessageSquare size={14} className="text-blue-500 shrink-0" />
+                            <ListTodo size={14} className="text-blue-500 shrink-0" />
                             <input
                               value={renameValue}
                               onChange={(e) => setRenameValue(e.target.value)}
@@ -625,7 +627,7 @@ export const Sidebar = ({
                             className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-[13px] transition-colors group
                               ${isActive ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
                           >
-                            <MessageSquare size={14} className={`shrink-0 ${isActive ? 'text-blue-500' : 'text-slate-300'}`} />
+                            <ListTodo size={14} className={`shrink-0 ${isActive ? 'text-blue-500' : 'text-slate-300'}`} />
                             <span className="truncate flex-1">{session.title}</span>
                             {isPinned && <Pin size={10} className="text-blue-400 shrink-0" />}
                             {hoveredSession === session.id && (
