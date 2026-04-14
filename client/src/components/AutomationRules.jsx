@@ -559,7 +559,7 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
             </button>
             <button onClick={() => onPrefillChat?.('I want to create a custom automation rule for my campaigns. Help me set it up.')}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-orange-600 to-amber-500 text-white hover:from-orange-500 hover:to-amber-400 transition-all shadow-sm">
-              <Plus size={13} /> Create Rule
+              <Sparkles size={13} /> Create with AI
             </button>
           </div>
         </div>
