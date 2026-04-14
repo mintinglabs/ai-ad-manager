@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Search, RefreshCw, Loader2, X, ChevronDown, FileText, Download, Clock, Eye, Plus, Archive, MessageSquare, Users, Trash2, AlertTriangle, Palette, Zap, Smartphone } from 'lucide-react';
+import { Search, RefreshCw, Loader2, X, ChevronDown, FileText, Download, Clock, Eye, Plus, Archive, MessageSquare, Users, Trash2, AlertTriangle, Palette, Zap, Smartphone, Sparkles, ArrowRight } from 'lucide-react';
 import { AccountSelector } from './AccountSelector.jsx';
 import { AskAIButton, AskAIPopup } from './AskAIPopup.jsx';
 import api from '../services/api.js';
@@ -872,16 +872,10 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
             <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
               selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => onPrefillChat?.('I want to create a new lead generation form (Instant Form) for my campaigns. Help me set it up.')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 transition-colors">
-              <Plus size={13} /> New Form
-            </button>
-            <button onClick={fetchForms} disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
-              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
-            </button>
-          </div>
+          <button onClick={fetchForms} disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
+          </button>
         </div>
       </div>
 
@@ -907,6 +901,31 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
           ))}
         </div>
       </div>
+
+      {/* Chat bar — ask AI to create a form */}
+      {token && adAccountId && (
+        <div className="px-6 py-3 bg-white border-b border-slate-100">
+          <div className="bg-white rounded-2xl border border-orange-200 shadow-sm ring-1 ring-orange-500/10 focus-within:ring-2 focus-within:ring-orange-500/20 focus-within:border-orange-300 transition-all overflow-hidden">
+            <input data-form-input
+              placeholder="Describe a form... e.g. 'Create a lead form for my skincare consultation campaign'"
+              className="w-full px-5 pt-3 pb-1.5 text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none bg-transparent"
+              onKeyDown={e => { if (e.key === 'Enter' && e.target.value.trim()) { onPrefillChat?.(e.target.value.trim()); e.target.value = ''; } }}
+            />
+            <div className="flex items-center justify-between px-4 pb-2.5">
+              <span className="text-[10px] text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                <Sparkles size={10} /> AI will build your form
+              </span>
+              <button onClick={() => {
+                const input = document.querySelector('[data-form-input]');
+                if (input?.value?.trim()) { onPrefillChat?.(input.value.trim()); input.value = ''; }
+              }}
+                className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 flex items-center justify-center text-white shadow-sm transition-all">
+                <ArrowRight size={13} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && <div className="mx-6 mt-3 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{error}</div>}
 
