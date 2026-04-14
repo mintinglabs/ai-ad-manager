@@ -619,30 +619,29 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
               </p>
             </div>
             <TemplateCards onSelect={handleTemplateSelect} />
-            <div className="text-center mt-2">
-              <p className="text-[12px] text-slate-400">
-                Need something custom?{' '}
-                <button onClick={() => onPrefillChat?.('I want to create a custom automation rule for my campaigns. Help me set it up.')}
-                  className="text-orange-600 font-semibold hover:underline">Create with AI</button>
-              </p>
-            </div>
           </>
         ) : (
           <>
-            {/* Rules list = main content */}
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-[15px] font-bold text-slate-900">Your Rules</h3>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  {activeCount} active · {pausedCount} paused
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search rules..."
-                    className="pl-8 pr-3 py-1.5 text-[11px] rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 w-44 placeholder:text-slate-300" />
-                </div>
+            {/* Quick-add template chips — always visible at top */}
+            <div className="flex flex-wrap items-center gap-2 mb-5">
+              <span className="text-[11px] font-semibold text-slate-400 mr-1">Quick add:</span>
+              {RULE_TEMPLATES.map(t => {
+                const Icon = t.icon;
+                return (
+                  <button key={t.id} onClick={() => handleTemplateSelect(t)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-orange-50 hover:border-orange-200 transition-all group">
+                    <div className={`w-5 h-5 rounded-md ${t.iconBg} flex items-center justify-center shrink-0`}>
+                      <Icon size={11} />
+                    </div>
+                    <span className="text-[11px] font-medium text-slate-600 group-hover:text-orange-700 transition-colors">{t.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Rules list header */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
                 <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden">
                   {[['all', `All (${rules.length})`], ['active', `Active (${activeCount})`], ['paused', `Paused (${pausedCount})`]].map(([val, label]) => (
                     <button key={val} onClick={() => setStatusFilter(val)}
@@ -652,8 +651,14 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
                   ))}
                 </div>
               </div>
+              <div className="relative">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search rules..."
+                  className="pl-8 pr-3 py-1.5 text-[11px] rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 w-44 placeholder:text-slate-300" />
+              </div>
             </div>
 
+            {/* Rules list */}
             {loading && rules.length === 0 ? (
               <div className="flex items-center justify-center py-16">
                 <Loader2 size={24} className="animate-spin text-slate-400" />
@@ -663,7 +668,7 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
                 {search ? 'No matching rules found' : 'No rules in this filter'}
               </div>
             ) : (
-              <div className="space-y-3 mb-6">
+              <div className="space-y-3">
                 {filtered.map(rule => (
                   <RuleCard key={rule.id} rule={rule} onToggle={handleToggle}
                     onEdit={(r) => { setEditingRule(r); setShowCreate(true); }}
@@ -671,9 +676,6 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
                 ))}
               </div>
             )}
-
-            {/* Template chips at the bottom */}
-            <TemplateChips onSelect={handleTemplateSelect} onCreateAI={() => onPrefillChat?.('I want to create a custom automation rule for my campaigns. Help me set it up.')} />
           </>
         )}
       </div>
