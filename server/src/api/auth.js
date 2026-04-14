@@ -23,4 +23,11 @@ router.post('/token', async (req, res, next) => {
   }
 });
 
+// Dev-only: return the demo token so the client can sync it
+router.get('/demo-token', (req, res) => {
+  const token = process.env.META_DEMO_TOKEN;
+  if (!token) return res.status(404).json({ error: 'No demo token configured' });
+  res.json({ longLivedToken: token });
+});
+
 export default router;

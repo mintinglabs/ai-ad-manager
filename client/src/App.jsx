@@ -32,20 +32,21 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('aam_selected_account')); } catch { return null; }
   });
 
-  // Dev bypass: auto-seed token + ad account from server so localhost skips login
+  // Dev: sync demo token from server when current token is missing or expired
   useEffect(() => {
-    if (!DEV_BYPASS || longLivedToken) return;
-    fetch('/api/dev-config').then(r => r.json()).then(cfg => {
-      if (!cfg.enabled) return;
-      localStorage.setItem('fb_long_lived_token', cfg.token);
-      setTokenDirect(cfg.token);
-      if (cfg.adAccountId && !selectedAccount) {
-        const acc = { id: cfg.adAccountId, name: cfg.adAccountId, account_id: cfg.adAccountId.replace('act_', '') };
-        setSelectedAccount(acc);
-        localStorage.setItem('aam_selected_account', JSON.stringify(acc));
-      }
-    }).catch(() => {});
-  }, [DEV_BYPASS, longLivedToken]);
+    if (!import.meta.env.DEV) return;
+    // Try to sync demo token from server
+    const syncToken = () => {
+      fetch('/api/auth/demo-token').then(r => r.ok ? r.json() : null).then(data => {
+        if (!data?.longLivedToken) return;
+        const current = localStorage.getItem('fb_long_lived_token');
+        if (current !== data.longLivedToken) {
+          setTokenDirect(data.longLivedToken);
+        }
+      }).catch(() => {});
+    };
+    syncToken();
+  }, []);
 
   // Always show Dashboard — soft wall prompts login when needed
   return (

@@ -41,7 +41,7 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
     if (externalSessionId && externalSessionId !== sessionIdRef.current) {
       if (abortRef.current) abortRef.current.abort();
       sessionIdRef.current = externalSessionId;
-      setMessages(initialMessages || [getWelcomeMessage(accountName, language)]);
+      setMessages(initialMessages || []);
       setIsTyping(false);
       setThinkingText('');
       setCreationStep(null);
@@ -50,21 +50,13 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
     }
   }, [externalSessionId, initialMessages, accountName, language]);
 
-  // Update welcome message when account or language changes (only if chat is empty)
-  useEffect(() => {
-    setMessages((prev) => {
-      if (prev.length === 1 && prev[0].id === 'welcome') {
-        return [getWelcomeMessage(accountName, language)];
-      }
-      return prev;
-    });
-  }, [accountName, language]);
+  // (welcome message removed — user speaks first)
 
   // Allow external session switching
   const loadSession = useCallback((newSessionId, newMessages) => {
     if (abortRef.current) abortRef.current.abort();
     sessionIdRef.current = newSessionId;
-    setMessages(newMessages || [getWelcomeMessage(accountName, language)]);
+    setMessages(newMessages || []);
     setIsTyping(false);
     setThinkingText('');
     setCreationStep(null);

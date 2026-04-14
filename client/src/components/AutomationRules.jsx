@@ -475,7 +475,7 @@ const HistoryModal = ({ ruleId, onClose }) => {
 };
 
 // ── Main Component ──
-export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onBack, onSendToChat }) => {
+export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onBack, onSendToChat, onPrefillChat }) => {
   const [showAskAI, setShowAskAI] = useState(false);
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -567,12 +567,11 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
               selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
           </div>
           <div className="flex items-center gap-2">
-            <AskAIButton onClick={() => setShowAskAI(true)} />
             <button onClick={fetchRules} disabled={loading}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
             </button>
-            <button onClick={() => { setEditingRule(null); setShowCreate(true); }}
+            <button onClick={() => onPrefillChat?.('I want to create a new automation rule for my campaigns. Help me set it up.')}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-violet-600 text-white hover:bg-violet-500 transition-colors shadow-sm">
               <Plus size={13} /> Create Rule
             </button>
@@ -603,9 +602,6 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
           </div>
         ) : (
           <>
-            {/* AI Rule Generator */}
-            <AIRuleGenerator onGenerate={(prompt) => onSendToChat?.(`[Context: Automation Rules]\nGenerate an automation rule: ${prompt}`)} />
-
             {/* Quick Setup Templates */}
             <QuickTemplates onUseTemplate={(t) => {
               setEditingRule({
@@ -682,7 +678,6 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
         <HistoryModal ruleId={historyRuleId} onClose={() => setHistoryRuleId(null)} />
       )}
 
-      {showAskAI && <AskAIPopup onSubmit={onSendToChat} onClose={() => setShowAskAI(false)} context="Automation Rules" />}
     </div>
   );
 };

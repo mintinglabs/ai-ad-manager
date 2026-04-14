@@ -159,7 +159,7 @@ router.get('/adaccounts/:id/campaigns-tree', async (req, res, next) => {
   try {
     const { limit, after, date_preset } = req.query;
     const result = await metaClient.getCampaigns(req.token, req.params.id, {
-      limit: limit ? parseInt(limit) : 20,
+      limit: limit ? parseInt(limit) : 50,
       after: after || undefined,
       datePreset: date_preset || 'last_7d',
     });
@@ -178,7 +178,7 @@ router.get('/campaigns/:id/adsets', async (req, res, next) => {
     const params = {
       access_token: req.token,
       limit: limit ? parseInt(limit) : 20,
-      fields: `id,name,status,effective_status,daily_budget,lifetime_budget,optimization_goal,insights.date_preset(${dp}){spend,impressions,clicks,ctr,cpm,reach,frequency,actions,action_values,cost_per_action_type}`,
+      fields: `id,name,status,effective_status,daily_budget,lifetime_budget,optimization_goal,insights.date_preset(${dp}){spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values,cost_per_action_type,purchase_roas,unique_clicks,unique_ctr,cost_per_unique_click,inline_link_clicks,inline_link_click_ctr,cost_per_inline_link_click,outbound_clicks,cost_per_outbound_click,video_thruplay_watched_actions,video_p25_watched_actions,video_p50_watched_actions,video_p75_watched_actions,video_p95_watched_actions,video_p100_watched_actions,quality_ranking,engagement_rate_ranking,conversion_rate_ranking,social_spend,cost_per_thruplay}`,
     };
     if (after) params.after = after;
     const { data } = await metaClient.metaApi.get(`/${req.params.id}/adsets`, { params });
@@ -197,7 +197,7 @@ router.get('/adsets/:id/ads', async (req, res, next) => {
     const params = {
       access_token: req.token,
       limit: limit ? parseInt(limit) : 20,
-      fields: `id,name,status,effective_status,creative{id,thumbnail_url,image_url,video_id},insights.date_preset(${dp}){spend,impressions,clicks,ctr,cpm,reach,frequency,actions,action_values,cost_per_action_type}`,
+      fields: `id,name,status,effective_status,creative{id,thumbnail_url,image_url,video_id},insights.date_preset(${dp}){spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values,cost_per_action_type,purchase_roas,unique_clicks,unique_ctr,cost_per_unique_click,inline_link_clicks,inline_link_click_ctr,cost_per_inline_link_click,outbound_clicks,cost_per_outbound_click,video_thruplay_watched_actions,video_p25_watched_actions,video_p50_watched_actions,video_p75_watched_actions,video_p95_watched_actions,video_p100_watched_actions,quality_ranking,engagement_rate_ranking,conversion_rate_ranking,social_spend,cost_per_thruplay}`,
     };
     if (after) params.after = after;
     const { data } = await metaClient.metaApi.get(`/${req.params.id}/ads`, { params });
@@ -215,7 +215,7 @@ router.get('/adaccounts/:id/adsets', async (req, res, next) => {
       params: {
         access_token: req.token,
         limit: 200,
-        fields: 'id,name,campaign_id,status,effective_status,daily_budget,lifetime_budget,optimization_goal,insights.date_preset(last_7d){spend,impressions,clicks,ctr,cpm,reach,frequency,actions,action_values,cost_per_action_type}',
+        fields: 'id,name,campaign_id,status,effective_status,daily_budget,lifetime_budget,optimization_goal,insights.date_preset(last_7d){spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values,cost_per_action_type,purchase_roas,unique_clicks,unique_ctr,cost_per_unique_click,inline_link_clicks,inline_link_click_ctr,outbound_clicks,cost_per_outbound_click,quality_ranking,engagement_rate_ranking,conversion_rate_ranking,social_spend,cost_per_thruplay}',
       }
     });
     res.json(data?.data || []);
@@ -232,7 +232,7 @@ router.get('/adaccounts/:id/ads', async (req, res, next) => {
       params: {
         access_token: req.token,
         limit: 200,
-        fields: 'id,name,adset_id,status,effective_status,creative{id,thumbnail_url,image_url,video_id},insights.date_preset(last_7d){spend,impressions,clicks,ctr,cpm,reach,frequency,actions,action_values,cost_per_action_type}',
+        fields: 'id,name,adset_id,status,effective_status,creative{id,thumbnail_url,image_url,video_id},insights.date_preset(last_7d){spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values,cost_per_action_type,purchase_roas,unique_clicks,unique_ctr,cost_per_unique_click,inline_link_clicks,inline_link_click_ctr,outbound_clicks,cost_per_outbound_click,quality_ranking,engagement_rate_ranking,conversion_rate_ranking,social_spend,cost_per_thruplay}',
       }
     });
     res.json(data?.data || []);

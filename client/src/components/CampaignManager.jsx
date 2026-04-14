@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { Search, RefreshCw, ChevronRight, Settings2, Image as ImageIcon, Loader2, Sparkles, X, Send, Pause, Play, Trash2, DollarSign, ChevronDown } from 'lucide-react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { Search, RefreshCw, ChevronRight, ChevronDown, Image as ImageIcon, Loader2, Sparkles, X, Send, Pause, Play, Trash2, BarChart3, Layers } from 'lucide-react';
 import { AccountSelector } from './AccountSelector.jsx';
 import api from '../services/api.js';
 
@@ -12,49 +12,83 @@ const TikTokIcon = () => (
   <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 0010.86 4.46V13a8.28 8.28 0 005.58 2.17V11.7a4.84 4.84 0 01-3.77-1.81V6.69h3.77z"/></svg>
 );
 
-// ── Column definitions ──
+// ── Column definitions with format and API field mapping ──
 const ALL_COLUMNS = [
-  { id: 'status', label: 'Status', group: 'Basic' },
-  { id: 'budget', label: 'Budget', group: 'Basic' },
-  { id: 'spent', label: 'Spent', group: 'Basic' },
-  { id: 'results', label: 'Results', group: 'Performance' },
-  { id: 'cpa', label: 'Cost / Result', group: 'Performance' },
-  { id: 'roas', label: 'ROAS', group: 'Performance' },
-  { id: 'impressions', label: 'Impressions', group: 'Delivery' },
-  { id: 'reach', label: 'Reach', group: 'Delivery' },
-  { id: 'clicks', label: 'Clicks', group: 'Engagement' },
-  { id: 'ctr', label: 'CTR', group: 'Engagement' },
-  { id: 'cpm', label: 'CPM', group: 'Cost' },
-  { id: 'cpc', label: 'CPC', group: 'Cost' },
-  { id: 'frequency', label: 'Frequency', group: 'Delivery' },
-  { id: 'conversions', label: 'Conversions', group: 'Performance' },
-  { id: 'conv_value', label: 'Conv. Value', group: 'Performance' },
-  { id: 'link_clicks', label: 'Link Clicks', group: 'Engagement' },
-  { id: 'video_views', label: 'ThruPlays', group: 'Engagement' },
-  { id: 'cost_per_thruplay', label: 'Cost / ThruPlay', group: 'Cost' },
+  // Basic
+  { id: 'status', label: 'Status', group: 'Basic', format: 'text' },
+  { id: 'budget', label: 'Budget', group: 'Basic', format: 'budget' },
+  { id: 'objective', label: 'Objective', group: 'Basic', format: 'objective' },
+  // Performance
+  { id: 'spent', label: 'Amount spent', group: 'Performance', format: 'currency', apiField: 'spend' },
+  { id: 'results', label: 'Results', group: 'Performance', format: 'action', actionKey: 'primary' },
+  { id: 'cpa', label: 'Cost per result', group: 'Performance', format: 'currency', actionKey: 'cost_primary' },
+  { id: 'roas', label: 'ROAS', group: 'Performance', format: 'roas' },
+  { id: 'purchase_roas', label: 'Purchase ROAS', group: 'Performance', format: 'roas_array', apiField: 'purchase_roas' },
+  { id: 'conversions', label: 'Conversions', group: 'Performance', format: 'action', actionKey: 'primary' },
+  { id: 'conv_value', label: 'Conv. Value', group: 'Performance', format: 'currency', actionKey: 'value_primary' },
+  // Delivery
+  { id: 'impressions', label: 'Impressions', group: 'Delivery', format: 'number', apiField: 'impressions' },
+  { id: 'reach', label: 'Reach', group: 'Delivery', format: 'number', apiField: 'reach' },
+  { id: 'frequency', label: 'Frequency', group: 'Delivery', format: 'decimal', apiField: 'frequency' },
+  { id: 'social_spend', label: 'Social Spend', group: 'Delivery', format: 'currency', apiField: 'social_spend' },
+  // Clicks
+  { id: 'clicks', label: 'Clicks (All)', group: 'Clicks', format: 'number', apiField: 'clicks' },
+  { id: 'ctr', label: 'CTR (All)', group: 'Clicks', format: 'percent', apiField: 'ctr' },
+  { id: 'cpc', label: 'CPC (All)', group: 'Clicks', format: 'currency', apiField: 'cpc' },
+  { id: 'link_clicks', label: 'Link Clicks', group: 'Clicks', format: 'action', actionKey: 'link_click' },
+  { id: 'unique_clicks', label: 'Unique Clicks', group: 'Clicks', format: 'number', apiField: 'unique_clicks' },
+  { id: 'unique_ctr', label: 'Unique CTR', group: 'Clicks', format: 'percent', apiField: 'unique_ctr' },
+  { id: 'cost_per_unique_click', label: 'Cost / Unique Click', group: 'Clicks', format: 'currency', apiField: 'cost_per_unique_click' },
+  { id: 'inline_link_clicks', label: 'Inline Link Clicks', group: 'Clicks', format: 'number', apiField: 'inline_link_clicks' },
+  { id: 'inline_link_click_ctr', label: 'Inline Link CTR', group: 'Clicks', format: 'percent', apiField: 'inline_link_click_ctr' },
+  { id: 'cost_per_inline_link_click', label: 'Cost / Inline Link Click', group: 'Clicks', format: 'currency', apiField: 'cost_per_inline_link_click' },
+  { id: 'outbound_clicks', label: 'Outbound Clicks', group: 'Clicks', format: 'outbound', apiField: 'outbound_clicks' },
+  { id: 'cost_per_outbound_click', label: 'Cost / Outbound Click', group: 'Clicks', format: 'outbound_cost', apiField: 'cost_per_outbound_click' },
+  // Cost
+  { id: 'cpm', label: 'CPM', group: 'Cost', format: 'currency', apiField: 'cpm' },
+  // Video
+  { id: 'video_views', label: 'ThruPlays', group: 'Video', format: 'video_action', apiField: 'video_thruplay_watched_actions' },
+  { id: 'cost_per_thruplay', label: 'Cost / ThruPlay', group: 'Video', format: 'cost_action', actionKey: 'video_view' },
+  { id: 'video_p25', label: 'Video 25%', group: 'Video', format: 'video_metric', apiField: 'video_p25_watched_actions' },
+  { id: 'video_p50', label: 'Video 50%', group: 'Video', format: 'video_metric', apiField: 'video_p50_watched_actions' },
+  { id: 'video_p75', label: 'Video 75%', group: 'Video', format: 'video_metric', apiField: 'video_p75_watched_actions' },
+  { id: 'video_p95', label: 'Video 95%', group: 'Video', format: 'video_metric', apiField: 'video_p95_watched_actions' },
+  { id: 'video_p100', label: 'Video 100%', group: 'Video', format: 'video_metric', apiField: 'video_p100_watched_actions' },
+  // Quality
+  { id: 'quality_ranking', label: 'Quality Ranking', group: 'Quality', format: 'text', apiField: 'quality_ranking' },
+  { id: 'engagement_rate_ranking', label: 'Engagement Rate Ranking', group: 'Quality', format: 'text', apiField: 'engagement_rate_ranking' },
+  { id: 'conversion_rate_ranking', label: 'Conversion Rate Ranking', group: 'Quality', format: 'text', apiField: 'conversion_rate_ranking' },
 ];
 
-// ── Metric Templates ──
-// Built-in templates (generic for all industries, auto-selected by objective)
+const COLUMN_MAP = Object.fromEntries(ALL_COLUMNS.map(c => [c.id, c]));
+
+// ── Metric Templates (Meta-style presets) ──
 const BUILT_IN_TEMPLATES = [
-  { id: 'conversions',  label: 'Conversions',        desc: 'Sales & purchase performance',     cols: ['status', 'budget', 'spent', 'results', 'cpa', 'roas', 'conv_value'],             objectives: ['OUTCOME_SALES', 'CONVERSIONS', 'PRODUCT_CATALOG_SALES'] },
-  { id: 'leads',        label: 'Lead Generation',    desc: 'Lead volume & cost efficiency',    cols: ['status', 'budget', 'spent', 'results', 'cpa', 'clicks', 'ctr'],                  objectives: ['OUTCOME_LEADS', 'LEAD_GENERATION', 'MESSAGES'] },
-  { id: 'traffic',      label: 'Traffic & Clicks',   desc: 'Website visits & click metrics',   cols: ['status', 'budget', 'spent', 'link_clicks', 'clicks', 'cpc', 'ctr', 'reach'],     objectives: ['OUTCOME_TRAFFIC', 'LINK_CLICKS'] },
-  { id: 'awareness',    label: 'Reach & Awareness',  desc: 'Audience reach & brand exposure',  cols: ['status', 'budget', 'spent', 'impressions', 'reach', 'frequency', 'cpm'],         objectives: ['OUTCOME_AWARENESS', 'REACH', 'BRAND_AWARENESS'] },
-  { id: 'engagement',   label: 'Engagement',         desc: 'Interactions & content performance', cols: ['status', 'budget', 'spent', 'results', 'cpa', 'impressions', 'reach', 'ctr'],  objectives: ['OUTCOME_ENGAGEMENT', 'POST_ENGAGEMENT', 'VIDEO_VIEWS'] },
-  { id: 'video',        label: 'Video Performance',  desc: 'Video views & cost per view',      cols: ['status', 'budget', 'spent', 'video_views', 'cost_per_thruplay', 'impressions', 'reach'], objectives: [] },
-  { id: 'delivery',     label: 'Delivery Overview',  desc: 'Reach, frequency & delivery',      cols: ['status', 'budget', 'spent', 'impressions', 'reach', 'frequency', 'cpm', 'cpc'],  objectives: [] },
+  { id: 'performance', label: 'Performance', cols: ['status', 'budget', 'spent', 'results', 'cpa', 'roas', 'impressions', 'reach'] },
+  { id: 'performance_clicks', label: 'Performance & Clicks', cols: ['status', 'budget', 'spent', 'results', 'clicks', 'cpc', 'ctr', 'link_clicks', 'unique_clicks'] },
+  { id: 'engagement', label: 'Engagement', cols: ['status', 'budget', 'spent', 'impressions', 'reach', 'clicks', 'ctr', 'results', 'frequency'] },
+  { id: 'delivery', label: 'Delivery', cols: ['status', 'budget', 'spent', 'impressions', 'reach', 'frequency', 'cpm', 'social_spend'] },
+  { id: 'video', label: 'Video Engagement', cols: ['status', 'budget', 'spent', 'video_views', 'cost_per_thruplay', 'video_p25', 'video_p50', 'video_p100'] },
+  { id: 'setup', label: 'Setup', cols: ['status', 'budget', 'objective'] },
 ];
 
-// Get the best template for an objective
-const getTemplateForObjective = (objective) =>
-  BUILT_IN_TEMPLATES.find(t => t.objectives.includes(objective)) || BUILT_IN_TEMPLATES[0];
-
-// Load custom templates from localStorage
+// Load/save custom templates from localStorage
 const getCustomTemplates = () => {
   try { return JSON.parse(localStorage.getItem('aam_metric_templates') || '[]'); } catch { return []; }
 };
 const saveCustomTemplates = (templates) => localStorage.setItem('aam_metric_templates', JSON.stringify(templates));
+
+// ── Breakdown definitions ──
+const BREAKDOWNS = [
+  { id: 'none', label: 'No Breakdown', group: null },
+  { id: 'age', label: 'Age', group: 'Demographic', apiValue: 'age' },
+  { id: 'gender', label: 'Gender', group: 'Demographic', apiValue: 'gender' },
+  { id: 'country', label: 'Country', group: 'Delivery', apiValue: 'country' },
+  { id: 'publisher_platform', label: 'Platform', group: 'Delivery', apiValue: 'publisher_platform' },
+  { id: 'platform_position', label: 'Placement', group: 'Delivery', apiValue: 'platform_position' },
+  { id: 'device_platform', label: 'Device', group: 'Delivery', apiValue: 'device_platform' },
+  { id: 'hourly_stats_aggregated_by_advertiser_time_zone', label: 'Time of Day', group: 'Time', apiValue: 'hourly_stats_aggregated_by_advertiser_time_zone' },
+];
 
 // Objective display formatting
 const OBJECTIVE_LABELS = {
@@ -77,76 +111,149 @@ const fmtNum = (n) => n != null ? Number(n).toLocaleString() : '—';
 const fmtCurrency = (n) => n != null ? `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
 const fmtPct = (n) => n != null ? `${Number(n).toFixed(2)}%` : '—';
 const fmtBudget = (daily, lifetime) => {
-  if (daily) return `$${(Number(daily) / 100).toFixed(0)}/d`;
-  if (lifetime) return `$${(Number(lifetime) / 100).toFixed(0)} LT`;
-  return '—';
+  if (daily) return { amount: `$${(Number(daily) / 100).toFixed(2)}`, type: 'Daily' };
+  if (lifetime) return { amount: `$${(Number(lifetime) / 100).toFixed(2)}`, type: 'Lifetime' };
+  return { amount: 'Using ad set budget', type: null };
 };
 
-// Map campaign objective to the primary action type and display label
+// Map campaign objective to the primary result metric.
+// `actionTypes` is a priority list — try each in order until one is found in the data.
+// `source` determines where to look: 'actions', 'thruplay', or 'reach'.
 const OBJECTIVE_ACTION_MAP = {
-  'OUTCOME_SALES': { actionType: 'offsite_conversion.fb_pixel_purchase', label: 'Purchases' },
-  'OUTCOME_LEADS': { actionType: 'lead', label: 'Leads' },
-  'OUTCOME_ENGAGEMENT': { actionType: 'post_engagement', label: 'Engagements' },
-  'OUTCOME_AWARENESS': { actionType: 'reach', label: 'Reach' },
-  'OUTCOME_TRAFFIC': { actionType: 'link_click', label: 'Link Clicks' },
-  'OUTCOME_APP_PROMOTION': { actionType: 'app_install', label: 'App Installs' },
-  // Legacy objectives
-  'CONVERSIONS': { actionType: 'offsite_conversion.fb_pixel_purchase', label: 'Purchases' },
-  'LEAD_GENERATION': { actionType: 'lead', label: 'Leads' },
-  'LINK_CLICKS': { actionType: 'link_click', label: 'Link Clicks' },
-  'POST_ENGAGEMENT': { actionType: 'post_engagement', label: 'Engagements' },
-  'VIDEO_VIEWS': { actionType: 'video_view', label: 'ThruPlays' },
-  'REACH': { actionType: 'reach', label: 'Reach' },
-  'BRAND_AWARENESS': { actionType: 'reach', label: 'Reach' },
-  'APP_INSTALLS': { actionType: 'app_install', label: 'App Installs' },
-  'MESSAGES': { actionType: 'onsite_conversion.messaging_conversation_started_7d', label: 'Conversations' },
-  'PRODUCT_CATALOG_SALES': { actionType: 'offsite_conversion.fb_pixel_purchase', label: 'Purchases' },
+  'OUTCOME_SALES':         { actionTypes: ['offsite_conversion.fb_pixel_purchase', 'web_in_store_purchase', 'omni_purchase', 'purchase'], label: 'Purchases', source: 'actions' },
+  'OUTCOME_LEADS':         { actionTypes: ['lead', 'leadgen_grouped', 'onsite_conversion.lead_grouped'], label: 'Leads', source: 'actions' },
+  'OUTCOME_ENGAGEMENT':    { actionTypes: ['landing_page_view', 'link_click', 'post_engagement'], label: 'Landing Page Views', source: 'actions' },
+  'OUTCOME_AWARENESS':     { actionTypes: ['video_view'], label: 'ThruPlays', source: 'thruplay' },
+  'OUTCOME_TRAFFIC':       { actionTypes: ['link_click', 'landing_page_view'], label: 'Link Clicks', source: 'actions' },
+  'OUTCOME_APP_PROMOTION': { actionTypes: ['app_install', 'mobile_app_install'], label: 'App Installs', source: 'actions' },
+  'CONVERSIONS':           { actionTypes: ['offsite_conversion.fb_pixel_purchase', 'web_in_store_purchase', 'omni_purchase'], label: 'Purchases', source: 'actions' },
+  'LEAD_GENERATION':       { actionTypes: ['lead', 'leadgen_grouped'], label: 'Leads', source: 'actions' },
+  'LINK_CLICKS':           { actionTypes: ['link_click'], label: 'Link Clicks', source: 'actions' },
+  'POST_ENGAGEMENT':       { actionTypes: ['post_engagement'], label: 'Post Engagements', source: 'actions' },
+  'VIDEO_VIEWS':           { actionTypes: ['video_view'], label: 'ThruPlays', source: 'thruplay' },
+  'REACH':                 { actionTypes: [], label: 'Reach', source: 'reach' },
+  'BRAND_AWARENESS':       { actionTypes: ['video_view'], label: 'ThruPlays', source: 'thruplay' },
+  'APP_INSTALLS':          { actionTypes: ['app_install'], label: 'App Installs', source: 'actions' },
+  'MESSAGES':              { actionTypes: ['onsite_conversion.messaging_conversation_started_7d', 'onsite_conversion.total_messaging_connection'], label: 'Messaging Conversations', source: 'actions' },
+  'PRODUCT_CATALOG_SALES': { actionTypes: ['offsite_conversion.fb_pixel_purchase', 'omni_purchase'], label: 'Purchases', source: 'actions' },
 };
 
 const getResultLabel = (objective) => OBJECTIVE_ACTION_MAP[objective]?.label || 'Results';
 
+// Find the first matching action from a priority list
+const findAction = (actionsArr, actionTypes) => {
+  for (const at of actionTypes) {
+    const found = actionsArr.find(a => a.action_type === at);
+    if (found) return found;
+  }
+  return null;
+};
+
+// ── Data-driven metric extraction ──
 const extractMetrics = (item) => {
   const ins = item.insights?.data?.[0] || {};
   const actions = ins.actions || [];
   const actionValues = ins.action_values || [];
   const costPerAction = ins.cost_per_action_type || [];
+  const thruplayActions = ins.video_thruplay_watched_actions || [];
+  const costPerThruplayArr = ins.cost_per_thruplay || [];
 
-  // Use objective to find the right action type
   const objective = item.objective;
   const mapped = OBJECTIVE_ACTION_MAP[objective];
-  const resultAction = mapped
-    ? actions.find(a => a.action_type === mapped.actionType) || actions[0]
-    : actions.find(a => a.action_type === 'offsite_conversion.fb_pixel_purchase')
-      || actions.find(a => a.action_type === 'link_click')
-      || actions[0];
 
-  const resultValue = actionValues.find(a => a.action_type === resultAction?.action_type);
-  const resultCpa = costPerAction.find(a => a.action_type === resultAction?.action_type);
-  const roas = resultValue && ins.spend ? (Number(resultValue.value) / Number(ins.spend)).toFixed(1) + 'x' : null;
-  // Additional metrics
+  // Determine primary result, cost per result, and conversion value
+  let resultCount = null;
+  let resultCost = null;
+  let resultValueAmt = null;
+
+  if (mapped?.source === 'thruplay') {
+    // ThruPlays from dedicated video_thruplay_watched_actions field
+    const tp = thruplayActions.find(a => a.action_type === 'video_view') || thruplayActions[0];
+    const cpt = costPerThruplayArr.find(a => a.action_type === 'video_view') || costPerThruplayArr[0];
+    resultCount = tp?.value;
+    resultCost = cpt?.value;
+  } else if (mapped?.source === 'reach') {
+    // Reach objective: result = reach, cost per result = spend / reach
+    resultCount = ins.reach;
+    resultCost = ins.reach && ins.spend ? (Number(ins.spend) / Number(ins.reach)) : null;
+  } else if (mapped?.actionTypes?.length) {
+    // Actions-based: find first matching action type from priority list (do NOT fallback to actions[0])
+    const resultAction = findAction(actions, mapped.actionTypes);
+    if (resultAction) {
+      resultCount = resultAction.value;
+      const cpa = costPerAction.find(a => a.action_type === resultAction.action_type);
+      resultCost = cpa?.value;
+      const rv = actionValues.find(a => a.action_type === resultAction.action_type);
+      resultValueAmt = rv?.value;
+    }
+  }
+
   const linkClicks = actions.find(a => a.action_type === 'link_click');
-  const videoViews = actions.find(a => a.action_type === 'video_view');
-  const costPerThruplay = costPerAction.find(a => a.action_type === 'video_view');
-  const cpc = ins.spend && ins.clicks ? (Number(ins.spend) / Number(ins.clicks)) : null;
 
-  return {
-    spent: ins.spend ? fmtCurrency(ins.spend) : '—',
-    impressions: ins.impressions ? fmtNum(ins.impressions) : '—',
-    reach: ins.reach ? fmtNum(ins.reach) : '—',
-    clicks: ins.clicks ? fmtNum(ins.clicks) : '—',
-    ctr: ins.ctr ? fmtPct(ins.ctr) : '—',
-    cpm: ins.cpm ? fmtCurrency(ins.cpm) : '—',
-    cpc: cpc ? fmtCurrency(cpc) : '—',
-    frequency: ins.frequency ? Number(ins.frequency).toFixed(2) : '—',
-    results: resultAction ? fmtNum(resultAction.value) : '—',
-    cpa: resultCpa ? fmtCurrency(resultCpa.value) : '—',
-    roas: roas || '—',
-    conversions: resultAction ? fmtNum(resultAction.value) : '—',
-    conv_value: resultValue ? fmtCurrency(resultValue.value) : '—',
-    link_clicks: linkClicks ? fmtNum(linkClicks.value) : '—',
-    video_views: videoViews ? fmtNum(videoViews.value) : '—',
-    cost_per_thruplay: costPerThruplay ? fmtCurrency(costPerThruplay.value) : '—',
-  };
+  // Build metrics object from raw insights
+  const m = {};
+
+  // Direct API fields
+  for (const col of ALL_COLUMNS) {
+    if (col.apiField && ins[col.apiField] != null) {
+      const raw = ins[col.apiField];
+      if (col.format === 'currency') m[col.id] = fmtCurrency(raw);
+      else if (col.format === 'number') m[col.id] = fmtNum(raw);
+      else if (col.format === 'percent') m[col.id] = fmtPct(raw);
+      else if (col.format === 'decimal') m[col.id] = Number(raw).toFixed(2);
+      else if (col.format === 'text') m[col.id] = raw;
+      else if (col.format === 'roas_array') {
+        if (Array.isArray(raw) && raw.length > 0) m[col.id] = Number(raw[0].value).toFixed(2) + 'x';
+        else m[col.id] = '—';
+      }
+      else if (col.format === 'video_action' || col.format === 'video_metric') {
+        if (Array.isArray(raw) && raw.length > 0) m[col.id] = fmtNum(raw[0].value);
+        else m[col.id] = '—';
+      }
+      else if (col.format === 'outbound') {
+        if (Array.isArray(raw) && raw.length > 0) m[col.id] = fmtNum(raw[0].value);
+        else m[col.id] = '—';
+      }
+      else if (col.format === 'outbound_cost') {
+        if (Array.isArray(raw) && raw.length > 0) m[col.id] = fmtCurrency(raw[0].value);
+        else m[col.id] = '—';
+      }
+    }
+  }
+
+  // Primary result metrics (objective-aware, no fallback to wrong actions)
+  // Store both value and sub-label (like Meta's UI: value on top, label below)
+  const resultLabel = mapped?.label || 'Results';
+  const costLabel = mapped?.source === 'thruplay' ? 'Cost per ThruPlay'
+    : mapped?.source === 'reach' ? 'Cost per Reach'
+    : resultLabel ? `Cost per ${resultLabel.replace(/s$/, '')}` : 'Cost per Result';
+
+  m.results = resultCount ? fmtNum(resultCount) : '—';
+  m._resultsLabel = resultLabel;
+  m.cpa = resultCost ? fmtCurrency(resultCost) : '—';
+  m._cpaLabel = costLabel;
+  m.conversions = resultCount ? fmtNum(resultCount) : '—';
+  m.conv_value = resultValueAmt ? fmtCurrency(resultValueAmt) : '—';
+
+  // ROAS: use purchase_roas from API (the official Meta field)
+  if (ins.purchase_roas && Array.isArray(ins.purchase_roas) && ins.purchase_roas.length > 0) {
+    m.roas = Number(ins.purchase_roas[0].value).toFixed(2) + 'x';
+  } else {
+    m.roas = '—';
+  }
+
+  // Link clicks from actions array
+  m.link_clicks = linkClicks ? fmtNum(linkClicks.value) : '—';
+
+  // Cost per thruplay from dedicated field
+  const cptEntry = costPerThruplayArr.find(a => a.action_type === 'video_view') || costPerThruplayArr[0];
+  m.cost_per_thruplay = cptEntry ? fmtCurrency(cptEntry.value) : '—';
+
+  // Fill any remaining columns that weren't set
+  for (const col of ALL_COLUMNS) {
+    if (!(col.id in m)) m[col.id] = '—';
+  }
+  return m;
 };
 
 const mapStatus = (s, es) => {
@@ -192,8 +299,8 @@ const BudgetEditor = ({ value, onSave, onCancel }) => {
   );
 };
 
-// ── Column dropdown ──
-const ColumnDropdown = ({ columns, onSetColumns, onClose }) => {
+// ── Column Picker (for Custom template) ──
+const ColumnPicker = ({ columns, onSetColumns, onClose }) => {
   const [selected, setSelected] = useState(new Set(columns));
   const [customTemplates, setCustomTemplates] = useState(getCustomTemplates);
   const [savingName, setSavingName] = useState('');
@@ -222,41 +329,29 @@ const ColumnDropdown = ({ columns, onSetColumns, onClose }) => {
   };
 
   return (
-    <div className="absolute top-full right-0 mt-1 z-30 bg-white rounded-2xl shadow-xl border border-slate-200 w-80 overflow-hidden" onClick={e => e.stopPropagation()}>
-      <div className="px-4 pt-4 pb-2">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Templates</p>
-        <div className="flex flex-wrap gap-1.5">
-          {BUILT_IN_TEMPLATES.map(p => (
-            <button key={p.id} onClick={() => setSelected(new Set(p.cols))} title={p.desc}
-              className={`px-3 py-1.5 text-[11px] font-medium rounded-lg border transition-all
-                ${[...selected].join(',') === p.cols.join(',') ? 'bg-blue-500 text-white border-blue-500' : 'border-slate-200 text-slate-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'}`}>
-              {p.label}
-            </button>
-          ))}
+    <div className="absolute top-full right-0 mt-1 z-30 bg-white rounded-2xl shadow-xl border border-slate-200 w-96 overflow-hidden" onClick={e => e.stopPropagation()}>
+      {/* My templates */}
+      {customTemplates.length > 0 && (
+        <div className="px-4 pt-3 pb-2">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">My Templates</p>
+          <div className="flex flex-wrap gap-1.5">
+            {customTemplates.map(t => (
+              <div key={t.id} className="flex items-center gap-0.5">
+                <button onClick={() => setSelected(new Set(t.cols))}
+                  className={`px-3 py-1.5 text-[11px] font-medium rounded-l-lg border transition-all
+                    ${[...selected].join(',') === t.cols.join(',') ? 'bg-blue-500 text-white border-blue-500' : 'border-slate-200 text-slate-500 hover:bg-blue-50 hover:text-blue-600'}`}>
+                  {t.label}
+                </button>
+                <button onClick={() => handleDeleteTemplate(t.id)}
+                  className="px-1 py-1.5 text-[11px] rounded-r-lg border border-l-0 border-slate-200 text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                  <X size={10} />
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
-        {/* Custom templates */}
-        {customTemplates.length > 0 && (
-          <>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-3 mb-1.5">My Templates</p>
-            <div className="flex flex-wrap gap-1.5">
-              {customTemplates.map(t => (
-                <div key={t.id} className="flex items-center gap-0.5">
-                  <button onClick={() => setSelected(new Set(t.cols))}
-                    className={`px-3 py-1.5 text-[11px] font-medium rounded-l-lg border transition-all
-                      ${[...selected].join(',') === t.cols.join(',') ? 'bg-blue-500 text-white border-blue-500' : 'border-slate-200 text-slate-500 hover:bg-blue-50 hover:text-blue-600'}`}>
-                    {t.label}
-                  </button>
-                  <button onClick={() => handleDeleteTemplate(t.id)}
-                    className="px-1 py-1.5 text-[11px] rounded-r-lg border border-l-0 border-slate-200 text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors">
-                    <X size={10} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-      <div className="px-4 py-3 max-h-[280px] overflow-y-auto border-t border-slate-100">
+      )}
+      <div className="px-4 py-3 max-h-[320px] overflow-y-auto border-t border-slate-100">
         {Object.entries(grouped).map(([group, cols]) => (
           <div key={group} className="mb-3 last:mb-0">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">{group}</p>
@@ -306,8 +401,13 @@ const ColumnDropdown = ({ columns, onSetColumns, onClose }) => {
 };
 
 // ── Cell value ──
-const CellValue = ({ value }) => (
-  <span className={`text-[12px] tabular-nums ${!value || value === '—' ? 'text-slate-300' : 'text-slate-600'}`}>{value || '—'}</span>
+const CellValue = ({ value, subLabel }) => (
+  <div>
+    <span className={`text-[12px] tabular-nums ${!value || value === '—' ? 'text-slate-300' : 'text-slate-600'}`}>{value || '—'}</span>
+    {subLabel && value && value !== '—' && (
+      <p className="text-[9px] text-slate-400 mt-0.5">{subLabel}</p>
+    )}
+  </div>
 );
 
 // ── Bulk action bar ──
@@ -388,20 +488,27 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
   const [showAskAI, setShowAskAI] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [objectiveFilter, setObjectiveFilter] = useState('all'); // 'all' or objective key
-  const [columns, setColumns] = useState(['status', 'budget', 'spent', 'results', 'cpa']);
-  const [showColumnDropdown, setShowColumnDropdown] = useState(false);
+  const [activeTemplate, setActiveTemplate] = useState('performance');
+  const [columns, setColumns] = useState(BUILT_IN_TEMPLATES[0].cols);
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [editingBudget, setEditingBudget] = useState(null);
-  const [sortKey, setSortKey] = useState(null);
+  const [sortKey, setSortKey] = useState('spent');
   const [sortDir, setSortDir] = useState('desc');
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [updatingIds, setUpdatingIds] = useState(new Set());
 
-  // Tab-based navigation like Meta Ads Manager
-  const [activeTab, setActiveTab] = useState('campaigns'); // 'campaigns' | 'adsets' | 'ads'
-  // Multi-select navigation: checked IDs carry over to next level
-  const [checkedCampaignIds, setCheckedCampaignIds] = useState([]); // campaign IDs to filter ad sets
-  const [checkedAdSetIds, setCheckedAdSetIds] = useState([]); // ad set IDs to filter ads
+  // Breakdown
+  const [breakdown, setBreakdown] = useState('none');
+  const [breakdownData, setBreakdownData] = useState({}); // { [campaignId]: [...rows] }
+  const [breakdownLoading, setBreakdownLoading] = useState(false);
+  const [expandedBreakdowns, setExpandedBreakdowns] = useState(new Set());
+  const breakdownRef = useRef(null);
+  const [showBreakdownDropdown, setShowBreakdownDropdown] = useState(false);
+
+  // Tab-based navigation
+  const [activeTab, setActiveTab] = useState('campaigns');
+  const [checkedCampaignIds, setCheckedCampaignIds] = useState([]);
+  const [checkedAdSetIds, setCheckedAdSetIds] = useState([]);
 
   // Date range
   const [datePreset, setDatePreset] = useState('last_7d');
@@ -416,79 +523,106 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Pagination cursors
-  const [campaignsPaging, setCampaignsPaging] = useState(null);
-  const [adSetsPaging, setAdSetsPaging] = useState(null);
-  const [adsPaging, setAdsPaging] = useState(null);
-  const [loadingMore, setLoadingMore] = useState(false);
+  // Client-side pagination (20 per page)
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
-  // Normalize
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (breakdownRef.current && !breakdownRef.current.contains(e.target)) setShowBreakdownDropdown(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Normalize — pass objective down to ad sets/ads so extractMetrics knows the result type
   const normCampaign = (c) => ({ ...c, _active: c.status === 'ACTIVE', _status: mapStatus(c.status, c.effective_status), _budget: fmtBudget(c.daily_budget, c.lifetime_budget), _metrics: extractMetrics(c), _level: 'campaign', _resultLabel: getResultLabel(c.objective) });
-  const normAdSet = (as) => ({ ...as, _active: as.status === 'ACTIVE', _status: mapStatus(as.status, as.effective_status), _budget: fmtBudget(as.daily_budget, as.lifetime_budget), _metrics: extractMetrics(as), _level: 'adset', _campaignName: as._campaignName });
-  const normAd = (ad) => ({ ...ad, _active: ad.status === 'ACTIVE', _status: mapStatus(ad.status, ad.effective_status), _budget: '—', _metrics: extractMetrics(ad), _level: 'ad', thumbnail: ad.creative?.thumbnail_url || ad.creative?.image_url || null });
+  const normAdSet = (as, objective) => {
+    const withObj = objective ? { ...as, objective } : as;
+    return { ...withObj, _active: as.status === 'ACTIVE', _status: mapStatus(as.status, as.effective_status), _budget: fmtBudget(as.daily_budget, as.lifetime_budget), _metrics: extractMetrics(withObj), _level: 'adset', _campaignName: as._campaignName, _resultLabel: getResultLabel(objective || as.objective) };
+  };
+  const normAd = (ad, objective) => {
+    const withObj = objective ? { ...ad, objective } : ad;
+    return { ...withObj, _active: ad.status === 'ACTIVE', _status: mapStatus(ad.status, ad.effective_status), _budget: { amount: '—', type: null }, _metrics: extractMetrics(withObj), _level: 'ad', thumbnail: ad.creative?.thumbnail_url || ad.creative?.image_url || null, _resultLabel: getResultLabel(objective || ad.objective) };
+  };
 
-  // Fetch campaigns (paginated)
-  const fetchCampaigns = useCallback(async (after) => {
+  // Fetch ALL campaigns (auto-paginate through all pages)
+  const fetchCampaigns = useCallback(async () => {
     if (!adAccountId) return;
-    if (after) setLoadingMore(true); else { setLoading(true); setError(null); }
+    setLoading(true); setError(null); setPage(1);
     try {
-      const params = { limit: 20, date_preset: datePreset };
-      if (after) params.after = after;
-      const { data } = await api.get(`/meta/adaccounts/${adAccountId}/campaigns-tree`, { params });
-      const items = (data.data || []).map(normCampaign);
-      if (after) setCampaigns(prev => [...prev, ...items]);
-      else setCampaigns(items);
-      setCampaignsPaging(data.paging || null);
+      let allItems = [];
+      let after = null;
+      do {
+        const params = { limit: 100, date_preset: datePreset };
+        if (after) params.after = after;
+        const { data } = await api.get(`/meta/adaccounts/${adAccountId}/campaigns-tree`, { params });
+        const items = (data.data || []).map(normCampaign);
+        allItems = [...allItems, ...items];
+        after = data.paging?.cursors?.after;
+        if (!data.paging?.next) after = null;
+      } while (after);
+      setCampaigns(allItems);
     } catch (err) {
       setError(err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
-      setLoadingMore(false);
     }
   }, [adAccountId, datePreset]);
 
-  // Fetch ad sets for a campaign (paginated)
-  const fetchAdSets = useCallback(async (campaignId, after) => {
+  // Fetch ALL ad sets for a campaign
+  const fetchAdSets = useCallback(async (campaignId) => {
     if (!campaignId) return;
-    if (after) setLoadingMore(true); else { setLoading(true); setError(null); }
+    setLoading(true); setError(null); setPage(1);
     try {
-      const params = { limit: 20, date_preset: datePreset };
-      if (after) params.after = after;
-      const { data } = await api.get(`/meta/campaigns/${campaignId}/adsets`, { params });
       const campaign = campaigns.find(c => c.id === campaignId);
-      const items = (data.data || []).map(as => normAdSet({ ...as, _campaignName: campaign?.name }));
-      if (after) setAdSets(prev => [...prev, ...items]);
-      else setAdSets(items);
-      setAdSetsPaging(data.paging || null);
+      let allItems = [];
+      let after = null;
+      do {
+        const params = { limit: 100, date_preset: datePreset };
+        if (after) params.after = after;
+        const { data } = await api.get(`/meta/campaigns/${campaignId}/adsets`, { params });
+        const items = (data.data || []).map(as => normAdSet({ ...as, _campaignName: campaign?.name }, campaign?.objective));
+        allItems = [...allItems, ...items];
+        after = data.paging?.cursors?.after;
+        if (!data.paging?.next) after = null;
+      } while (after);
+      setAdSets(allItems);
     } catch (err) {
       setError(err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
-      setLoadingMore(false);
     }
   }, [campaigns, datePreset]);
 
-  // Fetch ads for an ad set (paginated)
-  const fetchAds = useCallback(async (adSetId, after) => {
+  // Fetch ALL ads for an ad set
+  const fetchAds = useCallback(async (adSetId) => {
     if (!adSetId) return;
-    if (after) setLoadingMore(true); else { setLoading(true); setError(null); }
+    setLoading(true); setError(null); setPage(1);
     try {
-      const params = { limit: 20, date_preset: datePreset };
-      if (after) params.after = after;
-      const { data } = await api.get(`/meta/adsets/${adSetId}/ads`, { params });
-      const items = (data.data || []).map(normAd);
-      if (after) setAds(prev => [...prev, ...items]);
-      else setAds(items);
-      setAdsPaging(data.paging || null);
+      const adSet = adSets.find(a => a.id === adSetId);
+      let allItems = [];
+      let after = null;
+      do {
+        const params = { limit: 100, date_preset: datePreset };
+        if (after) params.after = after;
+        const { data } = await api.get(`/meta/adsets/${adSetId}/ads`, { params });
+        const items = (data.data || []).map(ad => normAd(ad, adSet?.objective));
+        allItems = [...allItems, ...items];
+        after = data.paging?.cursors?.after;
+        if (!data.paging?.next) after = null;
+      } while (after);
+      setAds(allItems);
     } catch (err) {
       setError(err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
-      setLoadingMore(false);
     }
-  }, [datePreset]);
+  }, [datePreset, adSets]);
 
   useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
+
 
   // Helper: fetch ad sets for multiple campaign IDs in parallel
   const fetchAdSetsMulti = useCallback(async (campaignIds) => {
@@ -496,11 +630,14 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
     setLoading(true); setError(null);
     try {
       const results = await Promise.all(campaignIds.map(id =>
-        api.get(`/meta/campaigns/${id}/adsets`, { params: { limit: 20, date_preset: datePreset } }).then(r => r.data)
+        api.get(`/meta/campaigns/${id}/adsets`, { params: { limit: 100, date_preset: datePreset } }).then(r => r.data)
       ));
-      const allItems = results.flatMap(r => (r.data || r || []).map(as => normAdSet(as)));
+      const allItems = results.flatMap((r, i) => {
+        const campaign = campaigns.find(c => c.id === campaignIds[i]);
+        return (r.data || r || []).map(as => normAdSet(as, campaign?.objective));
+      });
       setAdSets(allItems);
-      setAdSetsPaging(null); // no single cursor for multi-fetch
+      // all loaded
     } catch (err) {
       setError(err.response?.data?.error || err.message);
     } finally { setLoading(false); }
@@ -512,11 +649,14 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
     setLoading(true); setError(null);
     try {
       const results = await Promise.all(adSetIds.map(id =>
-        api.get(`/meta/adsets/${id}/ads`, { params: { limit: 20, date_preset: datePreset } }).then(r => r.data)
+        api.get(`/meta/adsets/${id}/ads`, { params: { limit: 100, date_preset: datePreset } }).then(r => r.data)
       ));
-      const allItems = results.flatMap(r => (r.data || r || []).map(normAd));
+      const allItems = results.flatMap((r, i) => {
+        const adSet = adSets.find(a => a.id === adSetIds[i]);
+        return (r.data || r || []).map(ad => normAd(ad, adSet?.objective));
+      });
       setAds(allItems);
-      setAdsPaging(null);
+      // all loaded
     } catch (err) {
       setError(err.response?.data?.error || err.message);
     } finally { setLoading(false); }
@@ -541,7 +681,7 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
     fetchAds(adSet.id);
   }, [fetchAds]);
 
-  // Tab click handler — multi-select like Meta Ads Manager
+  // Tab click handler
   const handleTabClick = useCallback((tab) => {
     setSearch('');
     if (tab === 'campaigns') {
@@ -551,7 +691,6 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
       setSelectedIds(new Set());
       fetchCampaigns();
     } else if (tab === 'adsets') {
-      // Carry over checked campaigns, or fetch all
       const ids = [...selectedIds];
       setCheckedCampaignIds(ids);
       setCheckedAdSetIds([]);
@@ -559,10 +698,9 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
       setSelectedIds(new Set());
       if (ids.length > 0) fetchAdSetsMulti(ids);
       else {
-        // Fetch all ad sets for account
         setLoading(true); setError(null);
-        api.get(`/meta/adaccounts/${adAccountId}/adsets`, { params: { limit: 20, date_preset: datePreset } })
-          .then(({ data }) => { setAdSets((data.data || data || []).map(as => normAdSet(as))); setAdSetsPaging(data.paging || null); })
+        api.get(`/meta/adaccounts/${adAccountId}/adsets`, { params: { limit: 200, date_preset: datePreset } })
+          .then(({ data }) => { setAdSets((data.data || data || []).map(as => normAdSet(as))); })
           .catch(err => setError(err.response?.data?.error || err.message))
           .finally(() => setLoading(false));
       }
@@ -574,28 +712,54 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
       if (ids.length > 0) fetchAdsMulti(ids);
       else {
         setLoading(true); setError(null);
-        api.get(`/meta/adaccounts/${adAccountId}/ads`, { params: { limit: 20, date_preset: datePreset } })
-          .then(({ data }) => { setAds((data.data || data || []).map(normAd)); setAdsPaging(data.paging || null); })
+        api.get(`/meta/adaccounts/${adAccountId}/ads`, { params: { limit: 200, date_preset: datePreset } })
+          .then(({ data }) => { setAds((data.data || data || []).map(normAd)); })
           .catch(err => setError(err.response?.data?.error || err.message))
           .finally(() => setLoading(false));
       }
     }
   }, [selectedIds, adAccountId, datePreset, fetchCampaigns, fetchAdSetsMulti, fetchAdsMulti]);
 
-  // Load more for current tab
-  const handleLoadMore = useCallback(() => {
-    const paging = activeTab === 'campaigns' ? campaignsPaging : activeTab === 'adsets' ? adSetsPaging : adsPaging;
-    const after = paging?.cursors?.after;
-    if (!after) return;
-    if (activeTab === 'campaigns') fetchCampaigns(after);
-    else if (activeTab === 'adsets' && checkedCampaignIds.length === 1) fetchAdSets(checkedCampaignIds[0], after);
-    else if (activeTab === 'ads' && checkedAdSetIds.length === 1) fetchAds(checkedAdSetIds[0], after);
-  }, [activeTab, campaignsPaging, adSetsPaging, adsPaging, checkedCampaignIds, checkedAdSetIds, fetchCampaigns, fetchAdSets, fetchAds]);
+  // Reset page when tab/filter changes
+  useEffect(() => { setPage(1); }, [activeTab, statusFilter, search]);
 
   // Current data based on active tab
   const currentData = activeTab === 'campaigns' ? campaigns : activeTab === 'adsets' ? adSets : ads;
-  const currentPaging = activeTab === 'campaigns' ? campaignsPaging : activeTab === 'adsets' ? adSetsPaging : adsPaging;
-  const hasMore = !!currentPaging?.next;
+
+  // Fetch breakdown data per visible item
+  useEffect(() => {
+    if (breakdown === 'none' || !adAccountId) {
+      setBreakdownData({});
+      setExpandedBreakdowns(new Set());
+      return;
+    }
+    const bd = BREAKDOWNS.find(b => b.id === breakdown);
+    if (!bd?.apiValue) return;
+    if (!currentData.length) return;
+
+    const itemIds = currentData.map(it => it.id);
+    setBreakdownLoading(true);
+    const fields = 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,action_values,cost_per_action_type,purchase_roas,unique_clicks,unique_ctr,video_thruplay_watched_actions,cost_per_thruplay';
+
+    Promise.all(itemIds.map(id =>
+      api.get(`/insights/${id}`, {
+        params: { fields, breakdowns: bd.apiValue, date_preset: datePreset, limit: 50 }
+      }).then(r => {
+        const rows = Array.isArray(r.data) ? r.data : r.data?.data || [];
+        return { id, rows };
+      }).catch(() => ({ id, rows: [] }))
+    )).then(results => {
+      const grouped = {};
+      results.forEach(({ id, rows }) => {
+        if (rows.length > 0) grouped[id] = rows;
+      });
+      setBreakdownData(grouped);
+      setExpandedBreakdowns(new Set(Object.keys(grouped)));
+    }).catch(err => {
+      console.error('Breakdown fetch error:', err);
+      setBreakdownData({});
+    }).finally(() => setBreakdownLoading(false));
+  }, [breakdown, adAccountId, datePreset, currentData]);
 
   // ── API calls for status toggle ──
   const toggleActive = useCallback(async (id, val) => {
@@ -716,18 +880,10 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
     return cleaned ? Number(cleaned) : -Infinity;
   };
 
-  // Unique objectives in current campaigns (for filter dropdown)
-  const availableObjectives = useMemo(() => {
-    if (activeTab !== 'campaigns') return [];
-    const objs = new Set(campaigns.map(c => c.objective).filter(Boolean));
-    return [...objs].map(o => ({ value: o, label: OBJECTIVE_LABELS[o] || o.replace(/_/g, ' ') }));
-  }, [campaigns, activeTab]);
-
   const filtered = useMemo(() => {
     let list = currentData.filter(c => {
       if (statusFilter === 'active' && !c._active) return false;
       if (statusFilter === 'paused' && c._active) return false;
-      if (objectiveFilter !== 'all' && activeTab === 'campaigns' && c.objective !== objectiveFilter) return false;
       if (search && !c.name.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
@@ -741,19 +897,23 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
         if (sortKey === 'status') {
           return sortDir === 'asc' ? (a._status || '').localeCompare(b._status || '') : (b._status || '').localeCompare(a._status || '');
         }
-        const aVal = sortKey === 'budget' ? parseNumeric(a._budget) : parseNumeric(a._metrics?.[sortKey]);
-        const bVal = sortKey === 'budget' ? parseNumeric(b._budget) : parseNumeric(b._metrics?.[sortKey]);
+        const aVal = sortKey === 'budget' ? parseNumeric(a._budget?.amount) : parseNumeric(a._metrics?.[sortKey]);
+        const bVal = sortKey === 'budget' ? parseNumeric(b._budget?.amount) : parseNumeric(b._metrics?.[sortKey]);
         return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
       });
     }
     return list;
-  }, [currentData, statusFilter, objectiveFilter, activeTab, search, sortKey, sortDir]);
+  }, [currentData, statusFilter, search, sortKey, sortDir]);
+
+  // Client-side pagination
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginatedData = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const activeCount = currentData.filter(c => c._active).length;
   const pausedCount = currentData.filter(c => !c._active).length;
   const levelLabel = activeTab === 'campaigns' ? 'Campaign' : activeTab === 'adsets' ? 'Ad Set' : 'Ad';
 
-  // Compute the most common result label among visible campaigns for dynamic column headers
+  // Dynamic result label for column headers
   const dynamicResultLabel = useMemo(() => {
     if (activeTab !== 'campaigns' || filtered.length === 0) return null;
     const counts = {};
@@ -764,6 +924,57 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
     return sorted[0]?.[0] || null;
   }, [filtered, activeTab]);
+
+  // Template selection handler
+  const handleTemplateSelect = (templateId) => {
+    setActiveTemplate(templateId);
+    if (templateId === 'custom') {
+      setShowColumnPicker(true);
+    } else {
+      const tpl = BUILT_IN_TEMPLATES.find(t => t.id === templateId);
+      if (tpl) setColumns(tpl.cols);
+    }
+  };
+
+  // Get breakdown label for a row
+  const getBreakdownLabel = (row) => {
+    const bd = BREAKDOWNS.find(b => b.id === breakdown);
+    if (!bd?.apiValue) return '';
+    return row[bd.apiValue] || row.age || row.gender || row.country || row.publisher_platform || row.platform_position || row.device_platform || '';
+  };
+
+  // Format a breakdown row's metrics
+  const formatBreakdownMetrics = (row) => {
+    const m = {};
+    m.spent = row.spend ? fmtCurrency(row.spend) : '—';
+    m.impressions = row.impressions ? fmtNum(row.impressions) : '—';
+    m.reach = row.reach ? fmtNum(row.reach) : '—';
+    m.clicks = row.clicks ? fmtNum(row.clicks) : '—';
+    m.ctr = row.ctr ? fmtPct(row.ctr) : '—';
+    m.cpm = row.cpm ? fmtCurrency(row.cpm) : '—';
+    m.cpc = row.cpc ? fmtCurrency(row.cpc) : '—';
+    m.frequency = row.frequency ? Number(row.frequency).toFixed(2) : '—';
+    m.unique_clicks = row.unique_clicks ? fmtNum(row.unique_clicks) : '—';
+    m.unique_ctr = row.unique_ctr ? fmtPct(row.unique_ctr) : '—';
+    // Actions
+    const actions = row.actions || [];
+    const actionValues = row.action_values || [];
+    const costPerAction = row.cost_per_action_type || [];
+    const resultAction = actions[0];
+    const resultValue = actionValues.find(a => a.action_type === resultAction?.action_type);
+    const resultCpa = costPerAction.find(a => a.action_type === resultAction?.action_type);
+    m.results = resultAction ? fmtNum(resultAction.value) : '—';
+    m.cpa = resultCpa ? fmtCurrency(resultCpa.value) : '—';
+    m.roas = resultValue && row.spend ? (Number(resultValue.value) / Number(row.spend)).toFixed(1) + 'x' : '—';
+    m.conversions = m.results;
+    m.conv_value = resultValue ? fmtCurrency(resultValue.value) : '—';
+    const linkClicks = actions.find(a => a.action_type === 'link_click');
+    m.link_clicks = linkClicks ? fmtNum(linkClicks.value) : '—';
+    if (row.purchase_roas && Array.isArray(row.purchase_roas) && row.purchase_roas.length > 0) {
+      m.purchase_roas = Number(row.purchase_roas[0].value).toFixed(2) + 'x';
+    } else { m.purchase_roas = '—'; }
+    return m;
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-50/50">
@@ -851,17 +1062,7 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
         </div>
       </div>
 
-      {/* Bulk action bar */}
-      {selectedIds.size > 0 && (
-        <BulkActionBar
-          count={selectedIds.size}
-          onActivate={() => bulkUpdateStatus('ACTIVE')}
-          onPause={() => bulkUpdateStatus('PAUSED')}
-          onDelete={bulkDelete}
-          onAskAI={() => setShowAskAI(true)}
-          onClear={() => setSelectedIds(new Set())}
-        />
-      )}
+      {/* Bulk action bar removed — checkboxes kept for multi-select drill-down */}
 
       {/* Filters */}
       <div className="px-6 py-3 flex items-center gap-3 shrink-0 bg-white border-b border-slate-100 flex-wrap">
@@ -878,23 +1079,6 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
             </button>
           ))}
         </div>
-        {/* Objective filter (campaigns tab only) */}
-        {activeTab === 'campaigns' && availableObjectives.length > 1 && (
-          <select value={objectiveFilter} onChange={e => {
-            setObjectiveFilter(e.target.value);
-            // Auto-suggest matching template
-            if (e.target.value !== 'all') {
-              const match = getTemplateForObjective(e.target.value);
-              if (match) setColumns(match.cols);
-            }
-          }}
-            className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-[11px] font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-            <option value="all">All Objectives</option>
-            {availableObjectives.map(o => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        )}
         {/* Date range */}
         <div className="relative">
           <select value={datePreset} onChange={e => {
@@ -937,13 +1121,52 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
             </div>
           )}
         </div>
+        {/* Column Presets (template dropdown) */}
         <div className="relative">
-          <button onClick={() => setShowColumnDropdown(!showColumnDropdown)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-[11px] font-medium transition-all ${showColumnDropdown ? 'border-blue-300 bg-blue-50 text-blue-600' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}>
-            <Settings2 size={13} /> Columns
+          <select value={activeTemplate} onChange={e => handleTemplateSelect(e.target.value)}
+            className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-[11px] font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+            <optgroup label="Column Presets">
+              {BUILT_IN_TEMPLATES.map(t => (
+                <option key={t.id} value={t.id}>{t.label}</option>
+              ))}
+            </optgroup>
+            <option value="custom">Custom Columns</option>
+          </select>
+          {showColumnPicker && activeTemplate === 'custom' && (
+            <ColumnPicker columns={columns} onSetColumns={(cols) => { setColumns(cols); setActiveTemplate('custom'); }} onClose={() => setShowColumnPicker(false)} />
+          )}
+        </div>
+        {/* Breakdown dropdown */}
+        <div className="relative" ref={breakdownRef}>
+          <button onClick={() => setShowBreakdownDropdown(!showBreakdownDropdown)}
+            className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg border text-[11px] font-medium transition-all ${breakdown !== 'none' ? 'border-violet-300 bg-violet-50 text-violet-600' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}>
+            <Layers size={13} /> Breakdown{breakdown !== 'none' ? `: ${BREAKDOWNS.find(b => b.id === breakdown)?.label}` : ''}
+            <ChevronDown size={11} />
           </button>
-          {showColumnDropdown && (
-            <ColumnDropdown columns={columns} onSetColumns={setColumns} onClose={() => setShowColumnDropdown(false)} />
+          {showBreakdownDropdown && (
+            <div className="absolute top-full right-0 mt-1 z-30 bg-white rounded-xl shadow-xl border border-slate-200 w-52 overflow-hidden">
+              <div className="py-1">
+                {(() => {
+                  let lastGroup = null;
+                  return BREAKDOWNS.map(bd => {
+                    const showGroupHeader = bd.group && bd.group !== lastGroup;
+                    lastGroup = bd.group;
+                    return (
+                      <div key={bd.id}>
+                        {showGroupHeader && (
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider px-3 pt-2 pb-1">{bd.group}</p>
+                        )}
+                        <button onClick={() => { setBreakdown(bd.id); setShowBreakdownDropdown(false); }}
+                          className={`w-full text-left px-3 py-2 text-[11px] font-medium transition-colors
+                            ${breakdown === bd.id ? 'bg-violet-50 text-violet-600' : 'text-slate-600 hover:bg-slate-50'}`}>
+                          {bd.label}
+                        </button>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -971,7 +1194,7 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80">
                   <th className="py-2.5 px-3 w-10">
-                    <input type="checkbox" checked={selectedIds.size === filtered.length && filtered.length > 0}
+                    <input type="checkbox" checked={selectedIds.size === currentData.length && currentData.length > 0}
                       onChange={toggleSelectAll}
                       className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500/30" />
                   </th>
@@ -981,10 +1204,10 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
                     {levelLabel} Name {sortKey === 'name' && <span className="ml-0.5">{sortDir === 'asc' ? '↑' : '↓'}</span>}
                   </th>
                   {columns.map(colId => {
-                    const col = ALL_COLUMNS.find(c => c.id === colId);
-                    let label = col?.label;
-                    if (colId === 'results' && dynamicResultLabel) label = dynamicResultLabel;
-                    if (colId === 'cpa' && dynamicResultLabel) label = `Cost / ${dynamicResultLabel.replace(/s$/, '')}`;
+                    const col = COLUMN_MAP[colId];
+                    if (!col) return null;
+                    let label = col.label;
+                    // Column headers stay fixed like Meta (sub-labels shown per row instead)
                     return (
                       <th key={colId} onClick={() => handleSort(colId)}
                         className="py-2.5 px-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:text-slate-600 select-none">
@@ -995,94 +1218,181 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(item => (
-                  <tr key={item.id}
-                    className={`border-b border-slate-100 hover:bg-blue-50/30 transition-colors group ${selectedIds.has(item.id) ? 'bg-blue-50/50' : ''}`}>
-                    {/* Checkbox */}
-                    <td className="py-3 px-3" onClick={e => e.stopPropagation()}>
-                      <input type="checkbox" checked={selectedIds.has(item.id)}
-                        onChange={() => toggleSelect(item.id)}
-                        className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500/30" />
-                    </td>
-                    {/* Toggle */}
-                    <td className="py-3 px-3">
-                      <Toggle active={item._active} loading={updatingIds.has(item.id)} onChange={(v) => toggleActive(item.id, v)} />
-                    </td>
-                    {/* Name (clickable for drill-down) */}
-                    <td className="py-3 pl-4 pr-4">
-                      <div className="flex items-center gap-2.5">
-                        {activeTab === 'ads' && item.thumbnail ? (
-                          <img src={item.thumbnail} alt="" className="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0" />
-                        ) : activeTab === 'ads' ? (
-                          <span className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
-                            <ImageIcon size={14} className="text-slate-400" />
-                          </span>
-                        ) : null}
-                        <div className="min-w-0">
-                          {activeTab !== 'ads' ? (
-                            <button onClick={() => activeTab === 'campaigns' ? drillIntoCampaign(item) : drillIntoAdSet(item)}
-                              className="text-[12px] font-medium text-slate-800 hover:text-blue-600 hover:underline decoration-blue-300 underline-offset-2 transition-colors truncate max-w-[300px] block text-left">
-                              {item.name}
-                            </button>
-                          ) : (
-                            <p className="text-[12px] font-medium text-slate-800 truncate max-w-[300px]">{item.name}</p>
-                          )}
-                          {activeTab === 'campaigns' && item.objective && (
-                            <span className={`inline-block text-[9px] font-medium px-1.5 py-0.5 rounded-full mt-0.5 ${OBJECTIVE_COLORS[fmtObjective(item.objective)] || 'bg-slate-50 text-slate-400'}`}>
-                              {fmtObjective(item.objective)}
+                {paginatedData.map(item => (
+                  <React.Fragment key={item.id}>
+                    <tr
+                      className={`border-b border-slate-100 hover:bg-blue-50/30 transition-colors group ${selectedIds.has(item.id) ? 'bg-blue-50/50' : ''}`}>
+                      {/* Checkbox */}
+                      <td className="py-3 px-3" onClick={e => e.stopPropagation()}>
+                        <input type="checkbox" checked={selectedIds.has(item.id)}
+                          onChange={() => toggleSelect(item.id)}
+                          className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500/30" />
+                      </td>
+                      {/* Toggle */}
+                      <td className="py-3 px-3">
+                        <Toggle active={item._active} loading={updatingIds.has(item.id)} onChange={(v) => toggleActive(item.id, v)} />
+                      </td>
+                      {/* Name (clickable for drill-down) */}
+                      <td className="py-3 pl-4 pr-4">
+                        <div className="flex items-center gap-2.5">
+                          {activeTab === 'ads' && item.thumbnail ? (
+                            <img src={item.thumbnail} alt="" className="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0" />
+                          ) : activeTab === 'ads' ? (
+                            <span className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
+                              <ImageIcon size={14} className="text-slate-400" />
                             </span>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    {/* Metric columns */}
-                    {columns.map(colId => {
-                      if (colId === 'status') {
-                        return (
-                          <td key={colId} className="py-3 px-3 whitespace-nowrap">
-                            <div className="flex items-center gap-1.5">
-                              <StatusDot status={item._status} />
-                              <span className={`text-[11px] font-medium ${
-                                item._status === 'Active' ? 'text-emerald-600' : item._status === 'Paused' ? 'text-slate-400' : item._status === 'Error' ? 'text-red-500' : 'text-amber-600'
-                              }`}>{item._status}</span>
-                            </div>
-                          </td>
-                        );
-                      }
-                      if (colId === 'budget') {
-                        if (activeTab === 'ads') return <td key={colId} className="py-3 px-3"><span className="text-[11px] text-slate-300">—</span></td>;
-                        return (
-                          <td key={colId} className="py-3 px-3 relative whitespace-nowrap" onClick={e => e.stopPropagation()}>
-                            <button onClick={() => setEditingBudget(item.id)}
-                              className="text-[12px] font-medium text-slate-600 hover:text-blue-600 hover:underline decoration-blue-300 underline-offset-2 transition-colors tabular-nums">
-                              {item._budget}
-                            </button>
-                            {editingBudget === item.id && (
-                              <BudgetEditor value={item._budget} onSave={(v) => handleSaveBudget(item.id, v)} onCancel={() => setEditingBudget(null)} />
+                          ) : null}
+                          <div className="min-w-0">
+                            {activeTab !== 'ads' ? (
+                              <button onClick={() => activeTab === 'campaigns' ? drillIntoCampaign(item) : drillIntoAdSet(item)}
+                                className="text-[12px] font-medium text-slate-800 hover:text-blue-600 hover:underline decoration-blue-300 underline-offset-2 transition-colors truncate max-w-[300px] block text-left">
+                                {item.name}
+                              </button>
+                            ) : (
+                              <p className="text-[12px] font-medium text-slate-800 truncate max-w-[300px]">{item.name}</p>
                             )}
-                          </td>
+                            {activeTab === 'campaigns' && item.objective && (
+                              <span className={`inline-block text-[9px] font-medium px-1.5 py-0.5 rounded-full mt-0.5 ${OBJECTIVE_COLORS[fmtObjective(item.objective)] || 'bg-slate-50 text-slate-400'}`}>
+                                {fmtObjective(item.objective)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      {/* Metric columns */}
+                      {columns.map(colId => {
+                        const col = COLUMN_MAP[colId];
+                        if (!col) return null;
+                        if (colId === 'status') {
+                          return (
+                            <td key={colId} className="py-3 px-3 whitespace-nowrap">
+                              <div className="flex items-center gap-1.5">
+                                <StatusDot status={item._status} />
+                                <span className={`text-[11px] font-medium ${
+                                  item._status === 'Active' ? 'text-emerald-600' : item._status === 'Paused' ? 'text-slate-400' : item._status === 'Error' ? 'text-red-500' : 'text-amber-600'
+                                }`}>{item._status}</span>
+                              </div>
+                            </td>
+                          );
+                        }
+                        if (colId === 'budget') {
+                          if (activeTab === 'ads') return <td key={colId} className="py-3 px-3"><span className="text-[11px] text-slate-300">—</span></td>;
+                          const budgetObj = item._budget;
+                          return (
+                            <td key={colId} className="py-3 px-3 relative whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                              {budgetObj?.type ? (
+                                <div>
+                                  <button onClick={() => setEditingBudget(item.id)}
+                                    className="text-[12px] font-medium text-slate-600 hover:text-blue-600 hover:underline decoration-blue-300 underline-offset-2 transition-colors tabular-nums">
+                                    {budgetObj.amount}
+                                  </button>
+                                  <p className="text-[9px] text-slate-400 mt-0.5">{budgetObj.type}</p>
+                                </div>
+                              ) : (
+                                <span className="text-[11px] text-slate-400">{budgetObj?.amount || '—'}</span>
+                              )}
+                              {editingBudget === item.id && (
+                                <BudgetEditor value={budgetObj?.amount} onSave={(v) => handleSaveBudget(item.id, v)} onCancel={() => setEditingBudget(null)} />
+                              )}
+                            </td>
+                          );
+                        }
+                        if (colId === 'objective') {
+                          const obj = fmtObjective(item.objective);
+                          return (
+                            <td key={colId} className="py-3 px-3 whitespace-nowrap">
+                              {obj ? (
+                                <span className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full ${OBJECTIVE_COLORS[obj] || 'bg-slate-50 text-slate-400'}`}>
+                                  {obj}
+                                </span>
+                              ) : <span className="text-[11px] text-slate-300">—</span>}
+                            </td>
+                          );
+                        }
+                        {/* Results and CPA show sub-labels like Meta */}
+                        const subLabel = colId === 'results' ? item._metrics?._resultsLabel
+                          : colId === 'cpa' ? item._metrics?._cpaLabel
+                          : null;
+                        return <td key={colId} className="py-3 px-3 whitespace-nowrap"><CellValue value={item._metrics?.[colId]} subLabel={subLabel} /></td>;
+                      })}
+                    </tr>
+                    {/* Breakdown sub-rows */}
+                    {breakdown !== 'none' && breakdownData[item.id] && expandedBreakdowns.has(item.id) && (
+                      breakdownData[item.id].map((bdRow, i) => {
+                        const bdMetrics = formatBreakdownMetrics(bdRow);
+                        return (
+                          <tr key={`${item.id}_bd_${i}`} className="border-b border-slate-50 bg-slate-50/40">
+                            <td className="py-2 px-3"></td>
+                            <td className="py-2 px-3"></td>
+                            <td className="py-2 pl-8 pr-4">
+                              <span className="text-[11px] text-slate-500 font-medium">{getBreakdownLabel(bdRow)}</span>
+                            </td>
+                            {columns.map(colId => {
+                              if (colId === 'status' || colId === 'budget' || colId === 'objective') {
+                                return <td key={colId} className="py-2 px-3"></td>;
+                              }
+                              return <td key={colId} className="py-2 px-3 whitespace-nowrap"><CellValue value={bdMetrics[colId]} /></td>;
+                            })}
+                          </tr>
                         );
-                      }
-                      return <td key={colId} className="py-3 px-3 whitespace-nowrap"><CellValue value={item._metrics?.[colId]} /></td>;
-                    })}
-                  </tr>
+                      })
+                    )}
+                  </React.Fragment>
                 ))}
-                {filtered.length === 0 && !loading && (
+                {paginatedData.length === 0 && !loading && (
                   <tr><td colSpan={columns.length + 3} className="py-12 text-center text-[13px] text-slate-400">
                     No {levelLabel.toLowerCase()}s found
                   </td></tr>
                 )}
               </tbody>
             </table>
+            {breakdownLoading && (
+              <div className="flex items-center justify-center py-3 border-t border-slate-100">
+                <Loader2 size={14} className="animate-spin text-violet-400 mr-2" />
+                <span className="text-[11px] text-slate-400">Loading breakdown data...</span>
+              </div>
+            )}
           </div>
         )}
-        {/* Load More */}
-        {hasMore && currentData.length > 0 && (
-          <div className="flex justify-center py-4">
-            <button onClick={handleLoadMore} disabled={loadingMore}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
-              {loadingMore ? <><Loader2 size={13} className="animate-spin" /> Loading...</> : 'Load More'}
-            </button>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between py-4">
+            <span className="text-[11px] text-slate-400">
+              Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} {levelLabel.toLowerCase()}s
+            </span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setPage(1)} disabled={page === 1}
+                className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed">
+                First
+              </button>
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed">
+                Prev
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                .reduce((acc, p, i, arr) => {
+                  if (i > 0 && p - arr[i - 1] > 1) acc.push('...');
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, i) => p === '...' ? (
+                  <span key={`dots-${i}`} className="px-1 text-[11px] text-slate-300">...</span>
+                ) : (
+                  <button key={p} onClick={() => setPage(p)}
+                    className={`w-8 h-8 text-[11px] font-medium rounded-lg border transition-colors ${p === page ? 'bg-blue-600 text-white border-blue-600' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                    {p}
+                  </button>
+                ))}
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed">
+                Next
+              </button>
+              <button onClick={() => setPage(totalPages)} disabled={page === totalPages}
+                className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed">
+                Last
+              </button>
+            </div>
           </div>
         )}
       </div>
