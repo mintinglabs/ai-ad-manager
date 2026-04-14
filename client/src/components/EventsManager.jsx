@@ -386,8 +386,8 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
             </button>
             <button onClick={() => onPrefillChat?.('Help me set up tracking for my website. I need to configure my Meta Pixel and Conversions API.')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-cyan-600 to-teal-500 hover:from-cyan-500 hover:to-teal-400 transition-all shadow-sm">
-              <Sparkles size={13} /> Setup Tracking
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 transition-all shadow-sm">
+              <Sparkles size={13} /> Create with AI
             </button>
           </div>
         </div>
