@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { Send, Square, Paperclip, CheckCircle2, XCircle, ArrowUpRight, BarChart3, Target, TrendingDown, Search, FileText, DollarSign, AlertTriangle, Zap, X, Upload, Image, Film, TrendingUp, ChevronRight, Shield, Sparkles, Download, Bookmark, ChevronDown, Link2, Building2, Check, ChevronLeft, Users, Plus, RefreshCw } from 'lucide-react';
+import { Send, Square, Paperclip, CheckCircle2, XCircle, ArrowUpRight, BarChart3, Target, TrendingDown, Search, FileText, DollarSign, AlertTriangle, Zap, X, Upload, Image, Film, TrendingUp, ChevronRight, Shield, Sparkles, Download, Bookmark, ChevronDown, Link2, Building2, Check, ChevronLeft, Users, Plus, RefreshCw, Loader2, PackageOpen, CheckSquare } from 'lucide-react';
 import VideoAudienceCard from './VideoAudienceCard.jsx';
 import EngagementAudienceCard from './EngagementAudienceCard.jsx';
 import LookalikeAudienceCard from './LookalikeAudienceCard.jsx';
@@ -1790,6 +1790,167 @@ export const splitChatAndCanvas = (text) => {
 };
 
 // ── Save menu for agent messages ─────────────────────────────────────────────
+// ── Save as Skill Modal ──
+const SaveAsSkillModal = ({ messageText, onClose, onCreateSkill, generateSkill }) => {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [content, setContent] = useState(messageText || '');
+  const [generating, setGenerating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [error, setError] = useState(null);
+  const nameRef = useRef(null);
+
+  // Auto-extract name from first heading or first line
+  useEffect(() => {
+    if (!messageText) return;
+    const lines = messageText.split('\n').filter(l => l.trim());
+    const heading = lines.find(l => l.startsWith('#'));
+    const autoName = heading
+      ? heading.replace(/^#+\s*/, '').slice(0, 60)
+      : lines[0]?.replace(/^[*_#>\s]+/, '').slice(0, 60) || 'Untitled Skill';
+    setName(autoName);
+    setDescription(lines.slice(0, 3).join(' ').replace(/^[#*_>\s]+/g, '').slice(0, 120));
+    setTimeout(() => nameRef.current?.select(), 100);
+  }, [messageText]);
+
+  const handleGenerate = async () => {
+    if (!generateSkill) return;
+    setGenerating(true);
+    setError(null);
+    try {
+      const result = await generateSkill(messageText);
+      if (result) {
+        if (result.name) setName(result.name);
+        if (result.description) setDescription(result.description);
+        if (result.content) setContent(result.content);
+      }
+    } catch (err) {
+      setError('AI generation failed. You can still save with raw content.');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!name.trim() || !content.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onCreateSkill({
+        name: name.trim(),
+        description: description.trim(),
+        content: content.trim(),
+        icon: 'sparkles',
+        type: 'strategy',
+      });
+      setSaved(true);
+      setTimeout(() => onClose(), 1200);
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || 'Failed to save skill');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[60]" onClick={onClose} />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[70] w-[560px] max-h-[85vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+              <PackageOpen size={16} className="text-indigo-500" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">Save as Skill</h3>
+              <p className="text-[10px] text-slate-400">Save this AI response as a reusable custom skill</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600">
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {/* Name */}
+          <div>
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Skill Name</label>
+            <input ref={nameRef} value={name} onChange={e => setName(e.target.value)}
+              placeholder="e.g. High-Converting Ad Copy Strategy"
+              className="w-full text-sm text-slate-700 border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 placeholder:text-slate-300" />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Description</label>
+            <input value={description} onChange={e => setDescription(e.target.value)}
+              placeholder="One-line summary of what this skill does"
+              className="w-full text-sm text-slate-700 border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 placeholder:text-slate-300" />
+          </div>
+
+          {/* Content */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Skill Content</label>
+              <div className="flex items-center gap-2">
+                {generateSkill && (
+                  <button onClick={handleGenerate} disabled={generating}
+                    className="flex items-center gap-1 text-[10px] font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-50">
+                    {generating ? <><Loader2 size={10} className="animate-spin" /> Refining...</> : <><Sparkles size={10} /> Refine with AI</>}
+                  </button>
+                )}
+                <button onClick={() => setEditMode(!editMode)}
+                  className="text-[10px] font-medium text-slate-400 hover:text-slate-600">
+                  {editMode ? 'Preview' : 'Edit'}
+                </button>
+              </div>
+            </div>
+            {editMode ? (
+              <textarea value={content} onChange={e => setContent(e.target.value)}
+                className="w-full h-[240px] text-[12px] text-slate-700 font-mono border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 resize-none" />
+            ) : (
+              <div className="w-full h-[240px] overflow-auto text-[12px] text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 leading-relaxed whitespace-pre-wrap">
+                {content || <span className="text-slate-300 italic">No content yet</span>}
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 text-xs px-3 py-2 rounded-lg">{error}</div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
+          <p className="text-[10px] text-slate-400">Skill will appear in Custom Skills</p>
+          <div className="flex items-center gap-2">
+            <button onClick={onClose} className="px-4 py-2 text-[12px] text-slate-500 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
+            <button onClick={handleSave} disabled={!name.trim() || !content.trim() || saving || saved}
+              className={`px-5 py-2 text-[12px] rounded-lg font-semibold shadow-sm transition-all disabled:cursor-not-allowed
+                ${saved ? 'bg-emerald-500 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40'}`}>
+              {saved ? <><Check size={13} className="inline mr-1" />Saved!</> : saving ? 'Saving...' : 'Save as Skill'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+// ── Save as Skill Button (on message hover) ──
+const SaveAsSkillButton = ({ onClick }) => (
+  <button
+    onClick={onClick}
+    className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all opacity-0 group-hover:opacity-100 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-200"
+  >
+    <Sparkles size={11} /> Save as Skill
+  </button>
+);
+
 const SaveMenu = ({ messageId, onSave, folders = [] }) => {
   const [open, setOpen] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -1852,7 +2013,7 @@ const AutoCanvasOpener = ({ data, onOpen }) => {
 };
 
 // ── Message bubble ────────────────────────────────────────────────────────────
-const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem, folders, isAnswered, answeredWith, onOpenCanvas, adAccountId, token }) => {
+const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem, folders, isAnswered, answeredWith, onOpenCanvas, adAccountId, token, onPackageAsSkill, selectionMode, isSelected, onToggleSelect }) => {
   if (message.type === 'report') return (<><ReportMessage message={message} timestamp={message.timestamp} /><div className="mb-2" /></>);
   if (message.type === 'table') return (<><TableMessage message={message} />{isLatest && message.actions?.length > 0 && <QuickReplies actions={message.actions} onSend={onSend} disabled={isTyping} />}<div className="mb-6" /></>);
 
@@ -1865,16 +2026,19 @@ const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem, folder
     return (
       <>
         <div className="flex items-end gap-3 mb-2 group">
+          {selectionMode && (
+            <button onClick={() => onToggleSelect?.(message.id)}
+              className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 mb-1 transition-colors
+                ${isSelected ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-300 hover:border-indigo-400'}`}>
+              {isSelected && <Check size={11} />}
+            </button>
+          )}
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shrink-0 mb-0.5">
             <Zap size={15} className="text-white" />
           </div>
           <div className={hasWide ? 'max-w-[95%] flex-1 min-w-0' : 'max-w-[80%]'}>
             <div className="bg-white/80 backdrop-blur-sm border border-slate-200 text-slate-700 rounded-2xl rounded-bl-sm px-4 py-3 text-sm leading-relaxed shadow-sm relative">
-              {onSaveItem && message.id !== 'welcome' && (
-                <div className="absolute top-2 right-2 z-10">
-                  <SaveMenu messageId={message.id} onSave={onSaveItem} folders={folders} />
-                </div>
-              )}
+              {/* Save as Skill button moved below message */}
               {segments.map((seg, i) => {
                 switch (seg.type) {
                   case 'table': return <StyledTable key={i} columns={seg.columns} rows={seg.rows} />;
@@ -1910,7 +2074,12 @@ const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem, folder
                 </button>
               )}
             </div>
-            <p className="text-xs text-slate-400 mt-1 ml-1">{fmtTime(message.timestamp)}</p>
+            <div className="flex items-center gap-2 mt-1 ml-1">
+              <p className="text-xs text-slate-400">{fmtTime(message.timestamp)}</p>
+              {onPackageAsSkill && message.id !== 'welcome' && (
+                <SaveAsSkillButton onClick={() => onPackageAsSkill(message)} />
+              )}
+            </div>
           </div>
         </div>
         {isLatest && message.actions?.length > 0 && <QuickReplies actions={message.actions} onSend={onSend} disabled={isTyping} />}
@@ -2497,8 +2666,35 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
-export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = [], onSend, onStop, suggestedActions = [], cardCategories = [], quickChips = [], adAccountId, onSaveItem, folders = [], activeSkill = null, activeSkills = [], activeSkillIds, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, initialInput, initialSlashSkill, enabledSkillIds = [] }) => {
+export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = [], onSend, onStop, suggestedActions = [], cardCategories = [], quickChips = [], adAccountId, onSaveItem, folders = [], activeSkill = null, activeSkills = [], activeSkillIds, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, initialInput, initialSlashSkill, enabledSkillIds = [], onCreateSkill, generateSkill }) => {
   const [input, setInput] = useState('');
+  // Package as Skill state
+  const [packagingMessage, setPackagingMessage] = useState(null); // message object or combined text
+  // Multi-message selection
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState(new Set());
+
+  const handleToggleSelect = useCallback((msgId) => {
+    setSelectedMessageIds(prev => {
+      const next = new Set(prev);
+      if (next.has(msgId)) next.delete(msgId); else next.add(msgId);
+      return next;
+    });
+  }, []);
+
+  const handlePackageSelected = useCallback(() => {
+    const selected = messages.filter(m => selectedMessageIds.has(m.id) && m.role === 'agent');
+    if (selected.length === 0) return;
+    const combined = selected.map(m => m.text).join('\n\n---\n\n');
+    setPackagingMessage({ text: combined, id: 'combined' });
+    setSelectionMode(false);
+    setSelectedMessageIds(new Set());
+  }, [messages, selectedMessageIds]);
+
+  const handleExitSelection = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedMessageIds(new Set());
+  }, []);
 
   // Pre-fill input from parent (e.g. "Build with AI Ad Manager")
   const [consumedInput, setConsumedInput] = useState(null);
@@ -2912,6 +3108,10 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
                     onOpenCanvas={onOpenCanvas}
                     adAccountId={adAccountId}
                     token={token}
+                    onPackageAsSkill={onCreateSkill ? setPackagingMessage : undefined}
+                    selectionMode={selectionMode}
+                    isSelected={selectedMessageIds.has(msg.id)}
+                    onToggleSelect={handleToggleSelect}
                   />
                 );
               })}
@@ -2936,6 +3136,42 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
             </div>
           </div>
         </>
+      )}
+
+      {/* Multi-message selection floating bar */}
+      {selectionMode && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-white rounded-xl shadow-2xl border border-indigo-200 px-4 py-2.5 flex items-center gap-3">
+          <span className="text-[11px] font-medium text-slate-500">
+            {selectedMessageIds.size} message{selectedMessageIds.size !== 1 ? 's' : ''} selected
+          </span>
+          <button onClick={handlePackageSelected} disabled={selectedMessageIds.size === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 transition-colors">
+            <PackageOpen size={12} /> Save as Skill
+          </button>
+          <button onClick={handleExitSelection}
+            className="text-[11px] font-medium text-slate-400 hover:text-slate-600">
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {/* Selection mode toggle */}
+      {onCreateSkill && !selectionMode && messages.some(m => m.role === 'agent') && (
+        <button onClick={() => setSelectionMode(true)}
+          className="fixed bottom-20 right-6 z-40 flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-medium text-slate-400 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-500 shadow-sm transition-colors"
+          title="Select messages to package as skill">
+          <CheckSquare size={12} /> Select Messages
+        </button>
+      )}
+
+      {/* Save as Skill Modal */}
+      {packagingMessage && onCreateSkill && (
+        <SaveAsSkillModal
+          messageText={packagingMessage.text}
+          onClose={() => setPackagingMessage(null)}
+          onCreateSkill={onCreateSkill}
+          generateSkill={generateSkill}
+        />
       )}
     </div>
   );

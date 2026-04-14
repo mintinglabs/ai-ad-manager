@@ -20,6 +20,7 @@ import catalogsRouter from './api/catalogs.js';
 import previewsRouter from './api/previews.js';
 import chatRouter from './api/chat.js';
 import skillsRouter from './api/skills.js';
+import brandLibraryRouter from './api/brandLibrary.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -73,6 +74,7 @@ app.use('/api/catalogs', requireToken, catalogsRouter);
 app.use('/api/previews', requireToken, previewsRouter);
 app.use('/api/chat', optionalToken, chatRouter);
 app.use('/api/skills', skillsRouter); // Skills API handles its own auth via resolveUser middleware
+app.use('/api/brand-library', brandLibraryRouter); // Brand Library handles its own auth
 
 app.use((err, _req, res, _next) => {
   console.error('EXPRESS ERROR:', err?.message, err?.stack);

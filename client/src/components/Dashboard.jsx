@@ -16,8 +16,10 @@ import { InstantForms } from './InstantForms.jsx';
 import { EventsManager } from './EventsManager.jsx';
 import { Optimizations } from './Optimizations.jsx';
 import { AdLibrary } from './AdLibrary.jsx';
+import { BrandLibrary } from './BrandLibrary.jsx';
 import { ProjectDetail } from './ProjectDetail.jsx';
 import { useProjects } from '../hooks/useProjects.js';
+import { useBrandLibrary } from '../hooks/useBrandLibrary.js';
 
 const CARD_CATEGORIES = [];
 const QUICK_CHIPS = [];
@@ -59,6 +61,12 @@ export const Dashboard = ({
     addTask, toggleTask, deleteTask, updateInstructions, addFile, deleteFile, toggleSkill: toggleProjectSkill, addConnector, removeConnector,
   } = useProjects();
 
+  const { getBrandContext } = useBrandLibrary();
+
+  const handleOpenBrandLibrary = useCallback(() => {
+    setActiveView({ type: 'brandLibrary' });
+  }, []);
+
   const handleOpenProject = useCallback((projectId) => {
     setActiveView({ type: 'projectDetail', projectId });
     // Auto-switch to project's connected ad account
@@ -92,11 +100,14 @@ export const Dashboard = ({
       skillCtx = slashIds.map(id => getSkillContextById(id)).filter(Boolean).join('\n\n---\n\n');
     }
     if (!skillCtx) skillCtx = getSkillContext();
-    const fullText = skillCtx ? `${skillCtx}\n\n---\n\nUser message: ${text}` : text;
+    // Inject brand context alongside skill context
+    const brandCtx = getBrandContext();
+    const allContext = [skillCtx, brandCtx].filter(Boolean).join('\n\n---\n\n');
+    const fullText = allContext ? `${allContext}\n\n---\n\nUser message: ${text}` : text;
     // Pass active custom skill IDs so backend load_skill can apply them
     const customSkillIds = activeSkills.filter(s => !s.isDefault).map(s => s.id);
     sendMessage(fullText, attachments, { displayText: text, activeCustomSkill: customSkillIds[0] || null, activeCustomSkills: customSkillIds });
-  }, [sendMessage, getSkillContext, getSkillContextById, activeSkills]);
+  }, [sendMessage, getSkillContext, getSkillContextById, activeSkills, getBrandContext]);
 
   const handleSwitchSession = useCallback((sessionId) => {
     setActiveView({ type: 'chat' });
@@ -274,6 +285,7 @@ export const Dashboard = ({
         onOpenEventsManager={handleOpenEventsManager}
         onOpenOptimizations={handleOpenOptimizations}
         onOpenAdLibrary={handleOpenAdLibrary}
+        onOpenBrandLibrary={handleOpenBrandLibrary}
         onOpenSkillsLibrary={handleOpenSkillsLibrary}
         token={token}
         onLogin={onLogin}
@@ -377,6 +389,17 @@ export const Dashboard = ({
               onSendToChat={handleAudienceToChat}
               onSelectAccount={handleAccountSelect}
             />
+          ) : activeView.type === 'brandLibrary' ? (
+            <BrandLibrary
+              adAccountId={adAccountId}
+              token={token}
+              onLogin={onLogin}
+              onLogout={onLogout}
+              selectedAccount={selectedAccount}
+              selectedBusiness={selectedBusiness}
+              onSelectAccount={handleAccountSelect}
+              onSendToChat={handleAudienceToChat}
+            />
           ) : activeView.type === 'projectDetail' ? (() => {
             const proj = projects.find(p => p.id === activeView.projectId);
             if (!proj) return <div className="flex-1 flex items-center justify-center text-slate-400">Project not found</div>;
@@ -464,6 +487,8 @@ export const Dashboard = ({
               initialInput={pendingInput}
               initialSlashSkill={pendingSlashSkill}
               enabledSkillIds={enabledSkillIds}
+              onCreateSkill={createSkill}
+              generateSkill={generateSkill}
             />
           )}
         </div>

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, Plus, Filter, MoreHorizontal, Sparkles, ChevronLeft, Upload, GitBranch, Trash2, Download, X, Check, Clock, Play, PenLine, RefreshCw, FileText, FolderOpen, ChevronRight, Copy, Maximize2, Minimize2 } from 'lucide-react';
+import { Search, Plus, Filter, MoreHorizontal, Sparkles, ChevronLeft, Upload, GitBranch, Trash2, Download, X, Check, Clock, Play, PenLine, RefreshCw, FileText, FolderOpen, ChevronRight, Copy, Maximize2, Minimize2, MessageSquare } from 'lucide-react';
 
 // ── Simple Markdown Renderer ──────────────────────────────────────────────
 const renderMarkdown = (md) => {
@@ -287,7 +287,9 @@ const SkillCard = ({ skill, isActive, onToggle, onMenuAction, onView }) => {
             </span>
           )}
           {!isOfficial && skill.isPersonal && (
-            <span className="text-[10px] text-violet-500 font-medium">Custom</span>
+            <span className="text-[10px] text-violet-500 font-medium flex items-center gap-1">
+              {skill.icon === 'sparkles' ? <><MessageSquare size={9} /> From Chat</> : 'Custom'}
+            </span>
           )}
           {skill.updatedAt && (
             <span className="flex items-center gap-1 text-[10px] text-slate-400">
