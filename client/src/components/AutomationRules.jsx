@@ -22,21 +22,43 @@ const ACTION_TYPES = [
 ];
 
 const METRIC_FIELDS = [
-  // Performance metrics
+  // Cost metrics
+  { value: 'spent', label: 'Amount spent' },
   { value: 'cost_per_result', label: 'Cost per result (CPA)' },
   { value: 'cost_per_action_type', label: 'Cost per action' },
   { value: 'cpm', label: 'CPM' },
   { value: 'cpc', label: 'CPC (cost per click)' },
+  { value: 'cost_per_15_sec_video_view', label: 'Cost per 15s video view' },
+  { value: 'cost_per_thruplay', label: 'Cost per ThruPlay' },
+  // Rate metrics
   { value: 'ctr', label: 'CTR (click-through rate)' },
-  { value: 'spend', label: 'Amount spent' },
-  { value: 'spent', label: 'Amount spent' },
+  { value: 'website_ctr', label: 'Website CTR' },
+  // Volume metrics
   { value: 'impressions', label: 'Impressions' },
   { value: 'lifetime_impressions', label: 'Lifetime impressions' },
   { value: 'reach', label: 'Reach' },
+  { value: 'clicks', label: 'Clicks' },
   { value: 'frequency', label: 'Frequency' },
   { value: 'results', label: 'Results' },
+  { value: 'leads', label: 'Leads' },
+  { value: 'app_installs', label: 'App installs' },
+  // Value metrics
   { value: 'roas', label: 'ROAS' },
+  { value: 'purchase_roas', label: 'Purchase ROAS' },
+  { value: 'revenue', label: 'Revenue' },
+  // Video metrics
+  { value: 'video_views', label: 'Video views' },
+  { value: 'video_thruplay_watched_actions', label: 'ThruPlays' },
+  { value: 'video_p75_watched_actions', label: 'Video watched 75%' },
+  // Delivery metrics
   { value: 'active_time', label: 'Active time (seconds)' },
+  { value: 'daily_budget', label: 'Daily budget' },
+  { value: 'lifetime_budget', label: 'Lifetime budget' },
+  { value: 'budget_remaining', label: 'Budget remaining' },
+  // Quality metrics
+  { value: 'quality_score', label: 'Quality ranking' },
+  { value: 'engagement_rate_ranking', label: 'Engagement rate ranking' },
+  { value: 'conversion_rate_ranking', label: 'Conversion rate ranking' },
   // Name filters
   { value: 'campaign.name', label: 'Campaign name' },
   { value: 'adset.name', label: 'Ad set name' },
@@ -44,6 +66,7 @@ const METRIC_FIELDS = [
   // ID filters
   { value: 'campaign.id', label: 'Campaign ID' },
   { value: 'adset.id', label: 'Ad set ID' },
+  { value: 'ad.id', label: 'Ad ID' },
 ];
 
 const OPERATORS = [
@@ -388,7 +411,7 @@ const RuleModal = ({ rule, onSave, onClose }) => {
 
 // ── Rule Card (existing rules) ──
 // ── Human-readable rule summary (Meta-style: action line + condition line) ──
-const CURRENCY_FIELDS = new Set(['spent', 'spend', 'cost_per_action_type', 'cost_per_result', 'cpm', 'cpc', 'action_values:offsite_conversion.fb_pixel_purchase']);
+const CURRENCY_FIELDS = new Set(['spent', 'spend', 'cost_per_action_type', 'cost_per_result', 'cpm', 'cpc', 'cost_per_15_sec_video_view', 'cost_per_thruplay', 'revenue', 'daily_budget', 'lifetime_budget', 'budget_remaining', 'action_values:offsite_conversion.fb_pixel_purchase']);
 
 const fmtField = (field) => METRIC_FIELDS.find(m => m.value === field)?.label || field?.replace(/\./g, ' ')?.replace(/_/g, ' ') || field;
 const fmtOp = (op) => OPERATORS.find(o => o.value === op)?.label || op?.toLowerCase()?.replace(/_/g, ' ') || op;
