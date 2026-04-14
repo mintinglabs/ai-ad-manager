@@ -3185,9 +3185,12 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
           <div className="flex-[2]" />
           <div className="w-full max-w-2xl mx-auto">
 
-            <h1 className="text-3xl font-extrabold text-slate-900 mb-6 text-center tracking-tight">
-              Hi{userName ? ` ${userName}` : ''}, ready to <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">optimize</span> your ads?
-            </h1>
+            <div className="mb-6 text-center">
+              <p className="text-[15px] font-medium text-slate-400 mb-1">Hi{userName ? ` ${userName}` : ''} 👋</p>
+              <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                Ready to <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">Optimize</span> Your Ads?
+              </h1>
+            </div>
             <div className="relative z-10">
               <ChatInput
                 input={input} setInput={setInput} onKeyDown={handleKeyDown}

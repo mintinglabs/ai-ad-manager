@@ -427,7 +427,7 @@ const ItemDetailPanel = ({ item, onClose, onUpdate, onDelete, onToggle }) => {
 
 // ── Main Component ──
 export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onSendToChat }) => {
-  const { items, loading, error, enabledCount, fetchItems, createItem, updateItem, deleteItem, toggleItem, crawlUrl, crawlSocial } = useBrandLibrary();
+  const { items, loading, error, enabledCount, fetchItems, createItem, updateItem, deleteItem, toggleItem, crawlUrl, crawlSocial } = useBrandLibrary(adAccountId);
   const [showAskAI, setShowAskAI] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
@@ -489,13 +489,14 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
                 <BookMarked size={20} className="text-blue-500" />
                 Brand Library
                 {enabledCount > 0 && (
-                  <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                    {enabledCount} active
+                  <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    {enabledCount} active in AI memory
                   </span>
                 )}
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
-                {loading ? 'Loading...' : `${items.length} items`}
+                {loading ? 'Loading...' : 'Long-term brand memory for AI \u2014 auto-applied to all conversations'}
               </p>
             </div>
             <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
@@ -542,25 +543,30 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
                 <BookMarked size={22} className="text-slate-300" />
               </div>
-              <p className="text-[12px] font-semibold text-slate-700 mb-1">{search ? 'No matches' : 'No brand items yet'}</p>
-              <p className="text-[10px] text-slate-400 mb-3 text-center">Add brand guidelines, tone of voice, or crawl your website.</p>
+              <p className="text-[12px] font-semibold text-slate-700 mb-1">{search ? 'No matches' : 'No brand memory yet'}</p>
+              <p className="text-[10px] text-slate-400 mb-3 text-center">Add brand knowledge so AI always stays on-brand in every conversation.</p>
             </div>
           ) : (
             filtered.map(item => (
-              <button key={item.id} onClick={() => setSelectedItem(item)}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b border-slate-100 transition-colors
+              <div key={item.id}
+                className={`flex items-center gap-3 px-4 py-3 border-b border-slate-100 transition-colors cursor-pointer
                   ${selectedItem?.id === item.id ? 'bg-blue-50/60 border-l-2 border-l-blue-500' : 'hover:bg-slate-50 border-l-2 border-l-transparent'}`}>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-[12px] font-semibold text-slate-800 truncate">{item.name}</p>
-                    {!item.enabled && <span className="text-[8px] text-slate-400 bg-slate-100 px-1 rounded">OFF</span>}
-                  </div>
+                <div className="flex-1 min-w-0" onClick={() => setSelectedItem(item)}>
+                  <p className={`text-[12px] font-semibold truncate ${item.enabled ? 'text-slate-800' : 'text-slate-400'}`}>{item.name}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <TypeBadge type={item.type} />
-                    <span className="text-[9px] text-slate-300">{fmtDate(item.updated_at)}</span>
+                    {item.enabled
+                      ? <span className="text-[9px] text-emerald-500 font-medium">In AI memory</span>
+                      : <span className="text-[9px] text-slate-300">Disabled</span>
+                    }
                   </div>
                 </div>
-              </button>
+                {/* Inline toggle */}
+                <button onClick={(e) => { e.stopPropagation(); toggleItem(item.id, !item.enabled); }}
+                  className={`relative w-8 h-[18px] rounded-full transition-colors duration-200 shrink-0 ${item.enabled ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                  <span className={`absolute top-[2px] left-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-transform duration-200 ${item.enabled ? 'translate-x-[14px]' : ''}`} />
+                </button>
+              </div>
             ))
           )}
         </div>
@@ -576,9 +582,12 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
           />
         ) : (
           <div className="flex-1 flex items-center justify-center bg-slate-50/50">
-            <div className="text-center">
+            <div className="text-center max-w-xs">
               <BookMarked size={40} className="text-slate-200 mx-auto mb-3" />
-              <p className="text-sm text-slate-400">Select an item or add new brand content</p>
+              <p className="text-sm font-medium text-slate-500 mb-1">Brand Long-Term Memory</p>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Everything you add here becomes permanent AI memory. Enabled items are automatically referenced in every chat conversation to keep content on-brand.
+              </p>
             </div>
           </div>
         )}

@@ -35,12 +35,14 @@ router.get('/', async (req, res) => {
   try {
     if (!supabase) return res.json([]);
     const fbUserId = req.fbUserId || '_anonymous';
+    const adAccountId = req.query.adAccountId;
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('brand_library')
       .select('*')
-      .eq('fb_user_id', fbUserId)
-      .order('updated_at', { ascending: false });
+      .eq('fb_user_id', fbUserId);
+    if (adAccountId) query = query.eq('ad_account_id', adAccountId);
+    const { data, error } = await query.order('updated_at', { ascending: false });
 
     // Gracefully handle missing table
     if (error?.code === 'PGRST205' || error?.message?.includes('schema cache')) {
@@ -57,7 +59,7 @@ router.get('/', async (req, res) => {
 // ── POST /api/brand-library — create item ──
 router.post('/', async (req, res) => {
   try {
-    const { name, type, content, metadata } = req.body;
+    const { name, type, content, metadata, adAccountId } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
     if (!supabase) return res.status(500).json({ error: 'Database not configured' });
 
@@ -67,6 +69,7 @@ router.post('/', async (req, res) => {
     const row = {
       id,
       fb_user_id: fbUserId,
+      ad_account_id: adAccountId || null,
       name,
       type: type || 'guidelines',
       content: content || '',

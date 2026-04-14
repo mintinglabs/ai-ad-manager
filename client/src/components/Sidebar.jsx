@@ -231,7 +231,6 @@ export const Sidebar = ({
   onOpenOptimizations,
   onOpenAdLibrary,
   onOpenBrandLibrary,
-  onOpenCreativeSets,
   token,
   onLogin,
 }) => {
@@ -320,7 +319,6 @@ export const Sidebar = ({
     { icon: Image, type: 'creativeLibrary', action: onOpenCreativeLibrary, label: 'Asset Library' },
     { icon: Palette, type: 'adLibrary', action: onOpenAdLibrary, label: 'Ad Library' },
     { icon: BookMarked, type: 'brandLibrary', action: onOpenBrandLibrary, label: 'Brand Library' },
-    { icon: Layers, type: 'creativeSets', action: onOpenCreativeSets, label: 'Creative Sets' },
     { icon: ClipboardList, type: 'instantForms', action: onOpenInstantForms, label: 'Instant Forms' },
     { icon: TrendingUp, type: 'eventsManager', action: onOpenEventsManager, label: 'Events Manager' },
     { icon: Settings, type: 'automationRules', action: onOpenAutomationRules, label: 'Automation Rules' },
