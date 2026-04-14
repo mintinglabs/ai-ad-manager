@@ -870,6 +870,34 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
         </div>
       </div>
 
+      {/* Chat bar + templates — above filters */}
+      {token && adAccountId && (
+        <div className="px-6 py-3 bg-white border-b border-slate-100 space-y-3">
+          {/* Chat bar */}
+          <div className="bg-white rounded-2xl border border-orange-200 shadow-sm ring-1 ring-orange-500/10 focus-within:ring-2 focus-within:ring-orange-500/20 focus-within:border-orange-300 transition-all overflow-hidden">
+            <input data-form-input
+              placeholder="Describe a form... e.g. 'Create a lead form for my skincare consultation campaign'"
+              className="w-full px-5 pt-3 pb-1.5 text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none bg-transparent"
+              onKeyDown={e => { if (e.key === 'Enter' && e.target.value.trim()) { onPrefillChat?.(e.target.value.trim()); e.target.value = ''; } }}
+            />
+            <div className="flex items-center justify-between px-4 pb-2.5">
+              <span className="text-[10px] text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                <Sparkles size={10} /> AI will build your form
+              </span>
+              <button onClick={() => {
+                const input = document.querySelector('[data-form-input]');
+                if (input?.value?.trim()) { onPrefillChat?.(input.value.trim()); input.value = ''; }
+              }}
+                className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 flex items-center justify-center text-white shadow-sm transition-all">
+                <ArrowRight size={13} />
+              </button>
+            </div>
+          </div>
+          {/* Template chips */}
+          <FormTemplates onCreateFromTemplate={() => setShowCreate(true)} />
+        </div>
+      )}
+
       {/* Filters */}
       <div className="px-6 py-3 flex items-center gap-3 shrink-0 bg-white border-b border-slate-100">
         {pages.length > 0 && (
@@ -892,31 +920,6 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
           ))}
         </div>
       </div>
-
-      {/* Chat bar — ask AI to create a form */}
-      {token && adAccountId && (
-        <div className="px-6 py-3 bg-white border-b border-slate-100">
-          <div className="bg-white rounded-2xl border border-orange-200 shadow-sm ring-1 ring-orange-500/10 focus-within:ring-2 focus-within:ring-orange-500/20 focus-within:border-orange-300 transition-all overflow-hidden">
-            <input data-form-input
-              placeholder="Describe a form... e.g. 'Create a lead form for my skincare consultation campaign'"
-              className="w-full px-5 pt-3 pb-1.5 text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none bg-transparent"
-              onKeyDown={e => { if (e.key === 'Enter' && e.target.value.trim()) { onPrefillChat?.(e.target.value.trim()); e.target.value = ''; } }}
-            />
-            <div className="flex items-center justify-between px-4 pb-2.5">
-              <span className="text-[10px] text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                <Sparkles size={10} /> AI will build your form
-              </span>
-              <button onClick={() => {
-                const input = document.querySelector('[data-form-input]');
-                if (input?.value?.trim()) { onPrefillChat?.(input.value.trim()); input.value = ''; }
-              }}
-                className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 flex items-center justify-center text-white shadow-sm transition-all">
-                <ArrowRight size={13} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {error && <div className="mx-6 mt-3 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{error}</div>}
 
@@ -994,8 +997,14 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
             onArchive={() => setArchiveTarget(selectedForm)}
           />
         ) : (
-          <div className="flex-1 overflow-auto bg-slate-50/50 p-6">
-            <FormTemplates onCreateFromTemplate={() => setShowCreate(true)} />
+          <div className="flex-1 overflow-auto bg-slate-50/50 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-14 h-14 rounded-2xl bg-orange-100 flex items-center justify-center mx-auto mb-3">
+                <FileText size={24} className="text-orange-500" />
+              </div>
+              <p className="text-[14px] font-semibold text-slate-700 mb-1">Select a form to preview</p>
+              <p className="text-[12px] text-slate-400">Choose a form from the left to see its preview and lead data</p>
+            </div>
           </div>
         )}
       </div>
