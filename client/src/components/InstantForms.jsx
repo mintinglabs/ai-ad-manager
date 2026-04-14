@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Search, RefreshCw, Loader2, X, ChevronDown, FileText, Download, Clock, Eye, Plus, Archive, MessageSquare, Users, Trash2, AlertTriangle, Palette, Zap, Smartphone, Sparkles, ArrowRight } from 'lucide-react';
+import { Search, RefreshCw, Loader2, X, ChevronDown, FileText, Download, Clock, Eye, Plus, Archive, MessageSquare, Users, Trash2, AlertTriangle, Palette, Zap, Smartphone, Sparkles, ArrowRight, Copy } from 'lucide-react';
 import { AccountSelector } from './AccountSelector.jsx';
 import { AskAIButton, AskAIPopup } from './AskAIPopup.jsx';
 import api from '../services/api.js';
@@ -514,14 +514,16 @@ const FormDetailPanel = ({ form, pageId, pageName, onClose, onArchive }) => {
         </div>
       </div>
 
-      {/* Phone preview — the main visual */}
+      {/* Phone preview — scaled down to fit without scrolling */}
       <div className="flex justify-center">
-        <div className="w-[360px]">
-          <div className="flex items-center gap-1.5 mb-3">
-            <Smartphone size={12} className="text-slate-400" />
+        <div className="w-[300px]">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Smartphone size={11} className="text-slate-400" />
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Form Preview</span>
           </div>
-          <FormPhonePreview form={form} pageName={pageName} />
+          <div className="transform scale-[0.85] origin-top">
+            <FormPhonePreview form={form} pageName={pageName} />
+          </div>
         </div>
       </div>
     </div>
@@ -802,8 +804,6 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
                 )}
               </h1>
             </div>
-            <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
-              selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
           </div>
           <button onClick={fetchForms} disabled={loading}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
@@ -868,7 +868,7 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
       {/* Content — master-detail layout */}
       <div className="flex-1 flex min-h-0">
         {/* Left: Form list sidebar */}
-        <div className="w-[280px] shrink-0 border-r border-slate-200 overflow-auto bg-white">
+        <div className="w-[340px] shrink-0 border-r border-slate-200 overflow-auto bg-white">
           <div className="py-2">
             {!token || !adAccountId ? (
               <div className="flex flex-col items-center justify-center py-20 px-6">
@@ -897,9 +897,10 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
             ) : (
               <>
                 {filtered.map(form => (
-                  <button key={form.id} onClick={() => setSelectedForm(form)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b border-slate-100 transition-colors
-                      ${selectedForm?.id === form.id ? 'bg-blue-50/60 border-l-2 border-l-blue-500' : 'hover:bg-slate-50 border-l-2 border-l-transparent'}`}>
+                  <div key={form.id}
+                    className={`group w-full flex items-center gap-3 px-4 py-3 text-left border-b border-slate-100 transition-colors cursor-pointer
+                      ${selectedForm?.id === form.id ? 'bg-blue-50/60 border-l-2 border-l-blue-500' : 'hover:bg-slate-50 border-l-2 border-l-transparent'}`}
+                    onClick={() => setSelectedForm(form)}>
                     <div className="flex-1 min-w-0">
                       <p className="text-[12px] font-semibold text-slate-800 truncate">{form.name}</p>
                       <div className="flex items-center gap-2 mt-1">
@@ -907,16 +908,26 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
                         {form.leads_count != null && (
                           <span className="text-[10px] text-blue-500 font-medium">{Number(form.leads_count).toLocaleString()} leads</span>
                         )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
                         <span className={`inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full
                           ${form.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
                           {form.status || 'Active'}
                         </span>
-                        <span className="text-[9px] text-slate-300">{fmtDate(form.created_time)}</span>
                       </div>
                     </div>
-                  </button>
+                    {/* Hover actions */}
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={e => e.stopPropagation()}>
+                      <button onClick={() => onPrefillChat?.(`Duplicate the lead form "${form.name}" with the same fields. Create a copy I can modify.`)}
+                        title="Duplicate form"
+                        className="w-7 h-7 rounded-lg hover:bg-blue-50 flex items-center justify-center text-slate-300 hover:text-blue-500 transition-colors">
+                        <Copy size={12} />
+                      </button>
+                      <button onClick={() => setArchiveTarget(form)}
+                        title="Archive form"
+                        className="w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center text-slate-300 hover:text-red-400 transition-colors">
+                        <Archive size={12} />
+                      </button>
+                    </div>
+                  </div>
                 ))}
                 {formsPaging?.next && (
                   <button onClick={() => fetchForms(formsPaging?.cursors?.after)} disabled={loadingMore}
