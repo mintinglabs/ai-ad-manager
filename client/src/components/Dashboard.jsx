@@ -220,9 +220,10 @@ export const Dashboard = ({
   }, [sendMessage]);
 
   const handlePrefillChat = useCallback((text) => {
+    createNewChat();
     setPendingInput(text);
     setActiveView({ type: 'chat' });
-  }, []);
+  }, [createNewChat]);
 
   const handleOpenCanvas = useCallback((data) => {
     setCanvasData(data);
