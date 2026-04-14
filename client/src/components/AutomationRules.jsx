@@ -252,129 +252,97 @@ const RuleModal = ({ rule, onSave, onClose }) => {
     <>
       <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40" onClick={onClose} />
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[580px] max-h-[85vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-        {/* Hero header */}
-        {templateMatch ? (
-          <div className={`relative overflow-hidden bg-gradient-to-br ${templateMatch.gradient} px-7 py-6`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-2xl ${templateMatch.iconBg} flex items-center justify-center shadow-md`}>
-                  <templateMatch.icon size={22} />
-                </div>
-                <div>
-                  <h3 className="text-[17px] font-bold text-slate-900">{templateMatch.name}</h3>
-                  <p className="text-[12px] text-slate-500 mt-0.5">{templateMatch.desc}</p>
-                </div>
+        {/* Compact header */}
+        <div className={`relative overflow-hidden ${templateMatch ? `bg-gradient-to-br ${templateMatch.gradient}` : ''} px-6 py-4 flex items-center justify-between`}>
+          <div className="flex items-center gap-3">
+            {templateMatch && (
+              <div className={`w-9 h-9 rounded-xl ${templateMatch.iconBg} flex items-center justify-center shadow-sm`}>
+                <templateMatch.icon size={17} />
               </div>
-              <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/50 hover:bg-white/80 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-all">
-                <X size={15} />
-              </button>
+            )}
+            <div>
+              <h3 className="text-[15px] font-bold text-slate-900">{templateMatch ? templateMatch.name : isEdit ? 'Edit Rule' : 'Create Rule'}</h3>
+              {templateMatch && <p className="text-[11px] text-slate-500">{templateMatch.desc}</p>}
             </div>
           </div>
-        ) : (
-          <div className="flex items-center justify-between px-7 py-5 border-b border-slate-100">
-            <h3 className="text-[16px] font-bold text-slate-900">{isEdit ? 'Edit Rule' : 'Create Rule'}</h3>
-            <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
-              <X size={15} />
-            </button>
-          </div>
-        )}
+          <button onClick={onClose} className="w-7 h-7 rounded-full bg-white/50 hover:bg-white/80 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all">
+            <X size={14} />
+          </button>
+        </div>
 
-        {/* Form body */}
-        <div className="flex-1 overflow-y-auto px-7 py-6 space-y-6">
+        {/* Compact form */}
+        <div className="px-6 py-4 space-y-4">
           {/* Rule name */}
           <FormInput label="Rule name" value={name} onChange={setName} placeholder="e.g. Pause high CPA campaigns" />
 
-          {/* Trigger section */}
+          {/* Trigger — conditions + time window inline */}
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center">
-                <Zap size={13} className="text-amber-600" />
-              </div>
-              <span className="text-[12px] font-bold text-slate-700">Trigger</span>
-            </div>
-            <div className="space-y-3 pl-8">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">When this happens</label>
+            <div className="space-y-2">
               {conditions.map((cond, idx) => (
                 <div key={idx} className="flex items-center gap-2">
-                  {idx > 0 && <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">AND</span>}
+                  {idx > 0 && <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">AND</span>}
                   <FormSelect value={cond.field} options={METRIC_FIELDS} onChange={v => updateCondition(idx, 'field', v)} className="flex-1" />
                   <FormSelect value={cond.operator} options={OPERATORS} onChange={v => updateCondition(idx, 'operator', v)} className="flex-1" />
-                  <FormInput type="number" value={cond.value} onChange={v => updateCondition(idx, 'value', v)} placeholder="Value" className="w-28" />
+                  <FormInput type="number" value={cond.value} onChange={v => updateCondition(idx, 'value', v)} placeholder="Value" className="w-24" />
                   {conditions.length > 1 && (
-                    <button onClick={() => removeCondition(idx)} className="w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center text-slate-300 hover:text-red-500 transition-colors">
-                      <X size={13} />
+                    <button onClick={() => removeCondition(idx)} className="w-6 h-6 rounded-md hover:bg-red-50 flex items-center justify-center text-slate-300 hover:text-red-500 transition-colors">
+                      <X size={12} />
                     </button>
                   )}
                 </div>
               ))}
-              <button onClick={addCondition} className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1 transition-colors">
-                <Plus size={12} /> Add condition
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <button onClick={addCondition} className="text-[10px] font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1">
+                <Plus size={11} /> Add condition
               </button>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-slate-400">in the</span>
+                <select value={conditions[0]?.time_preset || 'LAST_7_DAYS'} onChange={e => setConditions(prev => prev.map(c => ({ ...c, time_preset: e.target.value })))}
+                  className="text-[11px] font-medium text-slate-700 border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none">
+                  {TIME_PRESETS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
             </div>
           </div>
 
-          {/* Time window */}
-          <div className="pl-8">
-            <FormSelect label="Time window" value={conditions[0]?.time_preset || 'LAST_7_DAYS'} options={TIME_PRESETS}
-              onChange={v => setConditions(prev => prev.map(c => ({ ...c, time_preset: v })))} />
-          </div>
-
-          {/* Action section */}
+          {/* Action — compact row, not grid */}
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-6 h-6 rounded-lg bg-orange-100 flex items-center justify-center">
-                <Play size={13} className="text-orange-600" />
-              </div>
-              <span className="text-[12px] font-bold text-slate-700">Action</span>
-            </div>
-            <div className="pl-8 space-y-3">
-              <div className="grid grid-cols-5 gap-2">
-                {ACTION_TYPES.map(a => {
-                  const AIcon = a.icon;
-                  return (
-                    <button key={a.value} onClick={() => setActionType(a.value)}
-                      className={`flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl border text-center transition-all ${actionType === a.value ? 'border-orange-300 bg-orange-50 shadow-sm' : 'border-slate-200 hover:border-slate-300 bg-white'}`}>
-                      <AIcon size={16} className={actionType === a.value ? 'text-orange-600' : 'text-slate-400'} />
-                      <span className={`text-[10px] font-semibold ${actionType === a.value ? 'text-orange-700' : 'text-slate-500'}`}>{a.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Then do this</label>
+            <div className="flex items-center gap-2">
+              <FormSelect value={actionType} options={ACTION_TYPES.map(a => ({ value: a.value, label: a.label }))} onChange={setActionType} className="flex-1" />
               {actionType === 'CHANGE_BUDGET' && (
-                <div className="flex items-center gap-2">
-                  <FormSelect value={budgetAction} options={[{ value: 'INCREASE', label: 'Increase' }, { value: 'DECREASE', label: 'Decrease' }]} onChange={setBudgetAction} className="flex-1" />
-                  <FormInput type="number" value={budgetAmount} onChange={setBudgetAmount} placeholder="Amount" className="w-24" />
-                  <FormSelect value={budgetUnit} options={[{ value: 'PERCENTAGE', label: '%' }, { value: 'ABSOLUTE', label: '$' }]} onChange={setBudgetUnit} className="w-24" />
-                </div>
+                <>
+                  <FormSelect value={budgetAction} options={[{ value: 'INCREASE', label: 'Increase' }, { value: 'DECREASE', label: 'Decrease' }]} onChange={setBudgetAction} className="w-28" />
+                  <FormInput type="number" value={budgetAmount} onChange={setBudgetAmount} placeholder="20" className="w-20" />
+                  <FormSelect value={budgetUnit} options={[{ value: 'PERCENTAGE', label: '%' }, { value: 'ABSOLUTE', label: '$' }]} onChange={setBudgetUnit} className="w-16" />
+                </>
               )}
             </div>
           </div>
 
-          {/* Apply to + Schedule (side by side) */}
-          <div className="grid grid-cols-2 gap-4 pl-8">
+          {/* Apply to + Schedule — side by side */}
+          <div className="grid grid-cols-2 gap-3">
             <FormSelect label="Apply to" value={entityType} options={ENTITY_TYPES} onChange={setEntityType} />
             <FormSelect label="Check frequency" value={schedule} options={SCHEDULE_OPTIONS} onChange={setSchedule} />
           </div>
 
-          {/* Live summary */}
-          <div className="bg-slate-900 rounded-xl px-5 py-4 flex items-start gap-3">
-            <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center shrink-0 mt-0.5">
-              <Sparkles size={12} className="text-white" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">What this rule will do</p>
-              <p className="text-[13px] text-white/90 leading-relaxed font-medium">{summary}</p>
-            </div>
+          {/* Compact summary */}
+          <div className="bg-slate-900 rounded-xl px-4 py-3 flex items-center gap-3">
+            <Sparkles size={13} className="text-orange-400 shrink-0" />
+            <p className="text-[11px] text-white/80 leading-relaxed">{summary}</p>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-7 py-5 border-t border-slate-100 flex items-center justify-between">
-          <button onClick={onClose} className="px-5 py-2.5 text-[12px] text-slate-500 hover:bg-slate-50 rounded-xl font-medium transition-colors">
+        <div className="px-6 py-3.5 border-t border-slate-100 flex items-center justify-between">
+          <button onClick={onClose} className="px-4 py-2 text-[12px] text-slate-500 hover:bg-slate-50 rounded-lg font-medium transition-colors">
             Cancel
           </button>
           <button onClick={handleSave} disabled={!name.trim() || !conditions[0]?.value || saving}
-            className="flex items-center gap-2 px-6 py-2.5 text-[13px] text-white bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 rounded-xl font-bold shadow-lg shadow-orange-500/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none transition-all">
-            <Zap size={14} />
+            className="flex items-center gap-1.5 px-5 py-2 text-[12px] text-white bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 rounded-lg font-bold shadow-md shadow-orange-500/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none transition-all">
+            <Zap size={13} />
             {saving ? 'Creating...' : isEdit ? 'Update Rule' : 'Enable Rule'}
           </button>
         </div>
