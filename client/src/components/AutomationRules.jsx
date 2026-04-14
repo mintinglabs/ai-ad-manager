@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Search, RefreshCw, Plus, Loader2, Trash2, X, Play, Pause, ChevronDown, ChevronRight, Clock, AlertTriangle, CheckCircle, Settings2, Edit3, Sparkles, ArrowRight, TrendingUp, Zap, Target, BarChart3, Shield } from 'lucide-react';
+import { Search, RefreshCw, Plus, Loader2, Trash2, X, Play, Pause, ChevronDown, ChevronRight, Clock, AlertTriangle, CheckCircle, Settings2, Edit3, Sparkles, ArrowRight, TrendingUp, Zap, Target, BarChart3, Shield, DollarSign } from 'lucide-react';
 import { AccountSelector } from './AccountSelector.jsx';
 import { AskAIButton, AskAIPopup } from './AskAIPopup.jsx';
 import api from '../services/api.js';
@@ -58,66 +58,69 @@ const SCHEDULE_OPTIONS = [
   { value: 'CUSTOM', label: 'Custom schedule' },
 ];
 
-// ── Rule Templates ──
+// ── Rule Templates (problem-oriented) ──
 const RULE_TEMPLATES = [
-  { id: 'scale', name: 'Scale Winning Ads', desc: 'Increase budget by 20% if ROAS > 3.0', icon: TrendingUp, color: 'text-emerald-500 bg-emerald-50',
-    prefill: { name: 'Scale Winning Ads', actionType: 'CHANGE_BUDGET', budgetAction: 'INCREASE', budgetAmount: '20', budgetUnit: 'PERCENTAGE', conditions: [{ field: 'roas', operator: 'GREATER_THAN', value: '3', time_preset: 'LAST_7_DAYS' }] } },
-  { id: 'pause_roas', name: 'Pause Low ROAS', desc: 'Stop ads if ROAS falls below 1.2', icon: Shield, color: 'text-red-500 bg-red-50',
-    prefill: { name: 'Pause Low ROAS', actionType: 'PAUSE', conditions: [{ field: 'roas', operator: 'LESS_THAN', value: '1.2', time_preset: 'LAST_7_DAYS' }] } },
-  { id: 'weekend', name: 'Weekend Boost', desc: 'Increase budget on Fri-Sun mornings', icon: Zap, color: 'text-orange-500 bg-orange-50',
-    prefill: { name: 'Weekend Boost', actionType: 'CHANGE_BUDGET', budgetAction: 'INCREASE', budgetAmount: '30', budgetUnit: 'PERCENTAGE', conditions: [{ field: 'roas', operator: 'GREATER_THAN', value: '2', time_preset: 'LAST_3_DAYS' }] } },
-  { id: 'fatigue', name: 'Anti-Fatigue', desc: 'Pause if Frequency > 5 in 7 days', icon: Target, color: 'text-teal-500 bg-teal-50',
-    prefill: { name: 'Anti-Fatigue', actionType: 'PAUSE', conditions: [{ field: 'frequency', operator: 'GREATER_THAN', value: '5', time_preset: 'LAST_7_DAYS' }] } },
-  { id: 'cost_cap', name: 'Cost Cap Protection', desc: 'Decrease bid if CPA > $25', icon: BarChart3, color: 'text-blue-500 bg-blue-50',
-    prefill: { name: 'Cost Cap Protection', actionType: 'CHANGE_BID', conditions: [{ field: 'cost_per_result', operator: 'GREATER_THAN', value: '25', time_preset: 'LAST_7_DAYS' }] } },
-  { id: 'cleanup', name: 'Nightly Cleanup', desc: 'Pause ads with 0 conversions', icon: Clock, color: 'text-red-500 bg-red-50',
-    prefill: { name: 'Nightly Cleanup', actionType: 'PAUSE', conditions: [{ field: 'results', operator: 'LESS_THAN', value: '1', time_preset: 'LAST_7_DAYS' }] } },
+  {
+    id: 'waste', icon: Shield, category: 'Protection', categoryColor: 'text-red-600 bg-red-50 border-red-100',
+    name: 'Stop Wasting Budget',
+    desc: 'Auto-pause campaigns that are spending money but generating zero results',
+    chatPrompt: 'Set up an automation rule to pause campaigns that are spending budget but getting no conversions. Help me configure the right spend threshold and time window.',
+  },
+  {
+    id: 'cpa', icon: AlertTriangle, category: 'Protection', categoryColor: 'text-red-600 bg-red-50 border-red-100',
+    name: 'Protect Your CPA',
+    desc: 'Get alerted or auto-pause when your cost per result spikes above your target',
+    chatPrompt: 'Set up an automation rule to protect my CPA. I want to pause or get notified when cost per result exceeds my target. Help me set the right threshold.',
+  },
+  {
+    id: 'scale', icon: TrendingUp, category: 'Growth', categoryColor: 'text-emerald-600 bg-emerald-50 border-emerald-100',
+    name: 'Scale What\'s Working',
+    desc: 'Auto-increase budget on your best performing campaigns when ROAS is strong',
+    chatPrompt: 'Set up an automation rule to automatically scale budget on my best performing campaigns. I want to increase budget when ROAS is above my target. Help me configure it.',
+  },
+  {
+    id: 'fatigue', icon: Target, category: 'Protection', categoryColor: 'text-red-600 bg-red-50 border-red-100',
+    name: 'Fight Ad Fatigue',
+    desc: 'Pause ads automatically before your audience gets tired of seeing them repeatedly',
+    chatPrompt: 'Set up an automation rule to fight ad fatigue. I want to auto-pause ads when frequency gets too high. Help me decide the right frequency threshold.',
+  },
+  {
+    id: 'overspend', icon: DollarSign, category: 'Safety', categoryColor: 'text-blue-600 bg-blue-50 border-blue-100',
+    name: 'Budget Overspend Guard',
+    desc: 'Get notified immediately when daily spend exceeds your budget limit',
+    chatPrompt: 'Set up an automation rule to alert me when my daily ad spend exceeds a certain amount. I want a budget overspend guard as a safety net.',
+  },
 ];
 
-// ── AI Rule Generator ──
-const AIRuleGenerator = ({ onGenerate }) => {
-  const [prompt, setPrompt] = useState('');
-  return (
-    <div className="bg-gradient-to-r from-violet-50 to-blue-50 rounded-xl border border-violet-200/60 p-4 mb-5">
-      <div className="flex gap-2">
-        <div className="flex items-center gap-2 shrink-0 mr-1">
-          <Sparkles size={15} className="text-violet-500" />
-        </div>
-        <input value={prompt} onChange={e => setPrompt(e.target.value)}
-          placeholder="Describe a rule in plain English (e.g., 'Pause any campaign if ROAS drops below 2')"
-          className="flex-1 px-3.5 py-2.5 text-[12px] rounded-lg border border-violet-200 bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-300 placeholder:text-slate-400"
-          onKeyDown={e => { if (e.key === 'Enter' && prompt.trim()) { onGenerate(prompt); setPrompt(''); } }} />
-        <button onClick={() => { if (prompt.trim()) { onGenerate(prompt); setPrompt(''); } }} disabled={!prompt.trim()}
-          className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-[12px] font-semibold text-white bg-violet-600 hover:bg-violet-500 transition-colors shadow-sm disabled:opacity-40 shrink-0">
-          Generate Rule <ArrowRight size={13} />
-        </button>
-      </div>
-    </div>
-  );
-};
-
 // ── Quick Setup Templates ──
-const QuickTemplates = ({ onUseTemplate }) => (
+const QuickTemplates = ({ onSelect }) => (
   <div className="mb-6">
-    <div className="flex items-center justify-between mb-3">
-      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Quick Setup Templates</span>
-      <button className="text-[11px] text-violet-500 hover:text-violet-600 font-medium">View All Templates</button>
+    <div className="mb-4">
+      <h3 className="text-[13px] font-bold text-slate-800 mb-1">Quick Setup</h3>
+      <p className="text-[11px] text-slate-400">Choose a common rule to get started — we'll help you configure the details.</p>
     </div>
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-2 gap-3">
       {RULE_TEMPLATES.map(t => {
         const Icon = t.icon;
         return (
-          <div key={t.id} className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-md transition-all hover:border-slate-300 group">
-            <div className={`w-9 h-9 rounded-lg ${t.color} flex items-center justify-center mb-2.5`}>
-              <Icon size={17} />
+          <button key={t.id} onClick={() => onSelect(t)}
+            className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-lg hover:border-violet-300 transition-all text-left group">
+            <div className="flex items-start gap-3.5">
+              <div className={`w-10 h-10 rounded-xl ${t.categoryColor} border flex items-center justify-center shrink-0`}>
+                <Icon size={18} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${t.categoryColor}`}>
+                    {t.category}
+                  </span>
+                </div>
+                <h4 className="text-[13px] font-bold text-slate-800 mb-1 group-hover:text-violet-600 transition-colors">{t.name}</h4>
+                <p className="text-[11px] text-slate-400 leading-relaxed">{t.desc}</p>
+              </div>
+              <ArrowRight size={14} className="text-slate-300 group-hover:text-violet-500 transition-colors shrink-0 mt-1" />
             </div>
-            <h4 className="text-[12px] font-bold text-slate-800 mb-0.5">{t.name}</h4>
-            <p className="text-[10px] text-slate-400 mb-3 leading-relaxed">{t.desc}</p>
-            <button onClick={() => onUseTemplate(t)}
-              className="w-full py-1.5 text-[10px] font-bold uppercase tracking-wider text-violet-600 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg transition-colors">
-              One-Click Enable
-            </button>
-          </div>
+          </button>
         );
       })}
     </div>
@@ -603,15 +606,7 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
         ) : (
           <>
             {/* Quick Setup Templates */}
-            <QuickTemplates onUseTemplate={(t) => {
-              setEditingRule({
-                name: t.prefill.name,
-                execution_spec: { execution_type: t.prefill.actionType },
-                evaluation_spec: { filters: t.prefill.conditions },
-                schedule_spec: { schedule_type: 'DAILY' },
-              });
-              setShowCreate(true);
-            }} />
+            <QuickTemplates onSelect={(t) => onPrefillChat?.(t.chatPrompt)} />
 
             {/* YOUR RULES section */}
             <div className="flex items-center justify-between mb-3">
