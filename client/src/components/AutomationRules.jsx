@@ -22,16 +22,28 @@ const ACTION_TYPES = [
 ];
 
 const METRIC_FIELDS = [
+  // Performance metrics
   { value: 'cost_per_result', label: 'Cost per result (CPA)' },
+  { value: 'cost_per_action_type', label: 'Cost per action' },
   { value: 'cpm', label: 'CPM' },
   { value: 'cpc', label: 'CPC (cost per click)' },
   { value: 'ctr', label: 'CTR (click-through rate)' },
   { value: 'spend', label: 'Amount spent' },
+  { value: 'spent', label: 'Amount spent' },
   { value: 'impressions', label: 'Impressions' },
+  { value: 'lifetime_impressions', label: 'Lifetime impressions' },
   { value: 'reach', label: 'Reach' },
   { value: 'frequency', label: 'Frequency' },
   { value: 'results', label: 'Results' },
   { value: 'roas', label: 'ROAS' },
+  { value: 'active_time', label: 'Active time (seconds)' },
+  // Name filters
+  { value: 'campaign.name', label: 'Campaign name' },
+  { value: 'adset.name', label: 'Ad set name' },
+  { value: 'ad.name', label: 'Ad name' },
+  // ID filters
+  { value: 'campaign.id', label: 'Campaign ID' },
+  { value: 'adset.id', label: 'Ad set ID' },
 ];
 
 const OPERATORS = [
@@ -39,6 +51,12 @@ const OPERATORS = [
   { value: 'LESS_THAN', label: 'is less than' },
   { value: 'IN_RANGE', label: 'is between' },
   { value: 'NOT_IN_RANGE', label: 'is not between' },
+  { value: 'CONTAIN', label: 'contains' },
+  { value: 'NOT_CONTAIN', label: 'does not contain' },
+  { value: 'IN', label: 'is one of' },
+  { value: 'NOT_IN', label: 'is not one of' },
+  { value: 'EQUAL', label: 'equals' },
+  { value: 'NOT_EQUAL', label: 'does not equal' },
 ];
 
 const TIME_PRESETS = [
@@ -210,10 +228,15 @@ const RuleModal = ({ rule, onSave, onClose }) => {
   useEffect(() => {
     if (!rule) return;
     if (rule.evaluation_spec?.filters?.length) {
-      setConditions(rule.evaluation_spec.filters.map(f => ({
-        field: f.field || 'cost_per_result', operator: f.operator || 'GREATER_THAN',
-        value: f.value || '', time_preset: f.time_preset || 'LAST_7_DAYS',
-      })));
+      let tp = 'LAST_7_DAYS';
+      const conds = [];
+      rule.evaluation_spec.filters.forEach(f => {
+        if (f.field === 'entity_type') { setEntityType(f.value || 'CAMPAIGN'); return; }
+        if (f.field === 'time_preset') { tp = f.value || 'LAST_7_DAYS'; return; }
+        conds.push({ field: f.field, operator: f.operator || 'GREATER_THAN', value: f.value || '', time_preset: tp });
+      });
+      if (conds.length) setConditions(conds);
+      else setConditions([{ field: 'cost_per_result', operator: 'GREATER_THAN', value: '', time_preset: tp }]);
     }
     if (rule.execution_spec?.execution_type) setActionType(rule.execution_spec.execution_type);
     if (rule.schedule_spec?.schedule_type) setSchedule(rule.schedule_spec.schedule_type);
@@ -353,7 +376,12 @@ const RuleModal = ({ rule, onSave, onClose }) => {
 
 // ── Rule Card (existing rules) ──
 // ── Human-readable rule summary (Meta-style: action line + condition line) ──
-const CURRENCY_FIELDS = new Set(['spent', 'cost_per_action_type', 'cpm', 'cpc', 'action_values:offsite_conversion.fb_pixel_purchase']);
+const CURRENCY_FIELDS = new Set(['spent', 'spend', 'cost_per_action_type', 'cost_per_result', 'cpm', 'cpc', 'action_values:offsite_conversion.fb_pixel_purchase']);
+
+const fmtField = (field) => METRIC_FIELDS.find(m => m.value === field)?.label || field?.replace(/\./g, ' ')?.replace(/_/g, ' ') || field;
+const fmtOp = (op) => OPERATORS.find(o => o.value === op)?.label || op?.toLowerCase()?.replace(/_/g, ' ') || op;
+const fmtVal = (field, val) => CURRENCY_FIELDS.has(field) && val ? '$' + (Number(val) / 100).toFixed(2) : val;
+
 const buildHumanSummary = (rule) => {
   const action = rule.execution_spec?.execution_type || '';
   const filters = rule.evaluation_spec?.filters || [];
@@ -363,18 +391,17 @@ const buildHumanSummary = (rule) => {
   let timeWindow = '';
 
   filters.forEach(f => {
-    if (f.field === 'entity_type' || f.field === 'time_preset') {
-      if (f.field === 'time_preset') {
-        timeWindow = { TODAY: 'Today', YESTERDAY: 'Yesterday', LAST_3_DAYS: 'Last 3 days', LAST_7_DAYS: 'Last 7 days', LAST_14_DAYS: 'Last 14 days', LAST_30_DAYS: 'Last 30 days', LIFETIME: 'Lifetime' }[f.value] || f.value;
-      }
-    } else {
-      conditionFilters.push(f);
+    if (f.field === 'entity_type') return;
+    if (f.field === 'time_preset') {
+      timeWindow = { TODAY: 'Today', YESTERDAY: 'Yesterday', LAST_3_DAYS: 'Last 3 days', LAST_7_DAYS: 'Last 7 days', LAST_14_DAYS: 'Last 14 days', LAST_30_DAYS: 'Last 30 days', LIFETIME: 'Lifetime' }[f.value] || f.value;
+      return;
     }
+    conditionFilters.push(f);
   });
 
-  // Action line
+  // Action line — match Meta style
   let actionLine = {
-    PAUSE: 'Pause campaigns', UNPAUSE: 'Activate campaigns',
+    PAUSE: 'Turn off campaigns', UNPAUSE: 'Turn on campaigns',
     CHANGE_BUDGET: 'Adjust budget', CHANGE_BID: 'Adjust bid',
     SEND_NOTIFICATION: 'Send notification only',
     PING_ENDPOINT: 'Run automation',
@@ -389,18 +416,10 @@ const buildHumanSummary = (rule) => {
     }
   }
 
-  // Condition line
-  const condParts = conditionFilters.map(f => {
-    const fieldLabel = METRIC_FIELDS.find(m => m.value === f.field)?.label || f.field?.replace(/_/g, ' ');
-    const op = { GREATER_THAN: 'is greater than', LESS_THAN: 'is less than', EQUAL: 'equals', IN_RANGE: 'is between', NOT_IN_RANGE: 'is not between' }[f.operator] || f.operator;
-    let val = f.value;
-    if (CURRENCY_FIELDS.has(f.field) && val) val = '$' + (Number(val) / 100).toFixed(2);
-    return `${fieldLabel} ${op} ${val}`;
-  });
-
+  // Condition line — match Meta: "If Spent is less than $50.00 and Campaign name contains ECC"
+  const condParts = conditionFilters.map(f => `${fmtField(f.field)} ${fmtOp(f.operator)} ${fmtVal(f.field, f.value)}`);
   let conditionLine = condParts.length ? `If ${condParts.join(' and ')}` : '';
-  if (timeWindow && conditionLine) conditionLine += ` · ${timeWindow}`;
-  else if (timeWindow) conditionLine = timeWindow;
+  if (timeWindow) conditionLine = conditionLine ? `${conditionLine} · ${timeWindow}` : timeWindow;
 
   return { actionLine, conditionLine };
 };
@@ -417,6 +436,7 @@ const Toggle = ({ active, onChange, loading }) => (
 const RuleCard = ({ rule, onToggle, onEdit, onDelete, onViewHistory, updating }) => {
   const isActive = rule.status === 'ENABLED';
   const isInvalid = rule.status === 'INVALID' || rule.status === 'HAS_ISSUES';
+  const action = rule.execution_spec?.execution_type || '';
   const { actionLine, conditionLine } = buildHumanSummary(rule);
 
   // Extract entity type from filters
@@ -464,8 +484,16 @@ const RuleCard = ({ rule, onToggle, onEdit, onDelete, onViewHistory, updating })
 
         {/* Action & condition — Meta-style two lines */}
         <div className="ml-12 mb-2.5">
-          <p className="text-[12px] font-semibold text-slate-700">{actionLine}</p>
-          {conditionLine && <p className="text-[11px] text-slate-400 mt-0.5">{conditionLine}</p>}
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+              action === 'PAUSE' ? 'bg-amber-50 text-amber-700' :
+              action === 'UNPAUSE' ? 'bg-emerald-50 text-emerald-700' :
+              action === 'CHANGE_BUDGET' || action === 'CHANGE_BID' ? 'bg-blue-50 text-blue-700' :
+              action === 'SEND_NOTIFICATION' ? 'bg-violet-50 text-violet-700' :
+              'bg-slate-100 text-slate-600'
+            }`}>{actionLine}</span>
+          </div>
+          {conditionLine && <p className="text-[12px] text-slate-600 leading-relaxed">{conditionLine}</p>}
         </div>
 
         {/* Info row */}
