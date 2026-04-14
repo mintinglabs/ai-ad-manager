@@ -29,29 +29,20 @@ const FORM_TEMPLATES = [
 ];
 
 const FormTemplates = ({ onCreateFromTemplate }) => (
-  <div className="mb-6">
-    <div className="flex items-center justify-between mb-3">
-      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Quick Setup Templates</span>
-      <button className="text-[11px] text-orange-500 hover:text-orange-600 font-medium">View All Templates &gt;</button>
-    </div>
-    <div className="grid grid-cols-3 gap-3">
-      {FORM_TEMPLATES.map(t => {
-        const Icon = t.icon;
-        return (
-          <div key={t.id} className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-md transition-all hover:border-slate-300 group">
-            <div className={`w-9 h-9 rounded-lg ${t.color} flex items-center justify-center mb-2.5`}>
-              <Icon size={17} />
-            </div>
-            <h4 className="text-[12px] font-bold text-slate-800 mb-0.5">{t.name}</h4>
-            <p className="text-[10px] text-slate-400 mb-3 leading-relaxed">{t.desc}</p>
-            <button onClick={() => onCreateFromTemplate(t)}
-              className="w-full py-1.5 text-[10px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg transition-colors">
-              One-Click Create
-            </button>
+  <div className="flex flex-wrap items-center gap-2 mb-4">
+    <span className="text-[11px] font-semibold text-slate-400 mr-1">Quick create:</span>
+    {FORM_TEMPLATES.map(t => {
+      const Icon = t.icon;
+      return (
+        <button key={t.id} onClick={() => onCreateFromTemplate(t)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-orange-50 hover:border-orange-200 transition-all group">
+          <div className={`w-5 h-5 rounded-md ${t.color} flex items-center justify-center shrink-0`}>
+            <Icon size={11} />
           </div>
-        );
-      })}
-    </div>
+          <span className="text-[11px] font-medium text-slate-600 group-hover:text-orange-700 transition-colors">{t.name}</span>
+        </button>
+      );
+    })}
   </div>
 );
 
