@@ -136,21 +136,51 @@ const Select = ({ value, options, onChange, placeholder, className = '' }) => (
   </select>
 );
 
-// ── Create/Edit Rule Modal ──
+// ── Inline value editor ──
+const InlineInput = ({ value, onChange, type = 'number', className = '' }) => (
+  <input type={type} value={value} onChange={e => onChange(e.target.value)}
+    className={`inline-block w-20 text-center text-[14px] font-bold text-violet-700 border-b-2 border-violet-300 bg-violet-50/50 rounded-md px-2 py-1.5 focus:outline-none focus:border-violet-500 focus:bg-violet-50 transition-colors ${className}`} />
+);
+
+const InlineSelect = ({ value, options, onChange }) => (
+  <select value={value} onChange={e => onChange(e.target.value)}
+    className="inline-block text-[13px] font-semibold text-violet-700 border-b-2 border-violet-300 bg-violet-50/50 rounded-md px-2 py-1.5 focus:outline-none focus:border-violet-500 appearance-none cursor-pointer">
+    {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+  </select>
+);
+
+// ── Build summary sentence ──
+const buildSummary = ({ actionType, budgetAction, budgetAmount, budgetUnit, conditions, entityType, schedule }) => {
+  const scheduleLabel = { SEMI_HOURLY: 'Every 30 minutes', HOURLY: 'Every hour', DAILY: 'Every day', CUSTOM: 'On a custom schedule' }[schedule] || 'Every day';
+  const entityLabel = { CAMPAIGN: 'campaigns', ADSET: 'ad sets', AD: 'ads' }[entityType] || 'campaigns';
+  const condParts = conditions.map(c => {
+    const fieldLabel = METRIC_FIELDS.find(f => f.value === c.field)?.label || c.field;
+    const opLabel = { GREATER_THAN: 'above', LESS_THAN: 'below', IN_RANGE: 'between', NOT_IN_RANGE: 'outside' }[c.operator] || c.operator;
+    return `${fieldLabel} is ${opLabel} ${c.value || '...'}`;
+  }).join(' and ');
+  let actionLabel = '';
+  if (actionType === 'PAUSE') actionLabel = `pause ${entityLabel}`;
+  else if (actionType === 'UNPAUSE') actionLabel = `activate ${entityLabel}`;
+  else if (actionType === 'CHANGE_BUDGET') actionLabel = `${(budgetAction || 'INCREASE').toLowerCase()} budget by ${budgetAmount || '...'}${budgetUnit === 'PERCENTAGE' ? '%' : ' $'}`;
+  else if (actionType === 'SEND_NOTIFICATION') actionLabel = 'send you a notification';
+  else actionLabel = actionType?.toLowerCase() || '...';
+  return `${scheduleLabel}, ${actionLabel} where ${condParts}`;
+};
+
+// ── Create/Edit Rule Modal (Option A: inline sentence style) ──
 const RuleModal = ({ rule, onSave, onClose }) => {
   const isEdit = !!rule?.id;
+  const templateMatch = !isEdit && rule?.name ? RULE_TEMPLATES.find(t => t.prefill.name === rule.name) : null;
+
   const [name, setName] = useState(rule?.name || '');
   const [entityType, setEntityType] = useState('CAMPAIGN');
   const [actionType, setActionType] = useState('PAUSE');
-  const [budgetAction, setBudgetAction] = useState('INCREASE'); // INCREASE | DECREASE
-  const [budgetAmount, setBudgetAmount] = useState('');
-  const [budgetUnit, setBudgetUnit] = useState('PERCENTAGE'); // PERCENTAGE | ABSOLUTE
+  const [budgetAction, setBudgetAction] = useState(rule?._budgetAction || 'INCREASE');
+  const [budgetAmount, setBudgetAmount] = useState(rule?._budgetAmount || '20');
+  const [budgetUnit, setBudgetUnit] = useState(rule?._budgetUnit || 'PERCENTAGE');
   const [conditions, setConditions] = useState([{ field: 'cost_per_result', operator: 'GREATER_THAN', value: '', time_preset: 'LAST_7_DAYS' }]);
   const [schedule, setSchedule] = useState('DAILY');
   const [saving, setSaving] = useState(false);
-  const nameRef = useRef(null);
-
-  useEffect(() => { nameRef.current?.focus(); }, []);
 
   // Parse existing rule for editing
   useEffect(() => {
@@ -162,29 +192,19 @@ const RuleModal = ({ rule, onSave, onClose }) => {
           field: f.field || 'cost_per_result',
           operator: f.operator || 'GREATER_THAN',
           value: f.value || '',
-          time_preset: rule.evaluation_spec.time_preset || 'LAST_7_DAYS',
+          time_preset: f.time_preset || rule.evaluation_spec?.time_preset || 'LAST_7_DAYS',
         })));
       }
     }
-    if (rule.execution_spec?.execution_type) {
-      setActionType(rule.execution_spec.execution_type);
-    }
-    if (rule.schedule_spec?.schedule_type) {
-      setSchedule(rule.schedule_spec.schedule_type);
-    }
+    if (rule.execution_spec?.execution_type) setActionType(rule.execution_spec.execution_type);
+    if (rule.schedule_spec?.schedule_type) setSchedule(rule.schedule_spec.schedule_type);
+    if (rule._budgetAction) setBudgetAction(rule._budgetAction);
+    if (rule._budgetAmount) setBudgetAmount(rule._budgetAmount);
+    if (rule._budgetUnit) setBudgetUnit(rule._budgetUnit);
   }, [rule]);
-
-  const addCondition = () => {
-    setConditions(prev => [...prev, { field: 'spend', operator: 'GREATER_THAN', value: '', time_preset: 'LAST_7_DAYS' }]);
-  };
 
   const updateCondition = (idx, key, val) => {
     setConditions(prev => prev.map((c, i) => i === idx ? { ...c, [key]: val } : c));
-  };
-
-  const removeCondition = (idx) => {
-    if (conditions.length <= 1) return;
-    setConditions(prev => prev.filter((_, i) => i !== idx));
   };
 
   const handleSave = async () => {
@@ -193,17 +213,11 @@ const RuleModal = ({ rule, onSave, onClose }) => {
     try {
       const evaluation_spec = {
         evaluation_type: 'SCHEDULE',
-        filters: conditions.map(c => ({
-          field: c.field,
-          operator: c.operator,
-          value: c.value,
-        })),
+        filters: conditions.map(c => ({ field: c.field, operator: c.operator, value: c.value })),
         time_preset: conditions[0]?.time_preset || 'LAST_7_DAYS',
         entity_type: entityType,
       };
-      const execution_spec = {
-        execution_type: actionType,
-      };
+      const execution_spec = { execution_type: actionType };
       if (actionType === 'CHANGE_BUDGET') {
         execution_spec.execution_options = [{
           field: 'daily_budget',
@@ -212,16 +226,8 @@ const RuleModal = ({ rule, onSave, onClose }) => {
           unit: budgetUnit,
         }];
       }
-      const schedule_spec = {
-        schedule_type: schedule,
-      };
-      await onSave({
-        id: rule?.id,
-        name: name.trim(),
-        evaluation_spec,
-        execution_spec,
-        schedule_spec,
-      });
+      const schedule_spec = { schedule_type: schedule };
+      await onSave({ id: rule?.id, name: name.trim(), evaluation_spec, execution_spec, schedule_spec });
       onClose();
     } catch (err) {
       console.error('Save failed:', err);
@@ -233,106 +239,108 @@ const RuleModal = ({ rule, onSave, onClose }) => {
   return (
     <>
       <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={onClose} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[600px] max-h-[85vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-          <h3 className="text-sm font-bold text-slate-800">{isEdit ? 'Edit Rule' : 'Create Automation Rule'}</h3>
-          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600">
-            <X size={15} />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          {/* Rule name */}
-          <div>
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Rule Name</label>
-            <input ref={nameRef} value={name} onChange={e => setName(e.target.value)}
-              placeholder="e.g. Pause high CPA campaigns"
-              className="w-full text-sm text-slate-700 border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 placeholder:text-slate-300" />
-          </div>
-
-          {/* Apply to */}
-          <div>
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Apply Rule To</label>
-            <Select value={entityType} options={ENTITY_TYPES} onChange={setEntityType} className="w-full" />
-          </div>
-
-          {/* Action */}
-          <div>
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Action</label>
-            <div className="space-y-2">
-              {ACTION_TYPES.map(a => (
-                <label key={a.value}
-                  className={`flex items-start gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all ${actionType === a.value ? 'border-blue-300 bg-blue-50/50' : 'border-slate-200 hover:border-slate-300'}`}>
-                  <input type="radio" name="action" value={a.value} checked={actionType === a.value}
-                    onChange={e => setActionType(e.target.value)}
-                    className="mt-0.5 w-3.5 h-3.5 text-blue-600 focus:ring-blue-500/30" />
-                  <div>
-                    <span className="text-[12px] font-semibold text-slate-700">{a.label}</span>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{a.desc}</p>
-                  </div>
-                </label>
-              ))}
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[520px] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+        {/* Template header */}
+        {templateMatch && (
+          <div className={`px-6 py-4 border-b ${templateMatch.categoryColor} flex items-center gap-3`}>
+            <div className={`w-10 h-10 rounded-xl border ${templateMatch.categoryColor} flex items-center justify-center`}>
+              <templateMatch.icon size={18} />
             </div>
-            {/* Budget adjustment options */}
-            {actionType === 'CHANGE_BUDGET' && (
-              <div className="mt-3 ml-7 flex items-center gap-2">
-                <Select value={budgetAction} options={[{ value: 'INCREASE', label: 'Increase' }, { value: 'DECREASE', label: 'Decrease' }]} onChange={setBudgetAction} />
-                <span className="text-[12px] text-slate-500">by</span>
-                <input type="number" value={budgetAmount} onChange={e => setBudgetAmount(e.target.value)}
-                  className="w-20 text-sm text-slate-700 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                <Select value={budgetUnit} options={[{ value: 'PERCENTAGE', label: '%' }, { value: 'ABSOLUTE', label: '$' }]} onChange={setBudgetUnit} />
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-[14px] font-bold text-slate-800">{templateMatch.name}</h3>
+                <span className={`text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${templateMatch.categoryColor}`}>
+                  {templateMatch.category}
+                </span>
               </div>
-            )}
-          </div>
-
-          {/* Conditions */}
-          <div>
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Conditions</label>
-            <div className="space-y-2">
-              {conditions.map((cond, idx) => (
-                <div key={idx} className="flex items-center gap-2 p-3 rounded-xl border border-slate-200 bg-slate-50/50">
-                  {idx > 0 && <span className="text-[10px] font-bold text-slate-400 mr-1">AND</span>}
-                  <Select value={cond.field} options={METRIC_FIELDS} onChange={v => updateCondition(idx, 'field', v)} className="flex-1" />
-                  <Select value={cond.operator} options={OPERATORS} onChange={v => updateCondition(idx, 'operator', v)} />
-                  <input type="number" value={cond.value} onChange={e => updateCondition(idx, 'value', e.target.value)}
-                    placeholder="Value"
-                    className="w-24 text-[12px] text-slate-700 border border-slate-200 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                  {conditions.length > 1 && (
-                    <button onClick={() => removeCondition(idx)} className="text-slate-300 hover:text-red-500 transition-colors shrink-0">
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
-              ))}
+              <p className="text-[11px] text-slate-500 mt-0.5">{templateMatch.desc}</p>
             </div>
-            <button onClick={addCondition}
-              className="mt-2 text-[11px] font-medium text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1">
-              <Plus size={12} /> Add condition
+          </div>
+        )}
+        {!templateMatch && (
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <h3 className="text-sm font-bold text-slate-800">{isEdit ? 'Edit Rule' : 'Create Automation Rule'}</h3>
+            <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600">
+              <X size={15} />
             </button>
           </div>
+        )}
 
-          {/* Time window */}
+        {/* Inline sentence config */}
+        <div className="px-6 py-6 space-y-5">
+          {/* Rule name (compact) */}
           <div>
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Time Window</label>
-            <Select value={conditions[0]?.time_preset || 'LAST_7_DAYS'} options={TIME_PRESETS}
-              onChange={v => setConditions(prev => prev.map(c => ({ ...c, time_preset: v })))} className="w-full" />
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Rule Name</label>
+            <input value={name} onChange={e => setName(e.target.value)}
+              className="w-full text-[13px] font-medium text-slate-700 border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-300" />
           </div>
 
-          {/* Schedule */}
-          <div>
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Check Frequency</label>
-            <Select value={schedule} options={SCHEDULE_OPTIONS} onChange={setSchedule} className="w-full" />
+          {/* Sentence-style config */}
+          <div className="bg-slate-50 rounded-xl p-5 border border-slate-100">
+            <div className="space-y-4 text-[13px] text-slate-600 leading-relaxed">
+              {/* When condition */}
+              <div className="flex items-center flex-wrap gap-2">
+                <span className="text-slate-800 font-semibold">When</span>
+                <InlineSelect value={conditions[0]?.field || 'cost_per_result'} options={METRIC_FIELDS}
+                  onChange={v => updateCondition(0, 'field', v)} />
+                <span>is</span>
+                <InlineSelect value={conditions[0]?.operator || 'GREATER_THAN'} options={OPERATORS}
+                  onChange={v => updateCondition(0, 'operator', v)} />
+                <InlineInput value={conditions[0]?.value || ''} onChange={v => updateCondition(0, 'value', v)} />
+              </div>
+
+              {/* Time window */}
+              <div className="flex items-center flex-wrap gap-2">
+                <span className="text-slate-800 font-semibold">in the last</span>
+                <InlineSelect value={conditions[0]?.time_preset || 'LAST_7_DAYS'} options={TIME_PRESETS}
+                  onChange={v => setConditions(prev => prev.map(c => ({ ...c, time_preset: v })))} />
+              </div>
+
+              {/* Action */}
+              <div className="flex items-center flex-wrap gap-2">
+                <span className="text-slate-800 font-semibold">Then</span>
+                <InlineSelect value={actionType} options={ACTION_TYPES.map(a => ({ value: a.value, label: a.label.toLowerCase() }))}
+                  onChange={setActionType} />
+                {actionType === 'CHANGE_BUDGET' && (
+                  <>
+                    <span>by</span>
+                    <InlineInput value={budgetAmount} onChange={setBudgetAmount} className="w-16" />
+                    <InlineSelect value={budgetUnit} options={[{ value: 'PERCENTAGE', label: '%' }, { value: 'ABSOLUTE', label: '$' }]}
+                      onChange={setBudgetUnit} />
+                  </>
+                )}
+              </div>
+
+              {/* Scope */}
+              <div className="flex items-center flex-wrap gap-2">
+                <span className="text-slate-800 font-semibold">on all active</span>
+                <InlineSelect value={entityType} options={ENTITY_TYPES} onChange={setEntityType} />
+              </div>
+
+              {/* Schedule */}
+              <div className="flex items-center flex-wrap gap-2">
+                <span className="text-slate-800 font-semibold">Check</span>
+                <InlineSelect value={schedule} options={SCHEDULE_OPTIONS} onChange={setSchedule} />
+              </div>
+            </div>
+          </div>
+
+          {/* Summary */}
+          <div className="flex items-start gap-2 px-4 py-3 rounded-lg bg-emerald-50 border border-emerald-100">
+            <CheckCircle size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+            <p className="text-[12px] text-emerald-700 leading-relaxed">
+              {buildSummary({ actionType, budgetAction, budgetAmount, budgetUnit, conditions, entityType, schedule })}
+            </p>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2 shrink-0">
+        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
           <button onClick={onClose} className="px-4 py-2 text-[12px] text-slate-500 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
-          <button onClick={handleSave} disabled={!name.trim() || saving}
-            className="px-5 py-2 text-[12px] text-white bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-            {saving ? 'Saving...' : isEdit ? 'Update Rule' : 'Create Rule'}
+          <button onClick={handleSave} disabled={!name.trim() || !conditions[0]?.value || saving}
+            className="flex items-center gap-1.5 px-5 py-2.5 text-[12px] text-white bg-violet-600 hover:bg-violet-500 rounded-lg font-semibold shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+            <Zap size={13} />
+            {saving ? 'Creating...' : isEdit ? 'Update Rule' : 'Enable Rule'}
           </button>
         </div>
       </div>
