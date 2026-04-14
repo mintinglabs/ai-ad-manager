@@ -249,9 +249,11 @@ const ConversionCard = ({ conversion, onDelete }) => (
 // ── Main Component ──
 export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onSendToChat, onPrefillChat }) => {
   const [showAskAI, setShowAskAI] = useState(false);
-  const [activeTab, setActiveTab] = useState('pixels'); // 'pixels' | 'conversions'
+  const [activeTab, setActiveTab] = useState('events'); // 'events' | 'pixels' | 'conversions'
   const [pixels, setPixels] = useState([]);
   const [conversions, setConversions] = useState([]);
+  const [aggregatedEvents, setAggregatedEvents] = useState([]); // [{ name, count, lastSeen }]
+  const [eventsTotal, setEventsTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [expandedPixel, setExpandedPixel] = useState(null);
@@ -291,6 +293,30 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
   }, [adAccountId]);
 
   useEffect(() => { fetchPixels(); fetchConversions(); }, [fetchPixels, fetchConversions]);
+
+  // Fetch aggregated events for the Events tab
+  useEffect(() => {
+    if (!pixels.length) return;
+    const pixelId = pixels[0]?.id;
+    if (!pixelId) return;
+    api.get(`/pixels/${pixelId}/stats`).then(({ data }) => {
+      const rawEvents = Array.isArray(data) ? data : (data?.events || []);
+      // Aggregate hourly data into totals per event
+      const totals = {};
+      rawEvents.forEach(row => {
+        (row.data || []).forEach(e => {
+          if (!totals[e.value]) totals[e.value] = { name: e.value, count: 0, lastSeen: '' };
+          totals[e.value].count += e.count;
+          totals[e.value].lastSeen = row.start_time;
+        });
+      });
+      const sorted = Object.values(totals).sort((a, b) => b.count - a.count);
+      setAggregatedEvents(sorted);
+      setEventsTotal(sorted.reduce((sum, e) => sum + e.count, 0));
+      // Also store diagnostics
+      if (data?.diagnostics) setPixelDiagnostics(prev => ({ ...prev, [pixelId]: data.diagnostics }));
+    }).catch(() => {});
+  }, [pixels]);
 
   // Fetch events + diagnostics when a pixel is expanded
   useEffect(() => {
@@ -348,7 +374,7 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
                 Events Manager
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
-                {loading ? 'Loading...' : `${pixels.length} pixels · ${conversions.length} conversions`}
+                {loading ? 'Loading...' : `${aggregatedEvents.length} events · ${pixels.length} pixels · ${conversions.length} conversions`}
               </p>
             </div>
             <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
@@ -367,7 +393,7 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
         </div>
         {/* Tabs */}
         <div className="flex items-center gap-0 px-6">
-          {[['pixels', `Pixels (${pixels.length})`], ['conversions', `Custom Conversions (${conversions.length})`]].map(([tab, label]) => (
+          {[['events', `Events (${aggregatedEvents.length})`], ['pixels', `Pixels (${pixels.length})`], ['conversions', `Custom Conversions (${conversions.length})`]].map(([tab, label]) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`px-4 py-2.5 text-[12px] font-semibold border-b-2 transition-colors ${activeTab === tab ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>
               {label}
@@ -391,6 +417,95 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
             <Loader2 size={24} className="animate-spin text-slate-400" />
             <span className="ml-2 text-sm text-slate-400">Loading...</span>
           </div>
+        ) : activeTab === 'events' ? (
+          aggregatedEvents.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                <Activity size={28} className="text-slate-300" />
+              </div>
+              <p className="text-sm font-semibold text-slate-700 mb-1">No events received yet</p>
+              <p className="text-xs text-slate-400">Install your Meta Pixel to start receiving events.</p>
+            </div>
+          ) : (
+            <>
+              {/* Events summary */}
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[12px] font-semibold text-slate-700">{eventsTotal.toLocaleString()} total events</span>
+                </div>
+                <span className="text-[11px] text-slate-400">{aggregatedEvents.length} event types · {pixels[0]?.name || 'Meta Pixel'}</span>
+              </div>
+
+              {/* Events table */}
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/80">
+                      <th className="py-2.5 px-4 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Event</th>
+                      <th className="py-2.5 px-4 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                      <th className="py-2.5 px-4 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Events</th>
+                      <th className="py-2.5 px-4 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Last Received</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {aggregatedEvents.map(evt => {
+                      const colors = getEventColor(evt.name);
+                      const lastTime = evt.lastSeen ? new Date(evt.lastSeen) : null;
+                      const minutesAgo = lastTime ? Math.floor((Date.now() - lastTime.getTime()) / 60000) : null;
+                      const timeLabel = minutesAgo != null
+                        ? minutesAgo < 60 ? `${minutesAgo}m ago`
+                        : minutesAgo < 1440 ? `${Math.floor(minutesAgo / 60)}h ago`
+                        : `${Math.floor(minutesAgo / 1440)}d ago`
+                        : '—';
+                      const isActive = minutesAgo != null && minutesAgo < 1440;
+
+                      return (
+                        <tr key={evt.name} className="border-b border-slate-100 hover:bg-slate-50/50">
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2.5">
+                              <span className="text-[16px]">{colors.icon}</span>
+                              <span className="text-[13px] font-semibold text-slate-800">{evt.name}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                              {isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="text-[13px] font-bold text-slate-800 tabular-nums">{evt.count.toLocaleString()}</span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="text-[11px] text-slate-400">{timeLabel}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Diagnostics */}
+              {pixels[0]?.id && pixelDiagnostics[pixels[0].id]?.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Pixel Health</p>
+                  <div className="space-y-1.5">
+                    {pixelDiagnostics[pixels[0].id].map((d, i) => (
+                      <div key={i} className={`flex items-start gap-2.5 px-3 py-2 rounded-lg border ${DIAG_COLORS[d.result] || DIAG_COLORS.warning}`}>
+                        <span className="text-[13px] mt-0.5">{DIAG_ICONS[d.result] || '?'}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] font-semibold">{d.title}</p>
+                          <p className="text-[10px] opacity-70 mt-0.5 line-clamp-2">{d.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )
         ) : activeTab === 'pixels' ? (
           pixels.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20">
