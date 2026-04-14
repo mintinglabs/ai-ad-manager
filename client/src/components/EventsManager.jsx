@@ -373,21 +373,21 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
       {/* Chat bar — ask AI about tracking */}
       {token && adAccountId && (
         <div className="px-6 py-3 bg-white border-b border-slate-100">
-          <div className="bg-white rounded-2xl border border-cyan-200 shadow-sm ring-1 ring-cyan-500/10 focus-within:ring-2 focus-within:ring-cyan-500/20 focus-within:border-cyan-300 transition-all overflow-hidden">
+          <div className="bg-white rounded-2xl border border-orange-200 shadow-sm ring-1 ring-orange-500/10 focus-within:ring-2 focus-within:ring-orange-500/20 focus-within:border-orange-300 transition-all overflow-hidden">
             <input data-event-input
               placeholder="Ask about tracking... e.g. 'Set up my Meta Pixel' or 'Check if my purchase events are firing'"
               className="w-full px-5 pt-3 pb-1.5 text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none bg-transparent"
               onKeyDown={e => { if (e.key === 'Enter' && e.target.value.trim()) { onPrefillChat?.(e.target.value.trim()); e.target.value = ''; } }}
             />
             <div className="flex items-center justify-between px-4 pb-2.5">
-              <span className="text-[10px] text-cyan-600 bg-cyan-50 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+              <span className="text-[10px] text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
                 <Sparkles size={10} /> AI will help with tracking setup
               </span>
               <button onClick={() => {
                 const input = document.querySelector('[data-event-input]');
                 if (input?.value?.trim()) { onPrefillChat?.(input.value.trim()); input.value = ''; }
               }}
-                className="w-7 h-7 rounded-full bg-gradient-to-br from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 flex items-center justify-center text-white shadow-sm transition-all">
+                className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 flex items-center justify-center text-white shadow-sm transition-all">
                 <ArrowRight size={13} />
               </button>
             </div>
