@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { Send, Square, Paperclip, CheckCircle2, XCircle, ArrowUpRight, BarChart3, Target, TrendingDown, Search, FileText, DollarSign, AlertTriangle, Zap, X, Upload, Image, Film, TrendingUp, ChevronRight, Shield, Sparkles, Download, Bookmark, ChevronDown, Link2, Building2, Check, ChevronLeft, Users, Plus, RefreshCw, Loader2, PackageOpen, CheckSquare } from 'lucide-react';
+import { Send, Square, Paperclip, CheckCircle2, XCircle, ArrowUpRight, BarChart3, Target, TrendingDown, Search, FileText, DollarSign, AlertTriangle, Zap, X, Upload, Image, Film, TrendingUp, ChevronRight, Shield, Sparkles, Download, Bookmark, ChevronDown, Link2, Building2, Check, ChevronLeft, Users, Plus, RefreshCw, Loader2, PackageOpen, CheckSquare, BookMarked, Brain } from 'lucide-react';
 import VideoAudienceCard from './VideoAudienceCard.jsx';
 import EngagementAudienceCard from './EngagementAudienceCard.jsx';
 import LookalikeAudienceCard from './LookalikeAudienceCard.jsx';
@@ -1951,6 +1951,113 @@ const SaveAsSkillButton = ({ onClick }) => (
   </button>
 );
 
+// ── Save to Brand Library Modal ──
+const SaveToBrandModal = ({ messageText, onClose, onSaveToBrand }) => {
+  const [name, setName] = useState(`Memory from ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
+  const [content, setContent] = useState(messageText || '');
+  const [type, setType] = useState('guidelines');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState(null);
+  const nameRef = useRef(null);
+
+  useEffect(() => { nameRef.current?.select(); }, []);
+
+  const handleSave = async () => {
+    if (!name.trim() || !content.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onSaveToBrand({ name: name.trim(), type, content: content.trim(), metadata: { source: 'chat' } });
+      setSaved(true);
+      setTimeout(() => onClose(), 1500);
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const types = [
+    { value: 'guidelines', label: 'Guidelines' },
+    { value: 'tone', label: 'Tone of Voice' },
+    { value: 'content', label: 'Content Sample' },
+  ];
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[60]" onClick={onClose} />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[70] w-[520px] max-h-[85vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+              <Brain size={16} className="text-emerald-500" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">Save to Brand Library</h3>
+              <p className="text-[10px] text-slate-400">AI will remember this in future conversations</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600">
+            <X size={15} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          <div>
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Name</label>
+            <input ref={nameRef} value={name} onChange={e => setName(e.target.value)}
+              className="w-full text-sm text-slate-700 border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-300 placeholder:text-slate-300" />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Type</label>
+            <div className="flex gap-2">
+              {types.map(t => (
+                <button key={t.value} onClick={() => setType(t.value)}
+                  className={`px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors
+                    ${type === t.value ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'text-slate-400 border-slate-200 hover:border-slate-300'}`}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Content</label>
+            <textarea value={content} onChange={e => setContent(e.target.value)}
+              className="w-full h-[200px] text-[12px] text-slate-700 border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-300 resize-none font-mono leading-relaxed" />
+          </div>
+
+          {error && <div className="bg-red-50 border border-red-200 text-red-600 text-xs px-3 py-2 rounded-lg">{error}</div>}
+        </div>
+
+        <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
+          <p className="text-[10px] text-slate-400">Linked to current ad account · enabled by default</p>
+          <div className="flex items-center gap-2">
+            <button onClick={onClose} className="px-4 py-2 text-[12px] text-slate-500 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
+            <button onClick={handleSave} disabled={!name.trim() || !content.trim() || saving || saved}
+              className={`px-5 py-2 text-[12px] rounded-lg font-semibold shadow-sm transition-all disabled:cursor-not-allowed
+                ${saved ? 'bg-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40'}`}>
+              {saved ? <><Check size={13} className="inline mr-1" />Saved!</> : saving ? 'Saving...' : 'Save to Brand Memory'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+// ── Save to Brand Button (on message hover) ──
+const SaveToBrandButton = ({ onClick }) => (
+  <button
+    onClick={onClick}
+    className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium transition-all opacity-0 group-hover:opacity-100 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-transparent hover:border-emerald-200"
+  >
+    <Brain size={11} /> Save to Brand
+  </button>
+);
+
 const SaveMenu = ({ messageId, onSave, folders = [] }) => {
   const [open, setOpen] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -2013,7 +2120,7 @@ const AutoCanvasOpener = ({ data, onOpen }) => {
 };
 
 // ── Message bubble ────────────────────────────────────────────────────────────
-const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem, folders, isAnswered, answeredWith, onOpenCanvas, adAccountId, token, onPackageAsSkill, selectionMode, isSelected, onToggleSelect }) => {
+const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem, folders, isAnswered, answeredWith, onOpenCanvas, adAccountId, token, onPackageAsSkill, onSaveToBrand, selectionMode, isSelected, onToggleSelect }) => {
   if (message.type === 'report') return (<><ReportMessage message={message} timestamp={message.timestamp} /><div className="mb-2" /></>);
   if (message.type === 'table') return (<><TableMessage message={message} />{isLatest && message.actions?.length > 0 && <QuickReplies actions={message.actions} onSend={onSend} disabled={isTyping} />}<div className="mb-6" /></>);
 
@@ -2078,6 +2185,9 @@ const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem, folder
               <p className="text-xs text-slate-400">{fmtTime(message.timestamp)}</p>
               {onPackageAsSkill && message.id !== 'welcome' && (
                 <SaveAsSkillButton onClick={() => onPackageAsSkill(message)} />
+              )}
+              {onSaveToBrand && message.id !== 'welcome' && (
+                <SaveToBrandButton onClick={() => onSaveToBrand(message)} />
               )}
             </div>
           </div>
@@ -2493,7 +2603,7 @@ const useSuggestedSkill = (input, skills, activeSkill, slashSkills) => {
   return suggested;
 };
 
-const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, attachments, onRemoveAttachment, onRetryUpload, fileRef, isTyping, handleFileUpload, isOver, activeSkill, activeSkills = [], onDeactivateSkill, skills = [], onSlashSelect, slashSkills = [], onRemoveSlashSkill, onClearAllSlash, onToggleSkill, onManageSkills, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, enabledSkillIds = [], activeSkillIds }) => {
+const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, attachments, onRemoveAttachment, onRetryUpload, fileRef, isTyping, handleFileUpload, isOver, activeSkill, activeSkills = [], onDeactivateSkill, skills = [], onSlashSelect, slashSkills = [], onRemoveSlashSkill, onClearAllSlash, onToggleSkill, onManageSkills, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, enabledSkillIds = [], activeSkillIds, brandEnabledCount = 0, isEmptyState = false }) => {
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -2540,14 +2650,14 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
   };
 
   const activeSkillsList = Array.isArray(activeSkills) ? activeSkills : (activeSkill ? [activeSkill] : []);
-  const hasChips = slashSkills.length > 0 || activeSkillsList.length > 0;
+  const hasChips = slashSkills.length > 0 || activeSkillsList.length > 0 || brandEnabledCount > 0;
 
   return (
     <div className="relative">
       <div className={`bg-white/80 backdrop-blur-xl border rounded-2xl shadow-lg transition-all
         ${isOver ? 'border-blue-400 ring-2 ring-blue-100'
-          : input ? 'border-orange-300 ring-2 ring-orange-100 shadow-orange-100/50'
-          : 'border-slate-200 shadow-slate-200/50 animate-[pulse-orange_3s_ease-in-out_infinite]'}`}>
+          : 'border-orange-300/60 ring-1 ring-orange-200/40 shadow-orange-100/30'}
+        focus-within:border-orange-400 focus-within:ring-2 focus-within:ring-orange-200 focus-within:shadow-orange-200/40`}>
         <AttachmentBar attachments={attachments} onRemove={onRemoveAttachment} onRetry={onRetryUpload} />
         {/* Skill chips — shown above textarea */}
         {hasChips && (
@@ -2570,6 +2680,12 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
                 </button>
               </div>
             ))}
+            {brandEnabledCount > 0 && (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-semibold text-emerald-700">
+                <BookMarked size={11} />
+                Brand Memory · {brandEnabledCount}
+              </div>
+            )}
           </div>
         )}
         {/* Context-aware skill suggestion */}
@@ -2616,7 +2732,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
             {plusMenuOpen && !skillsOpen && (
               <>
                 <div className="fixed inset-0 z-[90]" onClick={() => setPlusMenuOpen(false)} />
-                <div className="absolute bottom-full left-0 mb-2 w-[220px] bg-white border border-slate-200 rounded-2xl shadow-2xl shadow-slate-200/60 z-[100] py-1.5">
+                <div className={`absolute left-0 w-[220px] bg-white border border-slate-200 rounded-2xl shadow-2xl shadow-slate-200/60 z-[100] py-1.5 ${isEmptyState ? 'top-full mt-2' : 'bottom-full mb-2'}`}>
                   <button onClick={() => { setPlusMenuOpen(false); fileRef.current?.click(); }}
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-slate-700 hover:bg-slate-50 rounded-lg">
                     <Paperclip size={15} className="text-slate-400" />
@@ -2666,10 +2782,13 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
-export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = [], onSend, onStop, suggestedActions = [], cardCategories = [], quickChips = [], adAccountId, onSaveItem, folders = [], activeSkill = null, activeSkills = [], activeSkillIds, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, initialInput, initialSlashSkill, enabledSkillIds = [], onCreateSkill, generateSkill }) => {
+export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = [], onSend, onStop, suggestedActions = [], cardCategories = [], quickChips = [], adAccountId, onSaveItem, folders = [], activeSkill = null, activeSkills = [], activeSkillIds, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, initialInput, initialSlashSkill, enabledSkillIds = [], onCreateSkill, generateSkill, brandEnabledCount = 0, onSaveToBrand }) => {
   const [input, setInput] = useState('');
   // Package as Skill state
-  const [packagingMessage, setPackagingMessage] = useState(null); // message object or combined text
+  const [packagingMessage, setPackagingMessage] = useState(null);
+  // Save to Brand state
+  const [brandMessage, setBrandMessage] = useState(null);
+  const [brandToast, setBrandToast] = useState(null);
   // Multi-message selection
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState(new Set());
@@ -3055,6 +3174,8 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
               skills={skills} onSlashSelect={handleSlashSelect} slashSkills={slashSkills} onRemoveSlashSkill={handleRemoveSlashSkill} onClearAllSlash={() => setSlashSkills([])} enabledSkillIds={enabledSkillIds}
               onToggleSkill={onToggleSkill} onManageSkills={onManageSkills}
               token={token} onLogin={onLogin} onLogout={onLogout} isLoginLoading={isLoginLoading} loginError={loginError} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount}
+              brandEnabledCount={brandEnabledCount}
+              isEmptyState={true}
             />
           </div>
 
@@ -3109,6 +3230,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
                     adAccountId={adAccountId}
                     token={token}
                     onPackageAsSkill={onCreateSkill ? setPackagingMessage : undefined}
+                    onSaveToBrand={onSaveToBrand ? setBrandMessage : undefined}
                     selectionMode={selectionMode}
                     isSelected={selectedMessageIds.has(msg.id)}
                     onToggleSelect={handleToggleSelect}
@@ -3132,6 +3254,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
                 skills={skills} onSlashSelect={handleSlashSelect} slashSkills={slashSkills} onRemoveSlashSkill={handleRemoveSlashSkill} onClearAllSlash={() => setSlashSkills([])} enabledSkillIds={enabledSkillIds}
                 onToggleSkill={onToggleSkill} onManageSkills={onManageSkills}
                 token={token} onLogin={onLogin} isLoginLoading={isLoginLoading} loginError={loginError} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount}
+                brandEnabledCount={brandEnabledCount}
               />
             </div>
           </div>
@@ -3172,6 +3295,28 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
           onCreateSkill={onCreateSkill}
           generateSkill={generateSkill}
         />
+      )}
+
+      {/* Save to Brand Modal */}
+      {brandMessage && onSaveToBrand && (
+        <SaveToBrandModal
+          messageText={brandMessage.text}
+          onClose={() => setBrandMessage(null)}
+          onSaveToBrand={async (data) => {
+            await onSaveToBrand(data);
+            setBrandMessage(null);
+            setBrandToast('Saved to Brand Library. AI will remember this in future conversations.');
+            setTimeout(() => setBrandToast(null), 4000);
+          }}
+        />
+      )}
+
+      {/* Brand toast */}
+      {brandToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-emerald-500 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 text-sm font-medium max-w-md">
+          <Brain size={16} />
+          {brandToast}
+        </div>
       )}
     </div>
   );
