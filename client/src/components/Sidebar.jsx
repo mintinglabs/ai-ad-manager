@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Zap, Plus, MessageSquare, Trash2, ChevronDown, ChevronLeft, ChevronRight, LogOut, FileText, Lightbulb, FolderOpen, Building2, Check, Globe, GripVertical, FolderPlus, X, Users, Sparkles, MoreVertical, Pin, Pencil, Menu, BarChart3, Image, Calendar, TrendingUp, ClipboardList, Settings, Palette, LayoutGrid, ListTodo, BookMarked } from 'lucide-react';
+import { Zap, Plus, MessageSquare, Trash2, ChevronDown, ChevronLeft, ChevronRight, LogOut, FileText, Lightbulb, FolderOpen, Building2, Check, Globe, GripVertical, FolderPlus, X, Users, Sparkles, MoreVertical, Pin, Pencil, Menu, BarChart3, Image, Calendar, TrendingUp, ClipboardList, Settings, Palette, LayoutGrid, ListTodo, BookMarked, Layers } from 'lucide-react';
 import { groupSessionsByDate } from '../hooks/useChatSessions.js';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
 import { useBusinesses } from '../hooks/useBusinesses.js';
@@ -231,6 +231,7 @@ export const Sidebar = ({
   onOpenOptimizations,
   onOpenAdLibrary,
   onOpenBrandLibrary,
+  onOpenCreativeSets,
   token,
   onLogin,
 }) => {
@@ -319,6 +320,7 @@ export const Sidebar = ({
     { icon: Image, type: 'creativeLibrary', action: onOpenCreativeLibrary, label: 'Asset Library' },
     { icon: Palette, type: 'adLibrary', action: onOpenAdLibrary, label: 'Ad Library' },
     { icon: BookMarked, type: 'brandLibrary', action: onOpenBrandLibrary, label: 'Brand Library' },
+    { icon: Layers, type: 'creativeSets', action: onOpenCreativeSets, label: 'Creative Sets' },
     { icon: ClipboardList, type: 'instantForms', action: onOpenInstantForms, label: 'Instant Forms' },
     { icon: TrendingUp, type: 'eventsManager', action: onOpenEventsManager, label: 'Events Manager' },
     { icon: Settings, type: 'automationRules', action: onOpenAutomationRules, label: 'Automation Rules' },

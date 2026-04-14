@@ -17,6 +17,7 @@ import { EventsManager } from './EventsManager.jsx';
 import { Optimizations } from './Optimizations.jsx';
 import { AdLibrary } from './AdLibrary.jsx';
 import { BrandLibrary } from './BrandLibrary.jsx';
+import { CreativeSets } from './CreativeSets.jsx';
 import { ProjectDetail } from './ProjectDetail.jsx';
 import { useProjects } from '../hooks/useProjects.js';
 import { useBrandLibrary } from '../hooks/useBrandLibrary.js';
@@ -65,6 +66,10 @@ export const Dashboard = ({
 
   const handleOpenBrandLibrary = useCallback(() => {
     setActiveView({ type: 'brandLibrary' });
+  }, []);
+
+  const handleOpenCreativeSets = useCallback(() => {
+    setActiveView({ type: 'creativeSets' });
   }, []);
 
   const handleOpenProject = useCallback((projectId) => {
@@ -286,6 +291,7 @@ export const Dashboard = ({
         onOpenOptimizations={handleOpenOptimizations}
         onOpenAdLibrary={handleOpenAdLibrary}
         onOpenBrandLibrary={handleOpenBrandLibrary}
+        onOpenCreativeSets={handleOpenCreativeSets}
         onOpenSkillsLibrary={handleOpenSkillsLibrary}
         token={token}
         onLogin={onLogin}
@@ -391,6 +397,17 @@ export const Dashboard = ({
             />
           ) : activeView.type === 'brandLibrary' ? (
             <BrandLibrary
+              adAccountId={adAccountId}
+              token={token}
+              onLogin={onLogin}
+              onLogout={onLogout}
+              selectedAccount={selectedAccount}
+              selectedBusiness={selectedBusiness}
+              onSelectAccount={handleAccountSelect}
+              onSendToChat={handleAudienceToChat}
+            />
+          ) : activeView.type === 'creativeSets' ? (
+            <CreativeSets
               adAccountId={adAccountId}
               token={token}
               onLogin={onLogin}
