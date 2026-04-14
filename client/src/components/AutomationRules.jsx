@@ -107,12 +107,6 @@ const RULE_TEMPLATES = [
     stat: 'Real-time alerts',
     prefill: { name: 'Alert Overspend', actionType: 'SEND_NOTIFICATION', conditions: [{ field: 'spend', operator: 'GREATER_THAN', value: '500', time_preset: 'TODAY' }], schedule: 'HOURLY' },
   },
-  {
-    id: 'low_ctr', icon: BarChart3, category: 'Protection', gradient: 'from-rose-500/10 to-pink-500/5', borderColor: 'border-rose-200/60', iconBg: 'bg-rose-100 text-rose-600',
-    name: 'Pause low CTR', desc: 'Nobody clicking your ads',
-    stat: 'Catches underperformers',
-    prefill: { name: 'Pause Low CTR', actionType: 'PAUSE', conditions: [{ field: 'ctr', operator: 'LESS_THAN', value: '0.5', time_preset: 'LAST_7_DAYS' }, { field: 'impressions', operator: 'GREATER_THAN', value: '1000', time_preset: 'LAST_7_DAYS' }], schedule: 'DAILY' },
-  },
 ];
 
 // ── Template Cards (full size for empty state) ──
@@ -656,16 +650,10 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
             <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
               selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={fetchRules} disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
-              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
-            </button>
-            <button onClick={() => onPrefillChat?.('I want to create a custom automation rule for my campaigns. Help me set it up.')}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-orange-600 to-amber-500 text-white hover:from-orange-500 hover:to-amber-400 transition-all shadow-sm">
-              <Sparkles size={13} /> Create with AI
-            </button>
-          </div>
+          <button onClick={fetchRules} disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
+          </button>
         </div>
       </div>
 
@@ -694,7 +682,40 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
           </>
         ) : (
           <>
-            {/* Quick-add template chips — always visible at top */}
+            {/* Chat input — ask AI to create a rule */}
+            <div className="mb-5">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm focus-within:ring-2 focus-within:ring-orange-500/20 focus-within:border-orange-300 transition-all overflow-hidden">
+                <input data-rule-input
+                  placeholder="Describe a rule you want... e.g. 'Pause campaigns spending over $100 with no results'"
+                  className="w-full px-5 pt-4 pb-2 text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none bg-transparent"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && e.target.value.trim()) {
+                      onSendToChat?.(`[Context: Automation Rules]\n${e.target.value.trim()}`);
+                      e.target.value = '';
+                    }
+                  }}
+                />
+                <div className="flex items-center justify-between px-4 pb-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                      <Sparkles size={10} /> AI will set up your rule
+                    </span>
+                  </div>
+                  <button onClick={() => {
+                    const input = document.querySelector('[data-rule-input]');
+                    if (input?.value?.trim()) {
+                      onSendToChat?.(`[Context: Automation Rules]\n${input.value.trim()}`);
+                      input.value = '';
+                    }
+                  }}
+                    className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 flex items-center justify-center text-white shadow-sm transition-all">
+                    <ArrowRight size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick-add template chips */}
             <div className="flex flex-wrap items-center gap-2 mb-5">
               <span className="text-[11px] font-semibold text-slate-400 mr-1">Quick add:</span>
               {RULE_TEMPLATES.map(t => {
@@ -711,22 +732,20 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
               })}
             </div>
 
-            {/* Rules list header */}
+            {/* Rules list header — search left, filters right */}
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden">
-                  {[['all', `All (${rules.length})`], ['active', `Active (${activeCount})`], ['paused', `Paused (${pausedCount})`]].map(([val, label]) => (
-                    <button key={val} onClick={() => setStatusFilter(val)}
-                      className={`px-3 py-1.5 text-[10px] font-medium transition-colors ${statusFilter === val ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="relative">
-                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <div className="relative flex-1 max-w-sm">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search rules..."
-                  className="pl-8 pr-3 py-1.5 text-[11px] rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 w-44 placeholder:text-slate-300" />
+                  className="w-full pl-9 pr-3 py-2 text-[12px] rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 placeholder:text-slate-300" />
+              </div>
+              <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden">
+                {[['all', `All (${userRules.length})`], ['active', `Active (${activeCount})`], ['paused', `Paused (${pausedCount})`]].map(([val, label]) => (
+                  <button key={val} onClick={() => setStatusFilter(val)}
+                    className={`px-3 py-1.5 text-[10px] font-medium transition-colors ${statusFilter === val ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
 
