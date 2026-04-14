@@ -2603,6 +2603,65 @@ const useSuggestedSkill = (input, skills, activeSkill, slashSkills) => {
   return suggested;
 };
 
+// ── Action Pills (homepage quick actions) ──
+const ACTION_PILLS = [
+  { icon: '📊', label: 'Campaign', prompt: 'I want to create a new ad campaign. Help me set it up.', primary: true },
+  { icon: '👥', label: 'Audience', prompt: 'I want to build a custom audience for my campaigns.', primary: true },
+  { icon: '⚡', label: 'Automation', prompt: 'I want to create an automation rule for my campaigns. Help me set it up.', primary: true },
+  { icon: '📈', label: 'Performance', prompt: 'Analyze the performance of my ad campaigns and give me insights.', primary: true },
+  // More actions (hidden behind "More" button)
+  { icon: '📋', label: 'Lead Form', prompt: 'I want to create a new lead generation form for my campaigns.' },
+  { icon: '🔍', label: 'Ad Library', prompt: 'Search competitor ads in the Ad Library for my industry.' },
+  { icon: '🎯', label: 'Pixel Setup', prompt: 'Help me set up tracking for my website with Meta Pixel.' },
+  { icon: '🎨', label: 'Upload Creative', prompt: 'I want to upload new creative assets for my ad campaigns.' },
+  { icon: '📦', label: 'Brand Library', prompt: 'Help me organize my brand assets and guidelines.' },
+];
+
+const ActionPills = ({ onSelect }) => {
+  const [showMore, setShowMore] = useState(false);
+  const moreRef = useRef(null);
+  const primary = ACTION_PILLS.filter(p => p.primary);
+  const secondary = ACTION_PILLS.filter(p => !p.primary);
+
+  useEffect(() => {
+    const handler = (e) => { if (moreRef.current && !moreRef.current.contains(e.target)) setShowMore(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-2 mt-5">
+      {primary.map(pill => (
+        <button key={pill.label} onClick={() => { onSelect(pill.prompt); }}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-slate-200/80 bg-white/50 backdrop-blur-sm text-[12px] font-medium text-slate-500 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-700 transition-all">
+          <span className="text-[13px]">{pill.icon}</span>
+          {pill.label}
+        </button>
+      ))}
+      <div className="relative" ref={moreRef}>
+        <button onClick={() => setShowMore(!showMore)}
+          className={`flex items-center gap-1 px-4 py-2 rounded-full border text-[12px] font-medium transition-all ${showMore ? 'border-orange-300 bg-orange-50 text-orange-700' : 'border-slate-200/80 bg-white/50 backdrop-blur-sm text-slate-500 hover:bg-orange-50 hover:border-orange-300 hover:text-orange-700'}`}>
+          More
+        </button>
+        {showMore && (
+          <>
+            <div className="fixed inset-0 z-[90]" onClick={() => setShowMore(false)} />
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-[200px] bg-white border border-slate-200 rounded-2xl shadow-2xl shadow-slate-200/60 z-[100] py-2">
+              {secondary.map(pill => (
+                <button key={pill.label} onClick={() => { onSelect(pill.prompt); setShowMore(false); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] text-slate-600 hover:bg-orange-50 hover:text-orange-700 transition-colors">
+                  <span className="text-[14px]">{pill.icon}</span>
+                  {pill.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, attachments, onRemoveAttachment, onRetryUpload, fileRef, isTyping, handleFileUpload, isOver, activeSkill, activeSkills = [], onDeactivateSkill, skills = [], onSlashSelect, slashSkills = [], onRemoveSlashSkill, onClearAllSlash, onToggleSkill, onManageSkills, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, enabledSkillIds = [], activeSkillIds, brandEnabledCount = 0, isEmptyState = false }) => {
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
@@ -3177,6 +3236,9 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
               brandEnabledCount={brandEnabledCount}
               isEmptyState={true}
             />
+
+            {/* Action pills */}
+            <ActionPills onSelect={(prompt) => setInput(prompt)} />
           </div>
 
           <div className="w-full max-w-2xl mx-auto mt-8 pb-8 space-y-6">
