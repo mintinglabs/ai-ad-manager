@@ -2306,7 +2306,7 @@ const SKILL_ICONS = {
   audience_strategist: Target,
 };
 
-const SkillsDropdown = ({ skills, activeSkill, activeSkillIds, onToggleSkill, onManageSkills, onClose, enabledSkillIds = [] }) => {
+const SkillsDropdown = ({ skills, activeSkill, activeSkillIds, onToggleSkill, onManageSkills, onClose, enabledSkillIds = [], dropUp = true }) => {
   const ref = useRef(null);
   const [skillSearch, setSkillSearch] = useState('');
 
@@ -2324,7 +2324,7 @@ const SkillsDropdown = ({ skills, activeSkill, activeSkillIds, onToggleSkill, on
     : enabledSkills;
 
   return (
-    <div ref={ref} className="absolute bottom-full left-0 mb-2 w-[320px] bg-white border border-slate-200 rounded-2xl shadow-2xl shadow-slate-200/60 z-[100]">
+    <div ref={ref} className={`absolute left-0 w-[320px] bg-white border border-slate-200 rounded-2xl shadow-2xl shadow-slate-200/60 z-[100] ${dropUp ? 'bottom-full mb-2' : 'top-full mt-2'}`}>
       {/* Search */}
       <div className="px-3 pt-3 pb-2">
         <div className="relative">
@@ -2393,7 +2393,7 @@ const TikTokIcon = () => (
   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 0010.86 4.46V13a8.28 8.28 0 005.58 2.17V11.7a4.84 4.84 0 01-3.77-1.81V6.69h3.77z"/></svg>
 );
 
-const AccountConnector = ({ token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount }) => {
+const AccountConnector = ({ token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, dropUp = true }) => {
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState('platforms'); // 'platforms' | 'business' | 'accounts'
   const [activeBiz, setActiveBiz] = useState(null);
@@ -2460,7 +2460,7 @@ const AccountConnector = ({ token, onLogin, onLogout, isLoginLoading, loginError
       </button>
 
       {open && (
-        <div className="absolute bottom-full left-0 mb-2 w-[260px] bg-white border border-slate-200 rounded-xl shadow-xl shadow-slate-200/50 z-[100] overflow-hidden">
+        <div className={`absolute left-0 w-[260px] bg-white border border-slate-200 rounded-xl shadow-xl shadow-slate-200/50 z-[100] overflow-hidden ${dropUp ? 'bottom-full mb-2' : 'top-full mt-2'}`}>
           {level === 'platforms' && (
             <>
               <div className="px-3 py-2 border-b border-slate-100">
@@ -2776,10 +2776,10 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
 
             {/* Skills dropdown */}
             {skillsOpen && (
-              <SkillsDropdown skills={skills} activeSkill={activeSkill} activeSkillIds={activeSkillIds} onToggleSkill={onToggleSkill} onManageSkills={onManageSkills} onClose={() => { setSkillsOpen(false); setPlusMenuOpen(false); }} enabledSkillIds={enabledSkillIds} />
+              <SkillsDropdown skills={skills} activeSkill={activeSkill} activeSkillIds={activeSkillIds} onToggleSkill={onToggleSkill} onManageSkills={onManageSkills} onClose={() => { setSkillsOpen(false); setPlusMenuOpen(false); }} enabledSkillIds={enabledSkillIds} dropUp={!isEmptyState} />
             )}
 
-            <AccountConnector token={token} onLogin={onLogin} onLogout={onLogout} isLoginLoading={isLoginLoading} loginError={loginError} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
+            <AccountConnector token={token} onLogin={onLogin} onLogout={onLogout} isLoginLoading={isLoginLoading} loginError={loginError} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} dropUp={!isEmptyState} />
           </div>
           <div className="flex items-center gap-2">
             {isTyping ? (
