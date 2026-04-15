@@ -445,7 +445,6 @@ export const Dashboard = ({
               selectedBusiness={selectedBusiness}
               onSelectAccount={handleAccountSelect}
               onSendToChat={handleAudienceToChat}
-              onPrefillChat={handlePrefillChat}
               activeSkills={activeSkills}
             />
           ) : activeView.type === 'audiences' ? (
