@@ -157,7 +157,7 @@ export default function VideoAudienceCard({ data, onSend, isAnswered, adAccountI
       setLoading(false);
     }).catch(err => {
       if (id !== fetchRef.current) return;
-      setError(err.response?.data?.error || err.message || 'Failed to load videos');
+      { const e = err.response?.data?.error; setError(typeof e === 'string' ? e : e?.message || err.message || 'Failed to load videos'); }
       setLoading(false);
     });
   }, [videoSource, selectedPageId, selectedIgId, selectedCampaignId, adAccountId]);

@@ -1848,7 +1848,7 @@ const SaveAsSkillModal = ({ messageText, onClose, onCreateSkill, generateSkill }
       setSaved(true);
       setTimeout(() => onClose(), 1200);
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to save skill');
+      { const e = err.response?.data?.error; setError(typeof e === 'string' ? e : e?.message || err.message || 'Failed to save skill'); };
     } finally {
       setSaving(false);
     }
@@ -1972,7 +1972,7 @@ const SaveToBrandModal = ({ messageText, onClose, onSaveToBrand }) => {
       setSaved(true);
       setTimeout(() => onClose(), 1500);
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Failed to save');
+      { const e = err.response?.data?.error; setError(typeof e === 'string' ? e : e?.message || err.message || 'Failed to save'); };
     } finally {
       setSaving(false);
     }

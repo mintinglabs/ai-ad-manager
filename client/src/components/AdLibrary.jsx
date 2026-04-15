@@ -39,7 +39,7 @@ const AdPreviewModal = ({ ad, onClose }) => {
       const res = await api.get(`/creatives/${creativeId}/previews`, { params: { ad_format: fmt } });
       setPreviewHtml(res.data?.[0]?.body || res.data?.body || '');
     } catch (err) {
-      setError(err.response?.data?.error || 'Preview unavailable');
+      { const e = err.response?.data?.error; setError(typeof e === 'string' ? e : e?.message || 'Preview unavailable'); }
       setPreviewHtml(null);
     } finally {
       setLoading(false);
