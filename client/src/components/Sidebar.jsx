@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Zap, Plus, MessageSquare, Trash2, ChevronDown, ChevronLeft, ChevronRight, LogOut, FileText, Lightbulb, FolderOpen, Building2, Check, Globe, GripVertical, FolderPlus, X, Users, Sparkles, MoreVertical, Pin, Pencil, Menu, BarChart3, Image, Calendar, TrendingUp, ClipboardList, Settings, Palette, LayoutGrid, ListTodo, BookMarked, Layers } from 'lucide-react';
+import { Zap, Plus, MessageSquare, Trash2, ChevronDown, ChevronLeft, ChevronRight, LogOut, FileText, Lightbulb, FolderOpen, Building2, Check, Globe, GripVertical, FolderPlus, X, Users, Sparkles, MoreVertical, Pin, Pencil, PenLine, Menu, BarChart3, Image, Calendar, TrendingUp, ClipboardList, Settings, Palette, LayoutGrid, ListTodo, BookMarked, Layers } from 'lucide-react';
 import { groupSessionsByDate } from '../hooks/useChatSessions.js';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
 import { useBusinesses } from '../hooks/useBusinesses.js';
@@ -83,9 +83,9 @@ const SidebarAccountPicker = ({ selectedAccount, selectedBusiness, onSelect, tok
         <button onClick={toggle}
           className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
             ${hasSelection
-              ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+              ? 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100'
               : !token
-                ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                ? 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100'
                 : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 animate-pulse-subtle'
             }`}>
           <MetaIcon />
@@ -109,7 +109,7 @@ const SidebarAccountPicker = ({ selectedAccount, selectedBusiness, onSelect, tok
                     <div className="px-3 py-6 text-center">
                       <p className="text-xs text-slate-400">{bizError || 'No businesses found'}</p>
                       <button onClick={(e) => { e.stopPropagation(); refetchBiz(); }}
-                        className="mt-2 text-[10px] text-blue-500 hover:underline">Retry</button>
+                        className="mt-2 text-[10px] text-orange-500 hover:underline">Retry</button>
                     </div>
                   ) : businesses.map((biz) => (
                     <button key={biz.id} onClick={() => handleBizClick(biz)}
@@ -249,7 +249,7 @@ export const Sidebar = ({
   const [newProjectName, setNewProjectName] = useState('');
   const [collapsedProjectsOpen, setCollapsedProjectsOpen] = useState(false);
   const [collapsedModulesOpen, setCollapsedModulesOpen] = useState(false);
-  const [manageAdsOpen, setManageAdsOpen] = useState(true);
+  const [manageAdsOpen, setManageAdsOpen] = useState(false);
   const [allTasksOpen, setAllTasksOpen] = useState(true);
   const [editingFolderId, setEditingFolderId] = useState(null);
   const [editFolderName, setEditFolderName] = useState('');
@@ -317,14 +317,14 @@ export const Sidebar = ({
   const modules = [
     { icon: BarChart3, type: 'campaigns', action: onOpenCampaigns, label: 'Campaigns' },
     { icon: Users, type: 'audiences', action: onOpenAudiences, label: 'Audiences' },
-    { icon: Image, type: 'creativeLibrary', action: onOpenCreativeLibrary, label: 'Asset Library' },
-    { icon: Palette, type: 'adLibrary', action: onOpenAdLibrary, label: 'Ad Library' },
-    { icon: BookMarked, type: 'brandLibrary', action: onOpenBrandLibrary, label: 'Brand Library' },
-    { icon: ClipboardList, type: 'instantForms', action: onOpenInstantForms, label: 'Instant Forms' },
+    { icon: Image, type: 'creativeLibrary', action: onOpenCreativeLibrary, label: 'Creative Studio' },
+    { icon: Palette, type: 'adLibrary', action: onOpenAdLibrary, label: 'Ad Gallery' },
+    { icon: BookMarked, type: 'brandLibrary', action: onOpenBrandLibrary, label: 'Brand Memory' },
+    { icon: Settings, type: 'automationRules', action: onOpenAutomationRules, label: 'Automations' },
+    { icon: ClipboardList, type: 'instantForms', action: onOpenInstantForms, label: 'Lead Forms' },
     { icon: TrendingUp, type: 'eventsManager', action: onOpenEventsManager, label: 'Events Manager' },
-    { icon: Settings, type: 'automationRules', action: onOpenAutomationRules, label: 'Automation Rules' },
-    { icon: Zap, type: 'optimizations', action: () => {}, label: 'Optimizations' },
-    { icon: FileText, type: 'report', action: () => {}, label: 'Report' },
+    { icon: Zap, type: 'optimizations', action: onOpenOptimizations, label: 'Optimizations' },
+    { icon: FileText, type: 'report', action: () => {}, label: 'Reports' },
   ];
 
   return (
@@ -381,8 +381,8 @@ export const Sidebar = ({
                   return (
                     <button key={label} onClick={() => { action(); setCollapsedModulesOpen(false); }}
                       className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors
-                        ${isActive ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-600'}`}>
-                      <Icon size={14} className={isActive ? 'text-blue-500' : 'text-slate-400'} />
+                        ${isActive ? 'bg-orange-50 text-orange-700' : 'hover:bg-slate-50 text-slate-600'}`}>
+                      <Icon size={14} className={isActive ? 'text-orange-500' : 'text-slate-400'} />
                       <span className="text-[12px] font-medium">{label}</span>
                     </button>
                   );
@@ -407,7 +407,7 @@ export const Sidebar = ({
               <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Projects</p>
                 <button onClick={() => { setCollapsedProjectsOpen(false); onToggle(); setTimeout(() => setAddingProject(true), 200); }}
-                  className="text-slate-300 hover:text-blue-500 transition-colors"><Plus size={12} /></button>
+                  className="text-slate-300 hover:text-orange-500 transition-colors"><Plus size={12} /></button>
               </div>
               <div className="flex-1 overflow-auto">
                 {projects.length === 0 ? (
@@ -415,7 +415,7 @@ export const Sidebar = ({
                 ) : projects.map(proj => (
                   <button key={proj.id} onClick={() => { setCollapsedProjectsOpen(false); onOpenProject(proj.id); }}
                     className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-colors
-                      ${activeView?.type === 'projectDetail' && activeView?.projectId === proj.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-600'}`}>
+                      ${activeView?.type === 'projectDetail' && activeView?.projectId === proj.id ? 'bg-orange-50 text-orange-700' : 'hover:bg-slate-50 text-slate-600'}`}>
                     <FolderOpen size={13} className="text-slate-400 shrink-0" />
                     <span className="text-[11px] truncate flex-1">{proj.name}</span>
                     {(proj.tasks || []).length > 0 && (
@@ -447,7 +447,7 @@ export const Sidebar = ({
                 {sessions.slice(0, 15).map(s => (
                   <button key={s.id} onClick={() => { onSwitchSession(s.id); setCollapsedHistoryOpen(false); }}
                     className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-colors
-                      ${s.id === activeSessionId ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50 text-slate-600'}`}>
+                      ${s.id === activeSessionId ? 'bg-orange-50 text-orange-700' : 'hover:bg-slate-50 text-slate-600'}`}>
                     <ListTodo size={12} className="shrink-0 text-slate-400" />
                     <span className="text-[11px] truncate">{s.title || 'Untitled'}</span>
                   </button>
@@ -488,7 +488,7 @@ export const Sidebar = ({
           onClick={onNewChat}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-[13px] font-semibold text-white transition-all shadow-sm shadow-orange-500/15 hover:shadow-md hover:shadow-orange-500/25"
         >
-          <Plus size={14} />
+          <PenLine size={14} />
           New Task
         </button>
       </div>
@@ -500,10 +500,10 @@ export const Sidebar = ({
           onClick={onOpenSkillsLibrary}
           className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
             ${activeView?.type === 'skillsLibrary' || activeView?.type === 'skillConfig'
-              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+              ? 'bg-orange-50 text-orange-700 border-orange-200'
               : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
         >
-          <Sparkles size={14} className={activeView?.type === 'skillsLibrary' || activeView?.type === 'skillConfig' ? 'text-indigo-500' : 'text-slate-400'} />
+          <Sparkles size={14} className={activeView?.type === 'skillsLibrary' || activeView?.type === 'skillConfig' ? 'text-orange-500' : 'text-slate-400'} />
           <span className="flex-1 text-left">Skills</span>
           <ChevronRight size={12} className="text-slate-300" />
         </button>
@@ -513,10 +513,10 @@ export const Sidebar = ({
           onClick={() => setManageAdsOpen(v => !v)}
           className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border mt-1
             ${modules.some(m => m.type && activeView?.type === m.type)
-              ? 'bg-blue-50 text-blue-700 border-blue-200'
+              ? 'bg-orange-50 text-orange-700 border-orange-200'
               : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
         >
-          <LayoutGrid size={14} className={modules.some(m => m.type && activeView?.type === m.type) ? 'text-blue-500' : 'text-slate-400'} />
+          <LayoutGrid size={14} className={modules.some(m => m.type && activeView?.type === m.type) ? 'text-orange-500' : 'text-slate-400'} />
           <span className="flex-1 text-left">Manage Ads</span>
           <ChevronDown size={12} className={`text-slate-300 transition-transform ${manageAdsOpen ? '' : '-rotate-90'}`} />
         </button>
@@ -528,8 +528,8 @@ export const Sidebar = ({
               return (
                 <button key={label} onClick={action}
                   className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all
-                    ${isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}>
-                  <Icon size={13} className={isActive ? 'text-blue-500' : 'text-slate-400'} />
+                    ${isActive ? 'bg-orange-50 text-orange-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}>
+                  <Icon size={13} className={isActive ? 'text-orange-500' : 'text-slate-400'} />
                   <span className="flex-1 text-left">{label}</span>
                 </button>
               );
@@ -543,7 +543,7 @@ export const Sidebar = ({
         <div className="mb-2">
           <div className="flex items-center justify-between px-3 py-1.5">
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Projects</p>
-            <button onClick={() => setAddingProject(true)} className="text-slate-300 hover:text-blue-500 transition-colors" title="New project">
+            <button onClick={() => setAddingProject(true)} className="text-slate-300 hover:text-orange-500 transition-colors" title="New project">
               <Plus size={13} />
             </button>
           </div>
@@ -561,7 +561,7 @@ export const Sidebar = ({
                   if (e.key === 'Escape') { setAddingProject(false); setNewProjectName(''); }
                 }}
                 placeholder="Project name..."
-                className="text-[12px] font-medium bg-blue-50 border border-blue-200 rounded-lg px-2 py-1 w-full focus:outline-none focus:ring-1 focus:ring-blue-300"
+                className="text-[12px] font-medium bg-blue-50 border border-orange-200 rounded-lg px-2 py-1 w-full focus:outline-none focus:ring-1 focus:ring-blue-300"
                 autoFocus
               />
             </div>
@@ -574,9 +574,9 @@ export const Sidebar = ({
               <button key={project.id} onClick={() => onOpenProject(project.id)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors
                   ${activeView?.type === 'projectDetail' && activeView?.projectId === project.id
-                    ? 'bg-blue-50 text-blue-700'
+                    ? 'bg-orange-50 text-orange-700'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-700'}`}>
-                <FolderOpen size={14} className={`shrink-0 ${activeView?.type === 'projectDetail' && activeView?.projectId === project.id ? 'text-blue-500' : 'text-slate-400'}`} />
+                <FolderOpen size={14} className={`shrink-0 ${activeView?.type === 'projectDetail' && activeView?.projectId === project.id ? 'text-orange-500' : 'text-slate-400'}`} />
                 <span className="flex-1 text-[12px] font-medium truncate">{project.name}</span>
                 {(project.tasks || []).length > 0 && (
                   <span className="text-[9px] text-slate-300 shrink-0">{(project.tasks || []).filter(t => t.completed).length}/{(project.tasks || []).length}</span>
@@ -606,53 +606,44 @@ export const Sidebar = ({
               <p className="text-[11px] text-slate-400">No tasks yet</p>
             </div>
           ) : (
-            DATE_GROUP_ORDER.map(group => {
-              const items = grouped[group];
-              if (!items?.length) return null;
+            sessions.map(session => {
+              const isActive = session.id === activeSessionId && activeView?.type === 'chat';
+              const isPinned = session.pinned;
               return (
-                <div key={group} className="mb-2">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-3 py-1.5">{group}</p>
-                  {items.map(session => {
-                    const isActive = session.id === activeSessionId && activeView?.type === 'chat';
-                    const isPinned = session.pinned;
-                    return (
-                      <div key={session.id} className="relative">
-                        {renamingSession === session.id ? (
-                          <div className="flex items-center gap-2 px-3 py-2">
-                            <ListTodo size={14} className="text-blue-500 shrink-0" />
-                            <input
-                              value={renameValue}
-                              onChange={(e) => setRenameValue(e.target.value)}
-                              onBlur={() => { onRenameSession?.(session.id, renameValue); setRenamingSession(null); }}
-                              onKeyDown={(e) => { if (e.key === 'Enter') { onRenameSession?.(session.id, renameValue); setRenamingSession(null); } if (e.key === 'Escape') setRenamingSession(null); }}
-                              className="flex-1 text-[13px] font-medium bg-blue-50 border border-blue-200 rounded px-2 py-0.5 focus:outline-none"
-                              autoFocus
-                            />
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => onSwitchSession(session.id)}
-                            onMouseEnter={() => setHoveredSession(session.id)}
-                            onMouseLeave={() => setHoveredSession(null)}
-                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-[13px] transition-colors group
-                              ${isActive ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
-                          >
-                            <ListTodo size={14} className={`shrink-0 ${isActive ? 'text-blue-500' : 'text-slate-300'}`} />
-                            <span className="truncate flex-1">{session.title}</span>
-                            {isPinned && <Pin size={10} className="text-blue-400 shrink-0" />}
-                            {hoveredSession === session.id && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setContextMenu({ sessionId: session.id, x: e.clientX, y: e.clientY }); }}
-                                className="p-1 rounded hover:bg-slate-200 text-slate-300 hover:text-slate-600 transition-colors shrink-0"
-                              >
-                                <MoreVertical size={12} />
-                              </button>
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
+                <div key={session.id} className="relative">
+                  {renamingSession === session.id ? (
+                    <div className="flex items-center gap-2 px-3 py-2">
+                      <ListTodo size={14} className="text-orange-500 shrink-0" />
+                      <input
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onBlur={() => { onRenameSession?.(session.id, renameValue); setRenamingSession(null); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { onRenameSession?.(session.id, renameValue); setRenamingSession(null); } if (e.key === 'Escape') setRenamingSession(null); }}
+                        className="flex-1 text-[13px] font-medium bg-orange-50 border border-orange-200 rounded px-2 py-0.5 focus:outline-none"
+                        autoFocus
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => onSwitchSession(session.id)}
+                      onMouseEnter={() => setHoveredSession(session.id)}
+                      onMouseLeave={() => setHoveredSession(null)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-[12px] transition-colors group
+                        ${isActive ? 'bg-orange-50 text-orange-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
+                    >
+                      <ListTodo size={13} className={`shrink-0 ${isActive ? 'text-orange-500' : 'text-slate-300'}`} />
+                      <span className="truncate flex-1">{session.title}</span>
+                      {isPinned && <Pin size={10} className="text-orange-400 shrink-0" />}
+                      {hoveredSession === session.id && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setContextMenu({ sessionId: session.id, x: e.clientX, y: e.clientY }); }}
+                          className="p-1 rounded hover:bg-slate-200 text-slate-300 hover:text-slate-600 transition-colors shrink-0"
+                        >
+                          <MoreVertical size={12} />
+                        </button>
+                      )}
+                    </button>
+                  )}
                 </div>
               );
             })
@@ -681,14 +672,14 @@ export const Sidebar = ({
       {/* Context Menu for chat sessions */}
       {contextMenu && (
         <div ref={contextRef}
-          style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x, zIndex: 100 }}
-          className="bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden min-w-[140px]">
+          style={{ position: 'fixed', top: contextMenu.y / 1.1 - 10, left: contextMenu.x / 1.1 + 8, zIndex: 9999 }}
+          className="bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden min-w-[140px] animate-[fadeSlideUp_0.15s_ease-out]">
           <button onClick={() => {
             onPinSession?.(contextMenu.sessionId);
             setContextMenu(null);
           }}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-[12px] text-slate-600 hover:bg-slate-50 transition-colors">
-            <Pin size={13} className="text-slate-400" />
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-[13px] text-slate-700 hover:bg-slate-50 transition-colors">
+            <Pin size={14} className="text-slate-400" />
             {sessions.find(s => s.id === contextMenu.sessionId)?.pinned ? 'Unpin' : 'Pin'}
           </button>
           <button onClick={() => {
@@ -697,16 +688,16 @@ export const Sidebar = ({
             setRenamingSession(contextMenu.sessionId);
             setContextMenu(null);
           }}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-[12px] text-slate-600 hover:bg-slate-50 transition-colors">
-            <Pencil size={13} className="text-slate-400" />
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-[13px] text-slate-700 hover:bg-slate-50 transition-colors">
+            <Pencil size={14} className="text-slate-400" />
             Rename
           </button>
           <button onClick={() => {
             onDeleteSession(contextMenu.sessionId);
             setContextMenu(null);
           }}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-[12px] text-red-500 hover:bg-red-50 transition-colors border-t border-slate-100">
-            <Trash2 size={13} />
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-[13px] text-red-500 hover:bg-red-50 transition-colors border-t border-slate-100">
+            <Trash2 size={14} />
             Delete
           </button>
         </div>

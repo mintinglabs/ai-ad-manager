@@ -294,7 +294,7 @@ const SkillCard = ({ skill, isActive, onToggle, onMenuAction, onView }) => {
   }, [menuOpen]);
 
   return (
-    <div onClick={() => { if (!menuOpen) onView?.(skill); }} className="relative bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/80 p-5 flex flex-col gap-3 group hover:border-orange-200/60 hover:shadow-lg hover:shadow-orange-500/5 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer">
+    <div onClick={() => { if (!menuOpen) onView?.(skill); }} className={`relative bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/80 p-5 flex flex-col gap-3 group hover:border-orange-200/60 hover:shadow-lg hover:shadow-orange-500/5 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer ${menuOpen ? 'z-50' : ''}`}>
       {/* Hover gradient overlay */}
       <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-orange-500/[0.02] via-transparent to-amber-500/[0.02] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 

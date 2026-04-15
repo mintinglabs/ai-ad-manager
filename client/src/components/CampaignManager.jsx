@@ -1067,66 +1067,69 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
       {/* Bulk action bar removed — checkboxes kept for multi-select drill-down */}
 
       {/* Filters */}
-      <div className="px-6 py-3 flex items-center gap-3 shrink-0 bg-white border-b border-slate-100 flex-wrap">
+      <div className="px-6 py-3 flex items-center gap-3 shrink-0 bg-white/80 backdrop-blur-sm border-b border-slate-100 flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-400/60" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search ${levelLabel.toLowerCase()}s...`}
             className="w-full pl-9 pr-3 py-2 text-[12px] rounded-xl border border-slate-200/80 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 placeholder:text-slate-300" />
         </div>
-        <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden">
-          {[['all', 'All'], ['active', 'Active'], ['paused', 'Paused']].map(([val, label]) => (
-            <button key={val} onClick={() => setStatusFilter(val)}
-              className={`px-3.5 py-2 text-[11px] font-medium transition-colors ${statusFilter === val ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}>
-              {label}
-            </button>
-          ))}
-        </div>
-        {/* Date range */}
-        <div className="relative">
-          <select value={datePreset} onChange={e => {
-            const v = e.target.value;
-            if (v === 'custom') { setShowDatePicker(true); setDatePreset('custom'); }
-            else { setDatePreset(v); setShowDatePicker(false); }
-          }}
-            className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-[11px] font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
-            <option value="today">Today</option>
-            <option value="yesterday">Yesterday</option>
-            <option value="last_3d">Last 3 Days</option>
-            <option value="last_7d">Last 7 Days</option>
-            <option value="last_14d">Last 14 Days</option>
-            <option value="last_30d">Last 30 Days</option>
-            <option value="this_month">This Month</option>
-            <option value="last_month">Last Month</option>
-            <option value="maximum">Lifetime</option>
-            <option value="custom">{customDateFrom && customDateTo ? `${customDateFrom} – ${customDateTo}` : 'Custom Range'}</option>
-          </select>
-          {showDatePicker && (
-            <div className="absolute top-full right-0 mt-1 z-30 bg-white rounded-xl shadow-xl border border-slate-200 p-4 w-64" onClick={e => e.stopPropagation()}>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Custom Date Range</p>
-              <div className="space-y-2">
-                <div>
-                  <label className="text-[10px] text-slate-500 font-medium">From</label>
-                  <input type="date" value={customDateFrom} onChange={e => setCustomDateFrom(e.target.value)}
-                    className="w-full mt-0.5 px-2.5 py-1.5 rounded-lg border border-slate-200 text-[11px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+        <div className="flex items-center gap-2 ml-auto">
+          <div className="flex rounded-xl border border-slate-200/80 bg-white/80 backdrop-blur-sm overflow-hidden">
+            {[['all', 'All'], ['active', 'Active'], ['paused', 'Paused']].map(([val, label]) => (
+              <button key={val} onClick={() => setStatusFilter(val)}
+                className={`px-3 py-1.5 text-[11px] font-semibold transition-all ${statusFilter === val ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-orange-600'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {/* Date range */}
+          <div className="relative">
+            <select value={datePreset} onChange={e => {
+              const v = e.target.value;
+              if (v === 'custom') { setShowDatePicker(true); setDatePreset('custom'); }
+              else { setDatePreset(v); setShowDatePicker(false); }
+            }}
+              className="px-3 py-1.5 rounded-xl border border-slate-200/80 bg-white/80 backdrop-blur-sm text-[11px] font-semibold text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 appearance-none pr-7 cursor-pointer"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2364748b' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center' }}>
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="last_3d">Last 3 Days</option>
+              <option value="last_7d">Last 7 Days</option>
+              <option value="last_14d">Last 14 Days</option>
+              <option value="last_30d">Last 30 Days</option>
+              <option value="this_month">This Month</option>
+              <option value="last_month">Last Month</option>
+              <option value="maximum">Lifetime</option>
+              <option value="custom">{customDateFrom && customDateTo ? `${customDateFrom} – ${customDateTo}` : 'Custom Range'}</option>
+            </select>
+            {showDatePicker && (
+              <div className="absolute top-full right-0 mt-1 z-30 bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl shadow-orange-500/5 border border-slate-200/60 p-4 w-64 animate-[fadeSlideUp_0.15s_ease-out]" onClick={e => e.stopPropagation()}>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Custom Date Range</p>
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-medium">From</label>
+                    <input type="date" value={customDateFrom} onChange={e => setCustomDateFrom(e.target.value)}
+                      className="w-full mt-0.5 px-2.5 py-1.5 rounded-lg border border-slate-200/80 text-[11px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-medium">To</label>
+                    <input type="date" value={customDateTo} onChange={e => setCustomDateTo(e.target.value)}
+                      className="w-full mt-0.5 px-2.5 py-1.5 rounded-lg border border-slate-200/80 text-[11px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300" />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-[10px] text-slate-500 font-medium">To</label>
-                  <input type="date" value={customDateTo} onChange={e => setCustomDateTo(e.target.value)}
-                    className="w-full mt-0.5 px-2.5 py-1.5 rounded-lg border border-slate-200 text-[11px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                <div className="flex justify-end gap-2 mt-3">
+                  <button onClick={() => setShowDatePicker(false)} className="px-2.5 py-1.5 text-[11px] text-slate-500 hover:bg-slate-50 rounded-lg">Cancel</button>
+                  <button onClick={() => { setShowDatePicker(false); }} disabled={!customDateFrom || !customDateTo}
+                    className="px-3 py-1.5 text-[11px] text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 rounded-lg font-bold shadow-sm disabled:opacity-50">Apply</button>
                 </div>
               </div>
-              <div className="flex justify-end gap-2 mt-3">
-                <button onClick={() => setShowDatePicker(false)} className="px-2.5 py-1.5 text-[11px] text-slate-500 hover:bg-slate-50 rounded-lg">Cancel</button>
-                <button onClick={() => { setShowDatePicker(false); }} disabled={!customDateFrom || !customDateTo}
-                  className="px-2.5 py-1.5 text-[11px] text-white bg-blue-500 hover:bg-blue-600 rounded-lg font-medium disabled:opacity-50">Apply</button>
-              </div>
-            </div>
-          )}
-        </div>
-        {/* Column Presets (template dropdown) */}
-        <div className="relative">
-          <select value={activeTemplate} onChange={e => handleTemplateSelect(e.target.value)}
-            className="px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-[11px] font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+            )}
+          </div>
+          {/* Column Presets (template dropdown) */}
+          <div className="relative">
+            <select value={activeTemplate} onChange={e => handleTemplateSelect(e.target.value)}
+              className="px-3 py-1.5 rounded-xl border border-slate-200/80 bg-white/80 backdrop-blur-sm text-[11px] font-semibold text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 appearance-none pr-7 cursor-pointer"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2364748b' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center' }}>
             <optgroup label="Column Presets">
               {BUILT_IN_TEMPLATES.map(t => (
                 <option key={t.id} value={t.id}>{t.label}</option>
