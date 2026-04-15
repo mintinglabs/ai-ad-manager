@@ -133,27 +133,32 @@ const RULE_TEMPLATES = [
 
 // ── Template Cards (full size for empty state) ──
 const TemplateCards = ({ onSelect }) => (
-  <div className="grid grid-cols-2 gap-4 mb-8">
-    {RULE_TEMPLATES.map(t => {
+  <div className="grid grid-cols-2 gap-3.5 mb-8">
+    {RULE_TEMPLATES.map((t, i) => {
       const Icon = t.icon;
       return (
         <button key={t.id} onClick={() => onSelect(t)}
-          className={`relative overflow-hidden bg-gradient-to-br ${t.gradient} rounded-2xl border ${t.borderColor} p-6 text-left group hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200`}>
-          <div className="flex items-start justify-between mb-4">
-            <div className={`w-11 h-11 rounded-xl ${t.iconBg} flex items-center justify-center shadow-sm`}>
-              <Icon size={20} />
+          style={{ animationDelay: `${i * 80}ms` }}
+          className="animate-[fadeSlideUp_0.4s_ease-out_both] relative overflow-hidden bg-white/70 backdrop-blur-sm rounded-2xl border border-slate-200/80 p-6 text-left group hover:shadow-lg hover:shadow-orange-500/8 hover:-translate-y-1 hover:border-orange-200/60 transition-all duration-300">
+          {/* Hover gradient overlay */}
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-orange-500/[0.03] via-transparent to-amber-500/[0.03] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="relative">
+            <div className="flex items-start justify-between mb-4">
+              <div className={`w-11 h-11 rounded-xl ${t.iconBg} flex items-center justify-center shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all duration-300`}>
+                <Icon size={20} />
+              </div>
+              <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 bg-white/80 backdrop-blur-sm px-2.5 py-1 rounded-full border border-slate-100">
+                {t.category}
+              </span>
             </div>
-            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 bg-white/60 backdrop-blur-sm px-2 py-1 rounded-full">
-              {t.category}
-            </span>
-          </div>
-          <h4 className="text-[14px] font-bold text-slate-900 mb-1 group-hover:text-orange-700 transition-colors">{t.name}</h4>
-          <p className="text-[12px] text-slate-500 leading-relaxed mb-3">{t.desc}</p>
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] text-slate-400 font-medium">{t.stat}</span>
-            <span className="flex items-center gap-1 text-[11px] font-semibold text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity">
-              Set up <ArrowRight size={12} />
-            </span>
+            <h4 className="text-[14px] font-bold text-slate-800 mb-1 group-hover:text-orange-600 transition-colors">{t.name}</h4>
+            <p className="text-[12px] text-slate-500 leading-relaxed mb-3">{t.desc}</p>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-slate-400 font-medium">{t.stat}</span>
+              <span className="flex items-center gap-1 text-[11px] font-bold text-orange-500 opacity-0 group-hover:opacity-100 translate-x-[-4px] group-hover:translate-x-0 transition-all duration-300">
+                Set up <ArrowRight size={12} />
+              </span>
+            </div>
           </div>
         </button>
       );
@@ -309,22 +314,27 @@ const RuleModal = ({ rule, onSave, onClose }) => {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40" onClick={onClose} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[580px] max-h-[85vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-        {/* Compact header */}
-        <div className={`relative overflow-hidden ${templateMatch ? `bg-gradient-to-br ${templateMatch.gradient}` : ''} px-6 py-4 flex items-center justify-between`}>
-          <div className="flex items-center gap-3">
-            {templateMatch && (
-              <div className={`w-9 h-9 rounded-xl ${templateMatch.iconBg} flex items-center justify-center shadow-sm`}>
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 animate-[fadeIn_0.2s_ease-out]" onClick={onClose} />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[580px] max-h-[85vh] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-orange-500/5 overflow-hidden flex flex-col border border-slate-200/60 animate-[fadeSlideUp_0.3s_ease-out]">
+        {/* Header */}
+        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-6 py-4 flex items-center justify-between">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" />
+          <div className="relative flex items-center gap-3">
+            {templateMatch ? (
+              <div className={`w-9 h-9 rounded-xl ${templateMatch.iconBg} flex items-center justify-center shadow-lg`}>
                 <templateMatch.icon size={17} />
+              </div>
+            ) : (
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/30">
+                <Zap size={17} className="text-white" />
               </div>
             )}
             <div>
-              <h3 className="text-[15px] font-bold text-slate-900">{templateMatch ? templateMatch.name : isEdit ? 'Edit Rule' : 'Create Rule'}</h3>
-              {templateMatch && <p className="text-[11px] text-slate-500">{templateMatch.desc}</p>}
+              <h3 className="text-[15px] font-bold text-white">{templateMatch ? templateMatch.name : isEdit ? 'Edit Rule' : 'Create Rule'}</h3>
+              {templateMatch && <p className="text-[11px] text-slate-400">{templateMatch.desc}</p>}
             </div>
           </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-full bg-white/50 hover:bg-white/80 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all">
+          <button onClick={onClose} className="relative w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-400 hover:text-white transition-all">
             <X size={14} />
           </button>
         </div>
@@ -394,20 +404,21 @@ const RuleModal = ({ rule, onSave, onClose }) => {
             <FormSelect label="Check frequency" value={schedule} options={SCHEDULE_OPTIONS} onChange={setSchedule} />
           </div>
 
-          {/* Compact summary */}
-          <div className="bg-slate-900 rounded-xl px-4 py-3 flex items-center gap-3">
-            <Sparkles size={13} className="text-orange-400 shrink-0" />
-            <p className="text-[11px] text-white/80 leading-relaxed">{summary}</p>
+          {/* Summary */}
+          <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-xl px-4 py-3 flex items-center gap-3 relative overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_right,_rgba(249,115,22,0.1),transparent_60%)]" />
+            <Sparkles size={13} className="relative text-orange-400 shrink-0" />
+            <p className="relative text-[11px] text-white/80 leading-relaxed">{summary}</p>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3.5 border-t border-slate-100 flex items-center justify-between">
-          <button onClick={onClose} className="px-4 py-2 text-[12px] text-slate-500 hover:bg-slate-50 rounded-lg font-medium transition-colors">
+        <div className="px-6 py-3.5 border-t border-slate-100/60 flex items-center justify-between bg-slate-50/50">
+          <button onClick={onClose} className="px-4 py-2 text-[12px] text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl font-medium transition-colors">
             Cancel
           </button>
           <button onClick={handleSave} disabled={!name.trim() || !conditions[0]?.value || saving}
-            className="flex items-center gap-1.5 px-5 py-2 text-[12px] text-white bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 rounded-lg font-bold shadow-md shadow-orange-500/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none transition-all">
+            className="flex items-center gap-1.5 px-5 py-2.5 text-[12px] text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 rounded-xl font-bold shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none transition-all">
             <Zap size={13} />
             {saving ? 'Creating...' : isEdit ? 'Update Rule' : 'Enable Rule'}
           </button>
@@ -445,10 +456,10 @@ const buildHumanSummary = (rule) => {
   // Action line — match Meta style
   let actionLine = {
     PAUSE: 'Turn off campaigns', UNPAUSE: 'Turn on campaigns',
-    CHANGE_BUDGET: 'Adjust budget', CHANGE_BID: 'Adjust bid',
+    CHANGE_BUDGET: 'Adjust budget', CHANGE_CAMPAIGN_BUDGET: 'Adjust budget', CHANGE_BID: 'Adjust bid',
     SEND_NOTIFICATION: 'Send notification only',
     PING_ENDPOINT: 'Run automation',
-  }[action] || action;
+  }[action] || action.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase());
 
   if (action === 'CHANGE_BUDGET' && budgetOpts) {
     const opt = Array.isArray(budgetOpts) ? budgetOpts[0] : budgetOpts;
@@ -471,7 +482,7 @@ const buildHumanSummary = (rule) => {
 const Toggle = ({ active, onChange, loading }) => (
   <button onClick={(e) => { e.stopPropagation(); if (!loading) onChange(!active); }}
     disabled={loading}
-    className={`w-9 h-[20px] rounded-full transition-colors duration-200 relative shrink-0 ${loading ? 'opacity-50' : ''} ${active ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+    className={`w-9 h-[20px] rounded-full transition-all duration-300 relative shrink-0 ${loading ? 'opacity-50' : ''} ${active ? 'bg-gradient-to-r from-orange-500 to-amber-500 shadow-sm shadow-orange-500/30' : 'bg-slate-200'}`}>
     <span className={`absolute top-[2px] left-[2px] w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${active ? 'translate-x-[16px]' : ''}`} />
   </button>
 );
@@ -490,32 +501,39 @@ const RuleCard = ({ rule, onToggle, onEdit, onDelete, onViewHistory, updating })
   const scheduleLabel = SCHEDULE_OPTIONS.find(s => s.value === rule.schedule_spec?.schedule_type)?.label || 'Daily';
 
   return (
-    <div className={`group bg-white rounded-xl border transition-all hover:shadow-md ${isInvalid ? 'border-red-200' : 'border-slate-200'}`}>
-      <div className="px-5 py-4">
+    <div className={`group relative bg-white/80 backdrop-blur-sm rounded-2xl border transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/5 hover:-translate-y-0.5 ${isInvalid ? 'border-red-200' : 'border-slate-200/80 hover:border-orange-200/60'}`}>
+      {/* Subtle gradient overlay on hover */}
+      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-orange-500/[0.02] to-amber-500/[0.02] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <div className="relative px-5 py-4">
         {/* Top row: toggle + name + status + actions */}
         <div className="flex items-center gap-3 mb-2">
           <Toggle active={isActive && !isInvalid} onChange={() => onToggle(rule.id, isActive)} loading={updating} />
           <h4 className="text-[14px] font-bold text-slate-800 truncate flex-1">{rule.name}</h4>
           {isInvalid ? (
-            <span className="relative group/tip text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-50 text-red-600 shrink-0 cursor-help">
+            <span className="relative group/tip text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-red-500/10 text-red-500 shrink-0 cursor-help">
               Invalid
               <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-3 py-2 bg-slate-900 text-white text-[10px] font-normal normal-case tracking-normal rounded-lg whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity pointer-events-none shadow-lg">
                 This rule has issues and is not being checked. Edit to fix.
               </span>
             </span>
           ) : (
-            <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0 ${isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-              {isActive ? 'Active' : 'Paused'}
+            <span className="flex items-center gap-1.5 shrink-0">
+              <span className={`relative w-2 h-2 rounded-full ${isActive ? 'bg-emerald-400' : 'bg-slate-300'}`}>
+                {isActive && <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-40" />}
+              </span>
+              <span className={`text-[10px] font-semibold ${isActive ? 'text-emerald-600' : 'text-slate-400'}`}>
+                {isActive ? 'Active' : 'Paused'}
+              </span>
             </span>
           )}
           {/* Actions */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             <button onClick={() => onEdit(rule)}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors">
+              className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-orange-600/70 hover:text-orange-600 hover:bg-orange-50 transition-colors">
               Edit
             </button>
             <button onClick={() => onViewHistory(rule.id)} title="Execution history"
-              className="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-300 hover:text-slate-600 transition-colors">
+              className="w-7 h-7 rounded-lg hover:bg-orange-50 flex items-center justify-center text-slate-300 hover:text-orange-500 transition-colors">
               <Clock size={13} />
             </button>
             <button onClick={() => onDelete(rule.id)} title="Delete rule"
@@ -525,28 +543,28 @@ const RuleCard = ({ rule, onToggle, onEdit, onDelete, onViewHistory, updating })
           </div>
         </div>
 
-        {/* Action & condition — Meta-style two lines */}
+        {/* Action & condition */}
         <div className="ml-12 mb-2.5">
           <div className="flex items-center gap-2 mb-1">
-            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
-              action === 'PAUSE' ? 'bg-amber-50 text-amber-700' :
-              action === 'UNPAUSE' ? 'bg-emerald-50 text-emerald-700' :
-              action === 'CHANGE_BUDGET' || action === 'CHANGE_BID' ? 'bg-blue-50 text-blue-700' :
-              action === 'SEND_NOTIFICATION' ? 'bg-violet-50 text-violet-700' :
+            <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+              action === 'PAUSE' ? 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 text-amber-700' :
+              action === 'UNPAUSE' ? 'bg-gradient-to-r from-emerald-500/10 to-teal-500/10 text-emerald-700' :
+              action === 'CHANGE_BUDGET' || action === 'CHANGE_BID' || action === 'CHANGE_CAMPAIGN_BUDGET' ? 'bg-gradient-to-r from-blue-500/10 to-indigo-500/10 text-blue-700' :
+              action === 'SEND_NOTIFICATION' ? 'bg-gradient-to-r from-violet-500/10 to-purple-500/10 text-violet-700' :
               'bg-slate-100 text-slate-600'
             }`}>{actionLine}</span>
           </div>
-          {conditionLine && <p className="text-[12px] text-slate-600 leading-relaxed">{conditionLine}</p>}
+          {conditionLine && <p className="text-[12px] text-slate-500 leading-relaxed">{conditionLine}</p>}
         </div>
 
         {/* Info row */}
         <div className="flex items-center gap-4 text-[10px] ml-12">
           <div className="flex items-center gap-1.5 text-slate-400">
-            <Target size={10} className="shrink-0" />
+            <Target size={10} className="shrink-0 text-orange-400/60" />
             <span>{appliedTo}</span>
           </div>
           <div className="flex items-center gap-1.5 text-slate-400">
-            <Clock size={10} className="shrink-0" />
+            <Clock size={10} className="shrink-0 text-orange-400/60" />
             <span>{scheduleLabel}</span>
           </div>
           {rule.created_time && (
@@ -680,32 +698,34 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-50/50">
+    <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-orange-50/60 via-white to-amber-50/40">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 shrink-0">
-        <div className="flex items-center justify-between px-6 py-4">
+      <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shrink-0">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
+        </div>
+        <div className="relative flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
-                  <Zap size={14} className="text-white" />
-                </div>
-                Automation Rules
-              </h1>
+              <h1 className="text-lg font-extrabold text-white tracking-tight">Automation Rules</h1>
               <p className="text-xs text-slate-400 mt-0.5">
                 {loading ? 'Loading...' : userRules.length > 0 ? `${activeCount} active · ${pausedCount} paused` : 'Automate your ad management'}
               </p>
             </div>
-            <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
-              selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-semibold text-slate-400">Ad Account:</span>
+              <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
+                selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={fetchRules} disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 border border-slate-700 transition-colors disabled:opacity-50">
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
             </button>
             <button onClick={() => onPrefillChat?.('I want to create a custom automation rule for my campaigns. Help me set it up.')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 transition-all shadow-sm">
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 transition-all shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50">
               <Sparkles size={13} /> Create with AI
             </button>
           </div>
@@ -724,12 +744,13 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
         ) : userRules.length === 0 && !loading ? (
           /* Empty state — hero + full template cards */
           <>
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-orange-500/20">
-                <Zap size={28} className="text-white" />
+            <div className="text-center mb-8 animate-[fadeSlideUp_0.4s_ease-out]">
+              <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center mx-auto mb-4 shadow-xl shadow-orange-500/30">
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 animate-ping opacity-20" />
+                <Zap size={28} className="text-white relative" />
               </div>
-              <h2 className="text-xl font-bold text-slate-900 mb-2">Put your campaigns on autopilot</h2>
-              <p className="text-sm text-slate-500 max-w-md mx-auto">
+              <h2 className="text-xl font-extrabold text-slate-900 mb-2 tracking-tight">Put your campaigns on autopilot</h2>
+              <p className="text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
                 Set up rules that automatically optimize your ads 24/7 — pause losers, scale winners, and protect your budget while you sleep.
               </p>
             </div>
@@ -740,14 +761,14 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
             {/* Rules list header — search left, filters right */}
             <div className="flex items-center justify-between mb-3">
               <div className="relative flex-1 max-w-sm">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-400/60" />
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search rules..."
-                  className="w-full pl-9 pr-3 py-2 text-[12px] rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 placeholder:text-slate-300" />
+                  className="w-full pl-9 pr-3 py-2 text-[12px] rounded-xl border border-slate-200/80 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 placeholder:text-slate-300" />
               </div>
-              <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden">
+              <div className="flex rounded-xl border border-slate-200/80 bg-white/80 backdrop-blur-sm overflow-hidden">
                 {[['all', `All (${userRules.length})`], ['active', `Active (${activeCount})`], ['paused', `Paused (${pausedCount})`]].map(([val, label]) => (
                   <button key={val} onClick={() => setStatusFilter(val)}
-                    className={`px-3 py-1.5 text-[10px] font-medium transition-colors ${statusFilter === val ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
+                    className={`px-3 py-1.5 text-[11px] font-semibold transition-all ${statusFilter === val ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-orange-600'}`}>
                     {label}
                   </button>
                 ))}
@@ -761,11 +782,9 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
                 const Icon = t.icon;
                 return (
                   <button key={t.id} onClick={() => handleTemplateSelect(t)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-orange-50 hover:border-orange-200 transition-all group">
-                    <div className={`w-5 h-5 rounded-md ${t.iconBg} flex items-center justify-center shrink-0`}>
-                      <Icon size={11} />
-                    </div>
-                    <span className="text-[11px] font-medium text-slate-600 group-hover:text-orange-700 transition-colors">{t.name}</span>
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200/80 bg-white/70 backdrop-blur-sm hover:border-orange-300 hover:bg-gradient-to-r hover:from-orange-50 hover:to-amber-50 text-[11px] font-medium text-slate-600 hover:text-orange-700 transition-all group">
+                    <Icon size={11} className="text-slate-400 group-hover:text-orange-500 transition-colors" />
+                    {t.name}
                   </button>
                 );
               })}
@@ -781,11 +800,13 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
                 {search ? 'No matching rules found' : 'No rules in this filter'}
               </div>
             ) : (
-              <div className="space-y-3">
-                {filtered.map(rule => (
-                  <RuleCard key={rule.id} rule={rule} onToggle={handleToggle}
-                    onEdit={(r) => { setEditingRule(r); setShowCreate(true); }}
-                    onDelete={handleDelete} onViewHistory={setHistoryRuleId} updating={updatingIds.has(rule.id)} />
+              <div className="space-y-2.5">
+                {filtered.map((rule, i) => (
+                  <div key={rule.id} style={{ animationDelay: `${i * 60}ms` }} className="animate-[fadeSlideUp_0.4s_ease-out_both]">
+                    <RuleCard rule={rule} onToggle={handleToggle}
+                      onEdit={(r) => { setEditingRule(r); setShowCreate(true); }}
+                      onDelete={handleDelete} onViewHistory={setHistoryRuleId} updating={updatingIds.has(rule.id)} />
+                  </div>
                 ))}
               </div>
             )}

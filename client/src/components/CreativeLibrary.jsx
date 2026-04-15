@@ -21,21 +21,22 @@ const PreviewModal = ({ asset, onClose }) => {
   const isVideo = !!asset.source;
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 animate-[fadeIn_0.2s_ease-out]" onClick={onClose} />
       <div className="fixed inset-8 z-50 flex items-center justify-center">
-        <div className="relative bg-white rounded-2xl shadow-2xl overflow-hidden max-w-4xl w-full max-h-full flex flex-col">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
-            <div>
-              <h3 className="text-sm font-bold text-slate-800 truncate max-w-md">{asset.name || asset.title || 'Untitled'}</h3>
+        <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden max-w-4xl w-full max-h-full flex flex-col animate-[fadeSlideUp_0.3s_ease-out]">
+          <div className="relative flex items-center justify-between px-5 py-3 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900">
+            <div className="absolute inset-0 overflow-hidden pointer-events-none"><div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" /><div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" /></div>
+            <div className="relative">
+              <h3 className="text-sm font-bold text-white truncate max-w-md">{asset.name || asset.title || 'Untitled'}</h3>
               <p className="text-[11px] text-slate-400 mt-0.5">
                 {isVideo ? `${fmtDuration(asset.length)} · ` : ''}{fmtSize(asset.width, asset.height)} · {fmtDate(asset.created_time)}
               </p>
             </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600">
+            <button onClick={onClose} className="relative w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white">
               <X size={16} />
             </button>
           </div>
-          <div className="flex-1 flex items-center justify-center p-4 bg-slate-50 overflow-auto">
+          <div className="flex-1 flex items-center justify-center p-4 bg-white/95 backdrop-blur-xl overflow-auto">
             {isVideo ? (
               <video src={asset.source} controls className="max-w-full max-h-[70vh] rounded-lg" />
             ) : (
@@ -58,7 +59,7 @@ const AssetCard = ({ asset, isVideo, selected, onSelect, onPreview, onDelete, vi
 
   if (viewMode === 'list') {
     return (
-      <tr className={`border-b border-slate-100 hover:bg-blue-50/30 transition-colors ${selected ? 'bg-blue-50/50' : ''}`}>
+      <tr className={`border-b border-slate-100 hover:bg-orange-50/30 transition-colors ${selected ? 'bg-gradient-to-r from-orange-50/80 to-amber-50/40 border-l-2 border-l-orange-500' : ''}`}>
         <td className="py-2.5 px-3" onClick={e => e.stopPropagation()}>
           <input type="checkbox" checked={selected} onChange={() => onSelect(asset.id || asset.hash)}
             className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500/30" />
@@ -102,7 +103,7 @@ const AssetCard = ({ asset, isVideo, selected, onSelect, onPreview, onDelete, vi
   }
 
   return (
-    <div className={`group relative bg-white rounded-xl border overflow-hidden transition-all hover:shadow-md ${selected ? 'border-blue-400 ring-2 ring-blue-100' : 'border-slate-200'}`}>
+    <div className={`group relative bg-white/80 backdrop-blur-sm rounded-xl border overflow-hidden transition-all hover:shadow-lg hover:shadow-orange-500/5 hover:-translate-y-0.5 hover:border-orange-200/60 ${selected ? 'border-orange-400 ring-2 ring-orange-100' : 'border-slate-200'}`}>
       {/* Checkbox */}
       <div className="absolute top-2 left-2 z-10" onClick={e => e.stopPropagation()}>
         <input type="checkbox" checked={selected} onChange={() => onSelect(asset.id || asset.hash)}
@@ -161,28 +162,29 @@ const CreateSetModal = ({ onClose, onSave }) => {
   };
   return (
     <>
-      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={onClose} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[420px] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="text-sm font-bold text-slate-800">New Creative Set</h3>
-          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400"><X size={15} /></button>
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 animate-[fadeIn_0.2s_ease-out]" onClick={onClose} />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[420px] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-[fadeSlideUp_0.3s_ease-out]">
+        <div className="relative flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900">
+          <div className="absolute inset-0 overflow-hidden pointer-events-none"><div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" /><div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" /></div>
+          <h3 className="relative text-sm font-bold text-white">New Creative Set</h3>
+          <button onClick={onClose} className="relative w-7 h-7 rounded-full hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white"><X size={15} /></button>
         </div>
-        <div className="px-5 py-4 space-y-3">
+        <div className="px-5 py-4 space-y-3 bg-white/95 backdrop-blur-xl">
           <div>
             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Name</label>
             <input ref={nameRef} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Q2 Product Launch" onKeyDown={e => e.key === 'Enter' && handleSave()}
-              className="w-full text-sm text-slate-700 border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-300" />
+              className="w-full text-sm text-slate-700 border border-slate-200/80 rounded-xl px-3 py-2 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 placeholder:text-slate-300" />
           </div>
           <div>
             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Description (optional)</label>
             <input value={description} onChange={e => setDescription(e.target.value)} placeholder="What is this set for?"
-              className="w-full text-sm text-slate-700 border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-300" />
+              className="w-full text-sm text-slate-700 border border-slate-200/80 rounded-xl px-3 py-2 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 placeholder:text-slate-300" />
           </div>
         </div>
         <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 text-[12px] text-slate-500 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
           <button onClick={handleSave} disabled={!name.trim() || saving}
-            className="px-5 py-2 text-[12px] text-white bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold shadow-sm disabled:opacity-40 transition-colors">
+            className="px-5 py-2 text-[12px] text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 rounded-lg font-semibold shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 disabled:opacity-40 transition-all">
             {saving ? 'Creating...' : 'Create'}
           </button>
         </div>
@@ -216,20 +218,21 @@ const BrowseForSetModal = ({ adAccountId, existingIds, onClose, onAdd }) => {
   };
   return (
     <>
-      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={onClose} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[600px] max-h-[80vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 shrink-0">
-          <h3 className="text-sm font-bold text-slate-800">Browse Creatives</h3>
-          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400"><X size={15} /></button>
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 animate-[fadeIn_0.2s_ease-out]" onClick={onClose} />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[600px] max-h-[80vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-[fadeSlideUp_0.3s_ease-out]">
+        <div className="relative flex items-center justify-between px-5 py-3 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shrink-0">
+          <div className="absolute inset-0 overflow-hidden pointer-events-none"><div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" /><div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" /></div>
+          <h3 className="relative text-sm font-bold text-white">Browse Creatives</h3>
+          <button onClick={onClose} className="relative w-7 h-7 rounded-full hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white"><X size={15} /></button>
         </div>
-        <div className="px-5 py-2 border-b border-slate-100 shrink-0">
+        <div className="px-5 py-2 border-b border-slate-100 shrink-0 bg-white/95 backdrop-blur-xl">
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-400/60" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..."
-              className="w-full pl-9 pr-3 py-2 text-[12px] rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-300" />
+              className="w-full pl-9 pr-3 py-2 text-[12px] rounded-xl border border-slate-200/80 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 placeholder:text-slate-300" />
           </div>
         </div>
-        <div className="flex-1 overflow-auto p-4">
+        <div className="flex-1 overflow-auto p-4 bg-white/95 backdrop-blur-xl">
           {loading ? <div className="flex items-center justify-center py-16"><Loader2 size={20} className="animate-spin text-slate-400" /></div>
           : filtered.length === 0 ? <p className="text-center text-sm text-slate-400 py-16">No creatives found</p>
           : (
@@ -256,7 +259,7 @@ const BrowseForSetModal = ({ adAccountId, existingIds, onClose, onAdd }) => {
         <div className="px-5 py-2.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
           <span className="text-[11px] text-slate-400">{selected.size} selected</span>
           <button onClick={handleAdd} disabled={selected.size === 0}
-            className="px-4 py-1.5 text-[11px] text-white bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold shadow-sm disabled:opacity-40 transition-colors">
+            className="px-4 py-1.5 text-[11px] text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 rounded-lg font-semibold shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 disabled:opacity-40 transition-all">
             Add Selected
           </button>
         </div>
@@ -435,30 +438,33 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
   const videoCount = videos.length;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-50/50">
+    <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-orange-50/60 via-white to-amber-50/40">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 shrink-0">
-        <div className="flex items-center justify-between px-6 py-4">
+      <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shrink-0">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none"><div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" /><div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" /></div>
+        <div className="relative flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <ImageIcon size={20} className="text-pink-500" />
+              <h1 className="text-lg font-bold text-white">
                 Asset Library
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
                 {loading ? 'Loading...' : `${imageCount} images · ${videoCount} videos${allAssets.length > visibleCount ? ` · showing ${visibleCount}` : ''}`}
               </p>
             </div>
-            <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
-              selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 font-medium">Ad Account:</span>
+              <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
+                selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => onPrefillChat?.('I want to upload new creative assets for my ad campaigns. Help me manage my images and videos.')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 transition-all shadow-sm">
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 transition-all shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50">
               <Sparkles size={13} /> Create with AI
             </button>
             <button onClick={fetchAssets} disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 border border-slate-700 transition-colors disabled:opacity-50">
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
             </button>
           </div>
@@ -514,16 +520,16 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
       )}
 
       {/* Filters */}
-      <div className="px-6 py-3 flex items-center gap-3 shrink-0 bg-white border-b border-slate-100">
+      <div className="px-6 py-3 flex items-center gap-3 shrink-0 bg-white/80 backdrop-blur-sm border-b border-slate-100">
         <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-400/60" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search assets..."
-            className="w-full pl-9 pr-3 py-2 text-[12px] rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 placeholder:text-slate-300" />
+            className="w-full pl-9 pr-3 py-2 text-[12px] rounded-xl border border-slate-200/80 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 placeholder:text-slate-300" />
         </div>
         <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden">
           {[['all', 'All'], ['images', 'Images'], ['videos', 'Videos']].map(([val, label]) => (
             <button key={val} onClick={() => setFilter(val)}
-              className={`px-3.5 py-2 text-[11px] font-medium transition-colors ${filter === val ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
+              className={`px-3.5 py-2 text-[11px] font-medium transition-colors ${filter === val ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}>
               {label}
             </button>
           ))}
@@ -563,11 +569,11 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
         </div>
         <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden">
           <button onClick={() => setViewMode('grid')}
-            className={`px-2.5 py-2 transition-colors ${viewMode === 'grid' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-50'}`}>
+            className={`px-2.5 py-2 transition-colors ${viewMode === 'grid' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-50'}`}>
             <Grid size={14} />
           </button>
           <button onClick={() => setViewMode('list')}
-            className={`px-2.5 py-2 transition-colors ${viewMode === 'list' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-50'}`}>
+            className={`px-2.5 py-2 transition-colors ${viewMode === 'list' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-50'}`}>
             <List size={14} />
           </button>
         </div>
@@ -610,7 +616,7 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
           <div className="w-[260px] shrink-0 border-r border-slate-200 overflow-auto bg-white">
             <div className="p-3">
               <button onClick={() => setShowCreateSet(true)}
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-cyan-600 bg-cyan-50 border border-cyan-200 hover:bg-cyan-100 transition-colors mb-2">
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition-all mb-2">
                 <Plus size={12} /> New Set
               </button>
             </div>
@@ -628,7 +634,7 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
                 return (
                   <button key={set.id} onClick={() => setSelectedSet(set)}
                     className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left border-b border-slate-100 transition-colors
-                      ${selectedSet?.id === set.id ? 'bg-blue-50/60 border-l-2 border-l-blue-500' : 'hover:bg-slate-50 border-l-2 border-l-transparent'}`}>
+                      ${selectedSet?.id === set.id ? 'bg-gradient-to-r from-orange-50/80 to-amber-50/40 border-l-2 border-l-orange-500' : 'hover:bg-slate-50 border-l-2 border-l-transparent'}`}>
                     <div className="w-9 h-9 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden grid grid-cols-2 shrink-0">
                       {thumbs.length > 0 ? thumbs.map((t, i) => (
                         <img key={i} src={t} alt="" className="w-full h-full object-cover" />
@@ -776,7 +782,7 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
             {hasMore && (
               <div className="flex justify-center py-4">
                 <button onClick={() => setVisibleCount(v => v + 18)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors">
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200/80 bg-white/70 backdrop-blur-sm text-xs font-medium text-slate-500 hover:border-orange-300 hover:bg-gradient-to-r hover:from-orange-50 hover:to-amber-50 transition-all">
                   Load More ({allAssets.length - visibleCount} remaining)
                 </button>
               </div>
@@ -784,7 +790,7 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
           </>
         ) : (
           <>
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/80">
@@ -818,7 +824,7 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
             {hasMore && (
               <div className="flex justify-center py-4">
                 <button onClick={() => setVisibleCount(v => v + 18)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors">
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200/80 bg-white/70 backdrop-blur-sm text-xs font-medium text-slate-500 hover:border-orange-300 hover:bg-gradient-to-r hover:from-orange-50 hover:to-amber-50 transition-all">
                   Load More ({allAssets.length - visibleCount} remaining)
                 </button>
               </div>
@@ -834,8 +840,8 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
       {/* Delete confirmation dialog */}
       {deleteTarget && (
         <>
-          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40" onClick={() => setDeleteTarget(null)} />
-          <div className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[360px] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 animate-[fadeIn_0.2s_ease-out]" onClick={() => setDeleteTarget(null)} />
+          <div className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[360px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-[fadeSlideUp_0.3s_ease-out]">
             <div className="px-5 pt-5 pb-3">
               <h3 className="text-sm font-bold text-slate-900 mb-1">
                 {deleteTarget._bulk ? `Delete ${deleteTarget.count} assets?` : `Delete "${deleteTarget.name || deleteTarget.title || 'asset'}"?`}

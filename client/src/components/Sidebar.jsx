@@ -485,9 +485,9 @@ export const Sidebar = ({
       <div className="px-3 mb-2">
         <button
           onClick={onNewChat}
-          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-medium text-slate-700 hover:text-slate-900 transition-all hover:shadow-sm"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-[13px] font-semibold text-white transition-all shadow-sm shadow-orange-500/15 hover:shadow-md hover:shadow-orange-500/25"
         >
-          <Plus size={16} className="text-slate-400" />
+          <Plus size={14} />
           New Task
         </button>
       </div>

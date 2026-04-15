@@ -63,8 +63,8 @@ export const AccountSelector = ({ token, onLogin, onLogout, selectedAccount, sel
   return (
     <div ref={ref} className="relative">
       <button onClick={() => { setOpen(v => !v); setLevel(selectedBusiness ? 'accounts' : 'business'); if (selectedBusiness) setActiveBiz(selectedBusiness); }}
-        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors
-          ${selectedAccount ? 'border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100' : 'border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100'}`}>
+        className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-[12px] font-medium transition-colors
+          ${selectedAccount ? 'border-white/20 text-white bg-white/15 hover:bg-white/25' : 'border-amber-500/40 text-amber-300 bg-amber-500/10 hover:bg-amber-500/20'}`}>
         <Building2 size={12} />
         {selectedAccount ? selectedAccount.name : 'Select Ad Account'}
         <ChevronDown size={12} />

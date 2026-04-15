@@ -412,6 +412,7 @@ export const Dashboard = ({
               selectedBusiness={selectedBusiness}
               onSelectAccount={handleAccountSelect}
               onSendToChat={handleAudienceToChat}
+              onPrefillChat={handlePrefillChat}
             />
           ) : activeView.type === 'projectDetail' ? (() => {
             const proj = projects.find(p => p.id === activeView.projectId);

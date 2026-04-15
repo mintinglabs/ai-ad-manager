@@ -35,11 +35,9 @@ const FormTemplates = ({ onCreateFromTemplate }) => (
       const Icon = t.icon;
       return (
         <button key={t.id} onClick={() => onCreateFromTemplate(t)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-orange-50 hover:border-orange-200 transition-all group">
-          <div className={`w-5 h-5 rounded-md ${t.color} flex items-center justify-center shrink-0`}>
-            <Icon size={11} />
-          </div>
-          <span className="text-[11px] font-medium text-slate-600 group-hover:text-orange-700 transition-colors">{t.name}</span>
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200/80 bg-white/70 backdrop-blur-sm hover:border-orange-300 hover:bg-gradient-to-r hover:from-orange-50 hover:to-amber-50 text-[11px] font-medium text-slate-600 hover:text-orange-700 transition-all group">
+          <Icon size={11} className="text-slate-400 group-hover:text-orange-500 transition-colors" />
+          {t.name}
         </button>
       );
     })}
@@ -132,13 +130,21 @@ const CreateFormModal = ({ pageId, onClose, onCreated }) => {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={onClose} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[520px] max-h-[85vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
-          <h3 className="text-sm font-bold text-slate-800">Create Instant Form</h3>
-          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400">
-            <X size={15} />
-          </button>
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 animate-[fadeIn_0.2s_ease-out]" onClick={onClose} />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[520px] max-h-[85vh] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-orange-500/5 border border-slate-200/60 overflow-hidden flex flex-col animate-[fadeSlideUp_0.3s_ease-out]">
+        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-5 py-4 shrink-0">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" />
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/30">
+                <FileText size={15} className="text-white" />
+              </div>
+              <h3 className="text-sm font-bold text-white">Create Instant Form</h3>
+            </div>
+            <button onClick={onClose} className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-400 hover:text-white transition-all">
+              <X size={15} />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-auto p-5 space-y-4">
@@ -235,11 +241,11 @@ const CreateFormModal = ({ pageId, onClose, onCreated }) => {
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-100 shrink-0">
+        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-100/60 shrink-0 bg-slate-50/50">
           <button onClick={onClose}
-            className="px-4 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-50">Cancel</button>
+            className="px-4 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors">Cancel</button>
           <button onClick={handleCreate} disabled={saving}
-            className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 transition-colors disabled:opacity-50">
+            className="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all disabled:opacity-50 disabled:shadow-none">
             {saving ? 'Creating...' : 'Create Form'}
           </button>
         </div>
@@ -373,21 +379,24 @@ const LeadsModal = ({ form, pageId, onClose }) => {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={onClose} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[750px] max-h-[80vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
-          <div>
-            <h3 className="text-sm font-bold text-slate-800">{form.name}</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">{leads.length} lead{leads.length !== 1 ? 's' : ''}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={exportCSV} disabled={!leads.length}
-              className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors disabled:opacity-40">
-              <Download size={12} /> Export CSV
-            </button>
-            <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400">
-              <X size={15} />
-            </button>
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 animate-[fadeIn_0.2s_ease-out]" onClick={onClose} />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[750px] max-h-[80vh] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-orange-500/5 border border-slate-200/60 overflow-hidden flex flex-col animate-[fadeSlideUp_0.3s_ease-out]">
+        <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-5 py-4 shrink-0">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" />
+          <div className="relative flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-white">{form.name}</h3>
+              <p className="text-[11px] text-slate-400 mt-0.5">{leads.length} lead{leads.length !== 1 ? 's' : ''}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={exportCSV} disabled={!leads.length}
+                className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-slate-300 hover:text-white hover:bg-white/10 border border-slate-600 rounded-lg transition-colors disabled:opacity-40">
+                <Download size={12} /> Export CSV
+              </button>
+              <button onClick={onClose} className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-400 hover:text-white transition-all">
+                <X size={15} />
+              </button>
+            </div>
           </div>
         </div>
         <div className="flex-1 overflow-auto">
@@ -466,9 +475,9 @@ const FormDetailPanel = ({ form, pageId, pageName, onClose, onArchive }) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50/50">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-gradient-to-br from-orange-50/40 via-white to-amber-50/30">
       {/* Header bar — compact */}
-      <div className="px-5 py-3 bg-white border-b border-slate-100 shrink-0">
+      <div className="px-5 py-3 bg-white/80 backdrop-blur-sm border-b border-slate-100/60 shrink-0">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
             <h2 className="text-[14px] font-bold text-slate-800 truncate">{form.name}</h2>
@@ -766,29 +775,31 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
   const archivedCount = forms.filter(f => f.status === 'ARCHIVED').length;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-50/50">
+    <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-orange-50/60 via-white to-amber-50/40">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 shrink-0">
-        <div className="flex items-center justify-between px-6 py-4">
+      <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shrink-0">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
+        </div>
+        <div className="relative flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <FileText size={20} className="text-orange-500" />
-                Instant Forms
-                {!loading && activeCount > 0 && (
-                  <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                    {activeCount} active
-                  </span>
-                )}
-              </h1>
+              <h1 className="text-lg font-extrabold text-white tracking-tight">Instant Forms</h1>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {loading ? 'Loading...' : activeCount > 0 ? `${activeCount} active · ${archivedCount} archived` : 'Capture leads from your ads'}
+              </p>
             </div>
-            <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
-              selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-semibold text-slate-400">Ad Account:</span>
+              <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
+                selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
+            </div>
             {pages.length > 0 && (
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] font-semibold text-slate-400">Page:</span>
                 <select value={selectedPage?.id || ''} onChange={e => setSelectedPage(pages.find(p => p.id === e.target.value))}
-                  className="text-[12px] font-medium text-slate-700 border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                  className="text-[12px] font-medium text-white border border-white/20 rounded-lg px-3 py-2 bg-white/15 hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-colors">
                   {pages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
@@ -796,11 +807,11 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
           </div>
           <div className="flex items-center gap-2">
             <button onClick={fetchForms} disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 border border-slate-700 transition-colors disabled:opacity-50">
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
             </button>
             <button onClick={() => onPrefillChat?.('I want to create a new lead generation form for my campaigns.')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 transition-all shadow-sm">
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 transition-all shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50">
               <Sparkles size={13} /> Create with AI
             </button>
           </div>
@@ -809,23 +820,23 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
 
 
       {/* Filters + Template chips */}
-      <div className="px-6 py-3 flex items-center justify-between shrink-0 bg-white border-b border-slate-100">
+      <div className="px-6 py-3 flex items-center justify-between shrink-0 bg-white/80 backdrop-blur-sm border-b border-slate-100">
         <div className="relative max-w-[280px] w-full">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-400/60" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search forms..."
-            className="w-full pl-9 pr-3 py-2 text-[12px] rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 placeholder:text-slate-300" />
+            className="w-full pl-9 pr-3 py-2 text-[12px] rounded-xl border border-slate-200/80 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 placeholder:text-slate-300" />
         </div>
-        <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden">
+        <div className="flex rounded-xl border border-slate-200/80 bg-white/80 backdrop-blur-sm overflow-hidden">
           {[['all', `All (${forms.length})`], ['ACTIVE', `Active (${activeCount})`], ['ARCHIVED', `Archived (${archivedCount})`]].map(([val, label]) => (
             <button key={val} onClick={() => setStatusFilter(val)}
-              className={`px-3 py-1.5 text-[10px] font-medium transition-colors ${statusFilter === val ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
+              className={`px-3 py-1.5 text-[11px] font-semibold transition-all ${statusFilter === val ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-orange-600'}`}>
               {label}
             </button>
           ))}
         </div>
       </div>
       {/* Template chips below filters */}
-      <div className="px-6 py-2.5 shrink-0 bg-white border-b border-slate-100">
+      <div className="px-6 py-2.5 shrink-0 bg-white/80 backdrop-blur-sm border-b border-slate-100">
         <FormTemplates onCreateFromTemplate={() => setShowCreate(true)} />
       </div>
 
@@ -834,7 +845,7 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
       {/* Content — master-detail layout */}
       <div className="flex-1 flex min-h-0">
         {/* Left: Form list sidebar */}
-        <div className="flex-1 min-w-0 border-r border-slate-200 overflow-auto bg-white">
+        <div className="flex-1 min-w-0 border-r border-slate-200/60 overflow-auto bg-white/80 backdrop-blur-sm">
           <div className="py-2">
             {!token || !adAccountId ? (
               <div className="flex flex-col items-center justify-center py-20 px-6">
@@ -864,8 +875,8 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
               <>
                 {filtered.map(form => (
                   <div key={form.id}
-                    className={`group w-full flex items-center gap-3 px-4 py-3 text-left border-b border-slate-100 transition-colors cursor-pointer
-                      ${selectedForm?.id === form.id ? 'bg-blue-50/60 border-l-2 border-l-blue-500' : 'hover:bg-slate-50 border-l-2 border-l-transparent'}`}
+                    className={`group w-full flex items-center gap-3 px-4 py-3 text-left border-b border-slate-100/80 transition-all duration-200 cursor-pointer
+                      ${selectedForm?.id === form.id ? 'bg-gradient-to-r from-orange-50/80 to-amber-50/40 border-l-2 border-l-orange-500' : 'hover:bg-orange-50/30 border-l-2 border-l-transparent'}`}
                     onClick={() => setSelectedForm(form)}>
                     <div className="flex-1 min-w-0">
                       <p className="text-[12px] font-semibold text-slate-800 truncate">{form.name}</p>
@@ -916,10 +927,10 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
             onArchive={() => setArchiveTarget(selectedForm)}
           />
         ) : (
-          <div className="w-[380px] shrink-0 overflow-hidden bg-slate-50/50 flex items-center justify-center">
+          <div className="w-[380px] shrink-0 overflow-hidden bg-gradient-to-br from-orange-50/40 via-white to-amber-50/30 flex items-center justify-center">
             <div className="text-center">
-              <div className="w-14 h-14 rounded-2xl bg-orange-100 flex items-center justify-center mx-auto mb-3">
-                <FileText size={24} className="text-orange-500" />
+              <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-orange-500/20">
+                <FileText size={24} className="text-white" />
               </div>
               <p className="text-[14px] font-semibold text-slate-700 mb-1">Select a form to preview</p>
               <p className="text-[12px] text-slate-400">Choose a form from the left to see its preview and lead data</p>
@@ -934,8 +945,8 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
       {/* Archive confirmation */}
       {archiveTarget && (
         <>
-          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40" onClick={() => setArchiveTarget(null)} />
-          <div className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[380px] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 animate-[fadeIn_0.2s_ease-out]" onClick={() => setArchiveTarget(null)} />
+          <div className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[380px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-orange-500/5 border border-slate-200/60 overflow-hidden animate-[fadeSlideUp_0.3s_ease-out]">
             <div className="px-5 pt-5 pb-3">
               <div className="flex items-center gap-2 mb-2">
                 <AlertTriangle size={16} className="text-amber-500" />
@@ -943,11 +954,11 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
               </div>
               <p className="text-xs text-slate-500">Archived forms can no longer collect new leads. Existing leads are kept. This cannot be undone via the API.</p>
             </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-100/60 bg-slate-50/50">
               <button onClick={() => setArchiveTarget(null)}
-                className="px-4 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-50">Cancel</button>
+                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors">Cancel</button>
               <button onClick={handleArchive} disabled={archiving}
-                className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 transition-colors disabled:opacity-50">
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 shadow-lg shadow-amber-500/25 transition-all disabled:opacity-50 disabled:shadow-none">
                 {archiving ? 'Archiving...' : 'Archive'}
               </button>
             </div>

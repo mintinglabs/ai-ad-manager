@@ -158,41 +158,44 @@ const SkillDetailView = ({ skill, onClose, onTrySkill, onDownload }) => {
   };
 
   const panelClass = expanded
-    ? 'fixed inset-0 z-50 bg-white flex flex-col'
-    : 'fixed inset-y-0 right-0 z-50 w-[720px] bg-white shadow-2xl border-l border-slate-200 flex flex-col';
+    ? 'fixed inset-0 z-50 bg-white/95 backdrop-blur-xl flex flex-col animate-[fadeSlideUp_0.3s_ease-out]'
+    : 'fixed inset-y-0 right-0 z-50 w-[720px] bg-white/95 backdrop-blur-xl shadow-2xl border-l border-slate-200 flex flex-col animate-[fadeSlideUp_0.3s_ease-out]';
 
   return (
     <>
-      {!expanded && <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={onClose} />}
+      {!expanded && <div className="fixed inset-0 bg-black/40 backdrop-blur-md animate-[fadeIn_0.2s_ease-out] z-40" onClick={onClose} />}
       <div className={panelClass}>
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-white shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
-              <Sparkles size={15} className="text-indigo-500" />
+        <div className="relative flex items-center justify-between px-5 py-3.5 border-b border-slate-700 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shrink-0">
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" />
+          </div>
+          <div className="relative flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center shrink-0">
+              <Sparkles size={15} className="text-orange-400" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-[13px] font-bold text-slate-800 truncate">{fileName}</h3>
+              <h3 className="text-[13px] font-bold text-white truncate">{fileName}</h3>
               <p className="text-[10px] text-slate-400">Skill</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="relative flex items-center gap-1.5">
             {onTrySkill && (
               <button onClick={() => onTrySkill(skill)}
-                className="px-3.5 py-1.5 rounded-lg text-[11px] font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-colors">
+                className="px-3.5 py-1.5 rounded-lg text-[11px] font-semibold text-slate-300 hover:text-white hover:bg-white/10 border border-slate-700 transition-colors">
                 Try it out
               </button>
             )}
             <button onClick={() => onDownload(skill)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" title="Download">
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors" title="Download">
               <Download size={15} />
             </button>
             <button onClick={() => setExpanded(prev => !prev)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" title={expanded ? 'Collapse' : 'Expand'}>
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors" title={expanded ? 'Collapse' : 'Expand'}>
               {expanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
             </button>
             <button onClick={onClose}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
               <X size={15} />
             </button>
           </div>
@@ -257,7 +260,7 @@ const SkillCard = ({ skill, isActive, onToggle, onMenuAction, onView }) => {
   };
 
   return (
-    <div onClick={() => onView?.(skill)} className="relative bg-white rounded-2xl border border-slate-200 p-5 flex flex-col gap-3 group hover:border-indigo-200 hover:shadow-md transition-all cursor-pointer">
+    <div onClick={() => onView?.(skill)} className="relative bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-5 flex flex-col gap-3 group hover:border-orange-200 hover:shadow-md transition-all cursor-pointer">
       {/* Top row: name + toggle */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -395,8 +398,8 @@ const AddDropdown = ({ open, onClose, onSelect }) => {
 
 // ── Delete Confirm ─────────────────────────────────────────────────────────
 const DeleteConfirm = ({ skill, onConfirm, onCancel }) => (
-  <div className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-sm flex items-center justify-center p-4" onClick={onCancel}>
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+  <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-md animate-[fadeIn_0.2s_ease-out] flex items-center justify-center p-4" onClick={onCancel}>
+    <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-sm animate-[fadeSlideUp_0.3s_ease-out]" onClick={e => e.stopPropagation()}>
       <div className="px-5 pt-5 pb-3">
         <h3 className="text-sm font-bold text-slate-900 mb-1">Delete "{skill.name}"?</h3>
         <p className="text-xs text-slate-500">This skill will be permanently deleted. This cannot be undone.</p>
@@ -572,7 +575,7 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
     });
 
   return (
-    <div className="w-full h-full bg-gradient-to-br from-slate-50 via-white to-indigo-50/20 flex flex-col">
+    <div className="w-full h-full bg-gradient-to-br from-orange-50/60 via-white to-amber-50/40 flex flex-col">
       {/* Hidden file input */}
       <input ref={fileInputRef} type="file" accept=".skill,.md,.zip,.txt" onChange={handleFileUpload} className="hidden" />
 
@@ -585,69 +588,74 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
       )}
 
       {/* Header */}
-      <div className="px-8 pt-8 pb-6 shrink-0">
-        <div className="flex items-center gap-3 mb-1">
-          <Sparkles size={24} className="text-indigo-500 shrink-0" />
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Skills</h1>
-            <p className="text-sm text-slate-400 mt-0.5">Prepackaged and repeatable best practices & tools for your agents</p>
-          </div>
+      <div className="relative px-8 pt-8 pb-6 shrink-0 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
         </div>
-
-        {/* Search + Add button */}
-        <div className="flex items-center gap-3 mt-5">
-          {/* Search bar */}
-          <div className="flex-1 relative">
-            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search Skill"
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-slate-700 placeholder-slate-400 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 transition-colors shadow-sm"
-            />
+        <div className="relative">
+          <div className="flex items-center gap-3 mb-1">
+            <div>
+              <h1 className="text-2xl font-bold text-white">Skills</h1>
+              <p className="text-sm text-slate-400 mt-0.5">Prepackaged and repeatable best practices & tools for your agents</p>
+            </div>
           </div>
 
-          {/* + Add button */}
-          <div className="relative">
-            <button
-              onClick={() => setAddDropdownOpen(!addDropdownOpen)}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-medium text-slate-600 hover:text-slate-800 hover:border-slate-300 transition-colors shadow-sm"
-            >
-              <Plus size={14} />
-              Add
-            </button>
-            <AddDropdown
-              open={addDropdownOpen}
-              onClose={() => setAddDropdownOpen(false)}
-              onSelect={handleAddSelect}
-            />
+          {/* Search + Add button */}
+          <div className="flex items-center gap-3 mt-5">
+            {/* Search bar */}
+            <div className="flex-1 relative">
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search Skill"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border-slate-200/80 bg-white/80 backdrop-blur-sm border text-sm text-slate-700 placeholder-slate-400 outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100 transition-colors shadow-sm"
+              />
+            </div>
+
+            {/* + Add button */}
+            <div className="relative">
+              <button
+                onClick={() => setAddDropdownOpen(!addDropdownOpen)}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-sm font-medium text-white shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 transition-all"
+              >
+                <Plus size={14} />
+                Add
+              </button>
+              <AddDropdown
+                open={addDropdownOpen}
+                onClose={() => setAddDropdownOpen(false)}
+                onSelect={handleAddSelect}
+              />
+            </div>
           </div>
+
+          {/* Filter tabs */}
+          <div className="flex items-center gap-1 mt-4 bg-white/10 rounded-lg p-0.5">
+            {[
+              { value: 'all', label: 'All Skills' },
+              { value: 'official', label: 'Official Skills' },
+              { value: 'private', label: 'Custom Skills' },
+            ].map(tab => (
+              <button key={tab.value} onClick={() => setFilterType(tab.value)}
+                className={`flex-1 px-3 py-2 rounded-md text-[12px] font-medium transition-colors
+                  ${filterType === tab.value ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm' : 'text-slate-300 hover:text-white'}`}>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* GitHub import bar */}
+          {showGitHubImport && (
+            <div className="mt-4">
+              <GitHubImportBar
+                onClose={() => setShowGitHubImport(false)}
+                onImport={handleGitHubImport}
+              />
+            </div>
+          )}
         </div>
-
-        {/* Filter tabs */}
-        <div className="flex items-center gap-1 mt-4 bg-slate-100 rounded-lg p-0.5">
-          {[
-            { value: 'all', label: 'All Skills' },
-            { value: 'official', label: 'Official Skills' },
-            { value: 'private', label: 'Custom Skills' },
-          ].map(tab => (
-            <button key={tab.value} onClick={() => setFilterType(tab.value)}
-              className={`flex-1 px-3 py-2 rounded-md text-[12px] font-medium transition-colors
-                ${filterType === tab.value ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* GitHub import bar */}
-        {showGitHubImport && (
-          <div className="mt-4">
-            <GitHubImportBar
-              onClose={() => setShowGitHubImport(false)}
-              onImport={handleGitHubImport}
-            />
-          </div>
-        )}
       </div>
 
       {/* Skill Cards Grid */}

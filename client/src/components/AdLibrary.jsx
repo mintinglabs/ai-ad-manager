@@ -59,12 +59,12 @@ const AdPreviewModal = ({ ad, onClose }) => {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 animate-[fadeIn_0.2s_ease-out]" onClick={onClose} />
       <div className="fixed inset-6 z-50 flex items-center justify-center">
-        <div className="relative bg-white rounded-2xl shadow-2xl overflow-hidden max-w-4xl w-full max-h-full flex flex-col">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 shrink-0">
+        <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden max-w-4xl w-full max-h-full flex flex-col animate-[fadeSlideUp_0.3s_ease-out]">
+          <div className="flex items-center justify-between px-5 py-3 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shrink-0">
             <div className="min-w-0 flex-1">
-              <h3 className="text-sm font-bold text-slate-800 truncate">{ad.name || 'Untitled Ad'}</h3>
+              <h3 className="text-sm font-bold text-white truncate">{ad.name || 'Untitled Ad'}</h3>
               <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400">
                 {ad.campaign?.name && <span className="flex items-center gap-1"><Megaphone size={10} /> {ad.campaign.name}</span>}
                 {ad.adset?.name && <span className="flex items-center gap-1"><Layers size={10} /> {ad.adset.name}</span>}
@@ -72,10 +72,10 @@ const AdPreviewModal = ({ ad, onClose }) => {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <select value={format} onChange={e => setFormat(e.target.value)}
-                className="text-[11px] font-medium px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                className="text-[11px] font-medium px-2 py-1.5 rounded-lg border border-slate-700 bg-white/10 text-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500/20">
                 {AD_FORMATS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
               </select>
-              <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400">
+              <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-slate-400">
                 <X size={16} />
               </button>
             </div>
@@ -135,7 +135,7 @@ const AdCard = ({ ad, onPreview }) => {
   const bodyText = expanded ? displayBody : displayBody.slice(0, 200);
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-all w-full">
+    <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 overflow-hidden hover:shadow-md hover:shadow-orange-500/5 transition-all w-full">
       {/* Status bar — like FB Ad Library header */}
       <div className="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between">
         <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold ${statusColor.text}`}>
@@ -351,26 +351,27 @@ export const AdLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAccou
   const activeCount = ads.filter(a => (a.effective_status || '').toUpperCase() === 'ACTIVE').length;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-50/50">
+    <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-orange-50/60 via-white to-amber-50/40">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 shrink-0">
-        <div className="flex items-center justify-between px-6 py-4">
+      <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shrink-0">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none"><div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" /><div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" /></div>
+        <div className="relative flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Palette size={20} className="text-orange-500" />
+              <h1 className="text-lg font-bold text-white flex items-center gap-2">
                 Ad Library
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
                 {loading ? 'Loading...' : `${ads.length} ads · ${activeCount} active`}
               </p>
             </div>
+            <span className="text-xs text-slate-400 font-medium">Ad Account:</span>
             <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
               selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => fetchAds()} disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 border border-slate-700 transition-colors disabled:opacity-50">
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
             </button>
           </div>
@@ -378,16 +379,16 @@ export const AdLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAccou
       </div>
 
       {/* Filters */}
-      <div className="px-6 py-3 flex items-center gap-3 shrink-0 bg-white border-b border-slate-100 flex-wrap">
+      <div className="px-6 py-3 flex items-center gap-3 shrink-0 bg-white/80 backdrop-blur-sm border-b border-slate-100 flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search ads, campaigns, ad sets..."
-            className="w-full pl-9 pr-3 py-2 text-[12px] rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 placeholder:text-slate-300" />
+            className="w-full pl-9 pr-3 py-2 text-[12px] rounded-xl border-slate-200/80 bg-white/80 backdrop-blur-sm border focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 placeholder:text-slate-300" />
         </div>
         <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden">
           {[['all', 'All'], ['ACTIVE', 'Active'], ['PAUSED', 'Paused']].map(([val, label]) => (
             <button key={val} onClick={() => setStatusFilter(val)}
-              className={`px-3.5 py-2 text-[11px] font-medium transition-colors ${statusFilter === val ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
+              className={`px-3.5 py-2 text-[11px] font-medium transition-colors ${statusFilter === val ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}>
               {label}
             </button>
           ))}

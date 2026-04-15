@@ -82,17 +82,17 @@ const WriteModal = ({ item, onClose, onSave }) => {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={onClose} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[560px] max-h-[85vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
-          <h3 className="text-sm font-bold text-slate-800">{item?.id ? 'Edit Item' : 'Add Brand Guidelines'}</h3>
-          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400"><X size={15} /></button>
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 animate-[fadeIn_0.2s_ease-out]" onClick={onClose} />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[560px] max-h-[85vh] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-[fadeSlideUp_0.3s_ease-out]">
+        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shrink-0">
+          <h3 className="text-sm font-bold text-white">{item?.id ? 'Edit Item' : 'Add Brand Guidelines'}</h3>
+          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-white/10 flex items-center justify-center text-slate-400"><X size={15} /></button>
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           <div>
             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Name</label>
             <input ref={nameRef} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. TopGlow Brand Voice"
-              className="w-full text-sm text-slate-700 border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 placeholder:text-slate-300" />
+              className="w-full text-sm text-slate-700 border border-slate-200/80 rounded-xl px-3 py-2.5 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 placeholder:text-slate-300" />
           </div>
           <div>
             <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Type</label>
@@ -115,7 +115,7 @@ const WriteModal = ({ item, onClose, onSave }) => {
         <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2 shrink-0">
           <button onClick={onClose} className="px-4 py-2 text-[12px] text-slate-500 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
           <button onClick={handleSave} disabled={!name.trim() || !content.trim() || saving}
-            className="px-5 py-2 text-[12px] text-white bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold shadow-sm disabled:opacity-40 transition-colors">
+            className="px-5 py-2 text-[12px] text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:brightness-110 rounded-lg font-semibold shadow-lg shadow-orange-500/30 disabled:opacity-40 transition-all">
             {saving ? 'Saving...' : item?.id ? 'Update' : 'Save'}
           </button>
         </div>
@@ -161,14 +161,14 @@ const CrawlUrlModal = ({ onClose, onSave, crawlUrl }) => {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={onClose} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[560px] max-h-[85vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 animate-[fadeIn_0.2s_ease-out]" onClick={onClose} />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[560px] max-h-[85vh] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-[fadeSlideUp_0.3s_ease-out]">
+        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shrink-0">
           <div className="flex items-center gap-2">
-            <Globe size={16} className="text-amber-500" />
-            <h3 className="text-sm font-bold text-slate-800">Crawl Website</h3>
+            <Globe size={16} className="text-amber-400" />
+            <h3 className="text-sm font-bold text-white">Crawl Website</h3>
           </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400"><X size={15} /></button>
+          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-white/10 flex items-center justify-center text-slate-400"><X size={15} /></button>
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           <div className="flex gap-2">
@@ -220,7 +220,7 @@ const CrawlUrlModal = ({ onClose, onSave, crawlUrl }) => {
           <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2 shrink-0">
             <button onClick={onClose} className="px-4 py-2 text-[12px] text-slate-500 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
             <button onClick={handleSave} disabled={saving}
-              className="px-5 py-2 text-[12px] text-white bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold shadow-sm disabled:opacity-40 transition-colors">
+              className="px-5 py-2 text-[12px] text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:brightness-110 rounded-lg font-semibold shadow-lg shadow-orange-500/30 disabled:opacity-40 transition-all">
               {saving ? 'Saving...' : 'Save to Brand Library'}
             </button>
           </div>
@@ -276,14 +276,14 @@ const CrawlSocialModal = ({ onClose, onSave, crawlSocial, token }) => {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={onClose} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[560px] max-h-[85vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 animate-[fadeIn_0.2s_ease-out]" onClick={onClose} />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[560px] max-h-[85vh] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-[fadeSlideUp_0.3s_ease-out]">
+        <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shrink-0">
           <div className="flex items-center gap-2">
-            <Users size={16} className="text-violet-500" />
-            <h3 className="text-sm font-bold text-slate-800">Crawl Social Profile</h3>
+            <Users size={16} className="text-violet-400" />
+            <h3 className="text-sm font-bold text-white">Crawl Social Profile</h3>
           </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400"><X size={15} /></button>
+          <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-white/10 flex items-center justify-center text-slate-400"><X size={15} /></button>
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {loadingPages ? (
@@ -325,7 +325,7 @@ const CrawlSocialModal = ({ onClose, onSave, crawlSocial, token }) => {
           <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2 shrink-0">
             <button onClick={onClose} className="px-4 py-2 text-[12px] text-slate-500 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
             <button onClick={handleSave} disabled={saving}
-              className="px-5 py-2 text-[12px] text-white bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold shadow-sm disabled:opacity-40 transition-colors">
+              className="px-5 py-2 text-[12px] text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:brightness-110 rounded-lg font-semibold shadow-lg shadow-orange-500/30 disabled:opacity-40 transition-all">
               {saving ? 'Saving...' : 'Save to Brand Library'}
             </button>
           </div>
@@ -354,7 +354,7 @@ const ItemDetailPanel = ({ item, onClose, onUpdate, onDelete, onToggle }) => {
   const cfg = ITEM_TYPES[item.type] || ITEM_TYPES.guidelines;
 
   return (
-    <div className="flex-1 overflow-auto bg-slate-50/50 p-6">
+    <div className="flex-1 overflow-auto bg-gradient-to-br from-orange-50/60 via-white to-amber-50/40 p-6">
       {/* Header */}
       <div className="flex items-start justify-between mb-5">
         <div>
@@ -372,7 +372,7 @@ const ItemDetailPanel = ({ item, onClose, onUpdate, onDelete, onToggle }) => {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => onToggle(item.id, !item.enabled)}
-            className={`relative w-10 h-[22px] rounded-full transition-colors duration-200 ${item.enabled ? 'bg-blue-500' : 'bg-slate-200'}`}>
+            className={`relative w-10 h-[22px] rounded-full transition-colors duration-200 ${item.enabled ? 'bg-orange-500' : 'bg-slate-200'}`}>
             <span className={`absolute top-[3px] left-[3px] w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${item.enabled ? 'translate-x-[18px]' : ''}`} />
           </button>
           <button onClick={() => onDelete(item.id)}
@@ -388,7 +388,7 @@ const ItemDetailPanel = ({ item, onClose, onUpdate, onDelete, onToggle }) => {
 
       {/* Color swatches */}
       {item.metadata?.colors?.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 p-4 mb-4">
           <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Brand Colors</h3>
           <div className="flex gap-2">
             {item.metadata.colors.map((c, i) => (
@@ -402,7 +402,7 @@ const ItemDetailPanel = ({ item, onClose, onUpdate, onDelete, onToggle }) => {
       )}
 
       {/* Content */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
           <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Content</h3>
           <button onClick={() => editing ? handleSave() : setEditing(true)}
@@ -426,7 +426,7 @@ const ItemDetailPanel = ({ item, onClose, onUpdate, onDelete, onToggle }) => {
 };
 
 // ── Main Component ──
-export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onSendToChat }) => {
+export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onSendToChat, onPrefillChat }) => {
   const { items, loading, error, enabledCount, fetchItems, createItem, updateItem, deleteItem, toggleItem, crawlUrl, crawlSocial } = useBrandLibrary(adAccountId);
   const [showAskAI, setShowAskAI] = useState(false);
   const [search, setSearch] = useState('');
@@ -477,20 +477,20 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-50/50">
+    <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-orange-50/60 via-white to-amber-50/40">
       <input ref={fileRef} type="file" accept=".txt,.md,.pdf,.doc,.docx" onChange={handleFileUpload} className="hidden" />
 
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 shrink-0">
-        <div className="flex items-center justify-between px-6 py-4">
+      <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shrink-0">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none"><div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" /><div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" /></div>
+        <div className="relative flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <BookMarked size={20} className="text-blue-500" />
+              <h1 className="text-lg font-bold text-white flex items-center gap-2">
                 Brand Library
                 {enabledCount > 0 && (
-                  <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     {enabledCount} active in AI memory
                   </span>
                 )}
@@ -503,16 +503,19 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
               selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
           </div>
           <div className="flex items-center gap-2">
-            <AskAIButton onClick={() => setShowAskAI(true)} />
+            <button onClick={() => onPrefillChat?.('Help me set up my brand library — add brand voice, target audience, and key messaging guidelines.')}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 transition-all shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50">
+              <Sparkles size={13} /> Create with AI
+            </button>
             <div className="relative">
               <button onClick={() => setAddOpen(!addOpen)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-500 transition-colors shadow-sm">
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:brightness-110 transition-all shadow-lg shadow-orange-500/30">
                 <Plus size={13} /> Add
               </button>
               <AddDropdown open={addOpen} onClose={() => setAddOpen(false)} onSelect={handleAddSelect} />
             </div>
             <button onClick={fetchItems} disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 border border-slate-700 transition-colors disabled:opacity-50">
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
             </button>
           </div>
@@ -524,7 +527,7 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
         <div className="relative max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search brand items..."
-            className="w-full pl-9 pr-3 py-2 text-[12px] rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 placeholder:text-slate-300" />
+            className="w-full pl-9 pr-3 py-2 text-[12px] rounded-xl border border-slate-200/80 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 placeholder:text-slate-300" />
         </div>
       </div>
 
@@ -533,7 +536,7 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
       {/* Content — master-detail */}
       <div className="flex-1 flex min-h-0">
         {/* Left: Item list */}
-        <div className="w-[280px] shrink-0 border-r border-slate-200 overflow-auto bg-white">
+        <div className="w-[280px] shrink-0 border-r border-slate-200 overflow-auto bg-white/80 backdrop-blur-sm">
           {loading && items.length === 0 ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 size={24} className="animate-spin text-slate-400" />
@@ -550,7 +553,7 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
             filtered.map(item => (
               <div key={item.id}
                 className={`flex items-center gap-3 px-4 py-3 border-b border-slate-100 transition-colors cursor-pointer
-                  ${selectedItem?.id === item.id ? 'bg-blue-50/60 border-l-2 border-l-blue-500' : 'hover:bg-slate-50 border-l-2 border-l-transparent'}`}>
+                  ${selectedItem?.id === item.id ? 'bg-orange-50/60 border-l-2 border-l-orange-500' : 'hover:bg-slate-50 border-l-2 border-l-transparent'}`}>
                 <div className="flex-1 min-w-0" onClick={() => setSelectedItem(item)}>
                   <p className={`text-[12px] font-semibold truncate ${item.enabled ? 'text-slate-800' : 'text-slate-400'}`}>{item.name}</p>
                   <div className="flex items-center gap-2 mt-1">
@@ -581,7 +584,7 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
             onToggle={async (id, enabled) => { await toggleItem(id, enabled); setSelectedItem(prev => ({ ...prev, enabled })); }}
           />
         ) : (
-          <div className="flex-1 flex items-center justify-center bg-slate-50/50">
+          <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-orange-50/60 via-white to-amber-50/40">
             <div className="text-center max-w-xs">
               <BookMarked size={40} className="text-slate-200 mx-auto mb-3" />
               <p className="text-sm font-medium text-slate-500 mb-1">Brand Long-Term Memory</p>
@@ -598,7 +601,6 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
       {editingItem && <WriteModal item={editingItem} onClose={() => setEditingItem(null)} onSave={(data) => updateItem(editingItem.id, data)} />}
       {showCrawlUrl && <CrawlUrlModal onClose={() => setShowCrawlUrl(false)} onSave={createItem} crawlUrl={crawlUrl} />}
       {showCrawlSocial && <CrawlSocialModal onClose={() => setShowCrawlSocial(false)} onSave={createItem} crawlSocial={crawlSocial} token={token} />}
-      {showAskAI && <AskAIPopup onSubmit={onSendToChat} onClose={() => setShowAskAI(false)} context="Brand Library" />}
     </div>
   );
 };

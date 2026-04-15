@@ -75,7 +75,7 @@ const PixelCard = ({ pixel, expanded, onToggle, events, diagnostics, eventsLoadi
   const totalEvents = events?.reduce((sum, e) => sum + (Number(e.count ?? e.value ?? 0)), 0) || 0;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-all">
+    <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-all">
       <button onClick={onToggle} className="w-full px-5 py-4 flex items-start justify-between text-left">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
@@ -208,7 +208,7 @@ const PixelCard = ({ pixel, expanded, onToggle, events, diagnostics, eventsLoadi
 
 // ── Custom conversion card ──
 const ConversionCard = ({ conversion, onDelete }) => (
-  <div className="bg-white rounded-xl border border-slate-200 px-5 py-4 hover:shadow-md transition-all">
+  <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 px-5 py-4 hover:shadow-md transition-all">
     <div className="flex items-start justify-between gap-3">
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">
@@ -363,39 +363,40 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
   const currentData = activeTab === 'pixels' ? pixels : conversions;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-50/50">
+    <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-orange-50/60 via-white to-amber-50/40">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 shrink-0">
-        <div className="flex items-center justify-between px-6 py-4">
+      <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shrink-0">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none"><div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" /><div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" /></div>
+        <div className="relative flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Activity size={20} className="text-cyan-500" />
+              <h1 className="text-lg font-bold text-white">
                 Events Manager
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
                 {loading ? 'Loading...' : `${aggregatedEvents.length} events · ${pixels.length} pixels · ${conversions.length} conversions`}
               </p>
             </div>
+            <span className="text-xs text-slate-400 font-medium">Ad Account:</span>
             <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
               selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
           </div>
           <div className="flex items-center gap-2">
             <button onClick={handleRefresh} disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 border border-slate-700 transition-colors disabled:opacity-50">
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
             </button>
             <button onClick={() => onPrefillChat?.('Help me set up tracking for my website. I need to configure my Meta Pixel and Conversions API.')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 transition-all shadow-sm">
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 transition-all shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50">
               <Sparkles size={13} /> Create with AI
             </button>
           </div>
         </div>
         {/* Tabs */}
-        <div className="flex items-center gap-0 px-6">
+        <div className="relative flex items-center gap-1 px-6 pb-2">
           {[['events', `Events (${aggregatedEvents.length})`], ['pixels', `Pixels (${pixels.length})`], ['conversions', `Custom Conversions (${conversions.length})`]].map(([tab, label]) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 text-[12px] font-semibold border-b-2 transition-colors ${activeTab === tab ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>
+              className={`px-4 py-2 text-[12px] font-semibold rounded-lg transition-colors ${activeTab === tab ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}>
               {label}
             </button>
           ))}
@@ -438,7 +439,7 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
               </div>
 
               {/* Events table */}
-              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 overflow-hidden">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50/80">
@@ -532,13 +533,13 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
       {/* Delete confirmation */}
       {deleteConfirm && (
         <>
-          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40" onClick={() => setDeleteConfirm(null)} />
-          <div className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[360px] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
-            <div className="px-5 pt-5 pb-3">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 animate-[fadeIn_0.2s_ease-out]" onClick={() => setDeleteConfirm(null)} />
+          <div className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[360px] rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-[fadeSlideUp_0.3s_ease-out]">
+            <div className="px-5 pt-5 pb-3 bg-white/95 backdrop-blur-xl">
               <h3 className="text-sm font-bold text-slate-900 mb-1">Delete this custom conversion?</h3>
               <p className="text-xs text-slate-500">This cannot be undone.</p>
             </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2 px-5 py-3 bg-slate-50/50 border-t border-slate-100">
               <button onClick={() => setDeleteConfirm(null)}
                 className="px-4 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-50">Cancel</button>
               <button onClick={handleDeleteConversion}

@@ -6,8 +6,8 @@ import { useAdAccounts } from '../hooks/useAdAccounts.js';
 
 // ── Confirm Dialog ──────────────────────────────────────────────────────────
 const ConfirmDialog = ({ title, message, details, confirmLabel, confirmColor = 'blue', onConfirm, onCancel }) => (
-  <div className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-sm flex items-center justify-center p-4" onClick={onCancel}>
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+  <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-md flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]" onClick={onCancel}>
+    <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-sm animate-[fadeSlideUp_0.3s_ease-out]" onClick={e => e.stopPropagation()}>
       <div className="px-5 pt-5 pb-3">
         <h3 className="text-sm font-bold text-slate-900 mb-1">{title}</h3>
         <p className="text-xs text-slate-500">{message}</p>
@@ -918,11 +918,12 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
   const simpleSourceLabel = SOURCE_LIST.find(s => s.id === tab)?.label || tab;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 shrink-0">
-          <h2 className="text-base font-bold text-slate-900">Create Custom Audience</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-md flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]" onClick={onClose}>
+      <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col animate-[fadeSlideUp_0.3s_ease-out]" onClick={e => e.stopPropagation()}>
+        <div className="relative flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-t-2xl shrink-0 overflow-hidden">
+          <div className="absolute inset-0 overflow-hidden pointer-events-none"><div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" /><div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" /></div>
+          <h2 className="relative text-base font-bold text-white">Create Custom Audience</h2>
+          <button onClick={onClose} className="relative text-slate-400 hover:text-white"><X size={18} /></button>
         </div>
 
         <div className="flex flex-1 overflow-hidden">
@@ -932,8 +933,8 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
             {YOUR_SOURCES.map(s => (
               <button key={s.id} onClick={() => !s.developing && setTab(s.id)} disabled={s.developing}
                 className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs text-left transition-colors
-                  ${s.developing ? 'text-slate-300 cursor-not-allowed' : tab === s.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
-                <s.icon size={14} className={s.developing ? 'text-slate-300' : tab === s.id ? 'text-blue-500' : 'text-slate-400'} />
+                  ${s.developing ? 'text-slate-300 cursor-not-allowed' : tab === s.id ? 'bg-orange-50 text-orange-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
+                <s.icon size={14} className={s.developing ? 'text-slate-300' : tab === s.id ? 'text-orange-500' : 'text-slate-400'} />
                 {s.label}
                 {s.developing && <span className="ml-auto text-[9px] font-medium text-slate-300 bg-slate-50 px-1.5 py-0.5 rounded">Soon</span>}
               </button>
@@ -942,8 +943,8 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
             {META_SOURCES.map(s => (
               <button key={s.id} onClick={() => !s.developing && setTab(s.id)} disabled={s.developing}
                 className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs text-left transition-colors
-                  ${s.developing ? 'text-slate-300 cursor-not-allowed' : tab === s.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
-                <s.icon size={14} className={s.developing ? 'text-slate-300' : tab === s.id ? 'text-blue-500' : 'text-slate-400'} />
+                  ${s.developing ? 'text-slate-300 cursor-not-allowed' : tab === s.id ? 'bg-orange-50 text-orange-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
+                <s.icon size={14} className={s.developing ? 'text-slate-300' : tab === s.id ? 'text-orange-500' : 'text-slate-400'} />
                 {s.label}
                 {s.developing && <span className="ml-auto text-[9px] font-medium text-slate-300 bg-slate-50 px-1.5 py-0.5 rounded">Soon</span>}
               </button>
@@ -952,8 +953,8 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
               {OTHER_SOURCES.map(s => (
                 <button key={s.id} onClick={() => !s.developing && setTab(s.id)} disabled={s.developing}
                   className={`w-full flex items-center gap-2.5 px-4 py-2 text-xs text-left transition-colors
-                    ${s.developing ? 'text-slate-300 cursor-not-allowed' : tab === s.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
-                  <s.icon size={14} className={s.developing ? 'text-slate-300' : tab === s.id ? 'text-blue-500' : 'text-slate-400'} />
+                    ${s.developing ? 'text-slate-300 cursor-not-allowed' : tab === s.id ? 'bg-orange-50 text-orange-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
+                  <s.icon size={14} className={s.developing ? 'text-slate-300' : tab === s.id ? 'text-orange-500' : 'text-slate-400'} />
                   {s.label}
                   {s.developing && <span className="ml-auto text-[9px] font-medium text-slate-300 bg-slate-50 px-1.5 py-0.5 rounded">Soon</span>}
                 </button>
@@ -1592,7 +1593,7 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
             <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-50">Cancel</button>
             <button onClick={handleCreate} disabled={!!validationError}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors
-                ${validationError ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500'}`}>
+                ${validationError ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/30'}`}>
               Create via AI Agent
             </button>
           </div>
@@ -1915,15 +1916,15 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack, token, onLo
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-50/50">
+    <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-orange-50/60 via-white to-amber-50/40">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 shrink-0">
+      <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shrink-0">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none"><div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" /><div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" /></div>
         {/* Top row: title + account selector + actions */}
-        <div className="flex items-center justify-between px-6 py-4">
+        <div className="relative flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Users size={20} className="text-blue-500" />
+              <h1 className="text-lg font-bold text-white flex items-center gap-2">
                 Audiences
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
@@ -1931,6 +1932,7 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack, token, onLo
               </p>
             </div>
             {/* Account selector */}
+            <span className="text-xs text-slate-400">Ad Account:</span>
             <AccountSelector
               token={token}
               onLogin={onLogin}
@@ -1942,13 +1944,13 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack, token, onLo
           </div>
           <div className="flex items-center gap-2">
             <button onClick={fetchAudiences} disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 border border-slate-700 transition-colors disabled:opacity-50">
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
             </button>
             {/* Create Audience dropdown */}
             <div className="relative" ref={createMenuRef}>
               <button onClick={() => setShowCreateMenu(v => !v)} disabled={!adAccountId}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-500 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 transition-colors shadow-lg shadow-orange-500/30 disabled:opacity-50 disabled:cursor-not-allowed">
                 Create Audience <ChevronDown size={12} />
               </button>
               {showCreateMenu && (
@@ -1972,20 +1974,20 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack, token, onLo
         </div>
 
         {/* Platform tabs */}
-        <div className="flex items-center gap-1 px-6 pb-0">
+        <div className="relative flex items-center gap-1 px-6 pb-0">
           <button onClick={() => setPlatform('meta')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${platform === 'meta' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${platform === 'meta' ? 'border-orange-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-300'}`}>
             <MetaIcon /> Meta Ads
           </button>
           <button onClick={() => setPlatform('google')} disabled
-            className="flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 border-transparent text-slate-300 cursor-not-allowed">
+            className="flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 border-transparent text-slate-500 cursor-not-allowed">
             <GoogleIcon /> Google Ads
-            <span className="text-[9px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded-full font-semibold">Soon</span>
+            <span className="text-[9px] bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded-full font-semibold">Soon</span>
           </button>
           <button onClick={() => setPlatform('tiktok')} disabled
-            className="flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 border-transparent text-slate-300 cursor-not-allowed">
+            className="flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 border-transparent text-slate-500 cursor-not-allowed">
             <TikTokIcon /> TikTok Ads
-            <span className="text-[9px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded-full font-semibold">Soon</span>
+            <span className="text-[9px] bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded-full font-semibold">Soon</span>
           </button>
         </div>
 
@@ -1993,25 +1995,25 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack, token, onLo
 
         {/* Search + Filter row */}
         {audiences.length > 0 && (
-          <div className="px-6 pb-3 flex items-center gap-3">
+          <div className="relative px-6 pb-3 pt-3 flex items-center gap-3">
             <div className="relative flex-1 max-w-xs">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-400/60" />
               <input
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search by name or audience ID"
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 bg-slate-50"
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200/80 bg-white/80 backdrop-blur-sm text-xs focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-300"
               />
             </div>
             <button onClick={() => setShowFilterPanel(v => !v)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-colors
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-colors
                 ${showFilterPanel || activeFilterCount > 0
-                  ? 'bg-blue-50 border-blue-200 text-blue-700'
-                  : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm border-transparent'
+                  : 'border-slate-200/80 text-slate-500 hover:bg-white/80 bg-white/80 backdrop-blur-sm'}`}>
               <SlidersHorizontal size={13} />
               Filter
               {activeFilterCount > 0 && (
-                <span className="ml-1 bg-blue-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{activeFilterCount}</span>
+                <span className="ml-1 bg-white/30 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{activeFilterCount}</span>
               )}
             </button>
             {activeFilterCount > 0 && (
@@ -2103,7 +2105,7 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack, token, onLo
             <p className="text-sm font-medium text-slate-500 mb-1">No custom audiences yet</p>
             <p className="text-xs text-slate-400 mb-4">Create your first audience to start targeting</p>
             <button onClick={() => handleOpenCreate('custom')}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-500">
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-lg shadow-orange-500/30">
               <Plus size={14} /> Create Audience
             </button>
           </div>
@@ -2141,7 +2143,7 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack, token, onLo
                 return (
                   <React.Fragment key={aud.id}>
                   <tr onClick={() => setExpandedAudienceId(isExpanded ? null : aud.id)}
-                    className="group border-t border-slate-100 hover:bg-blue-50/30 transition-colors cursor-pointer">
+                    className="group border-t border-slate-100 hover:bg-orange-50/40 transition-colors cursor-pointer">
                     {/* Name */}
                     <td className="py-2 px-4">
                       <p className="text-[12px] font-semibold text-blue-700 truncate max-w-[320px]">{aud.name}</p>
@@ -2196,7 +2198,7 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onBack, token, onLo
                     <td className="py-2 px-2 text-right">
                       <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={(e) => { e.stopPropagation(); handleUse(aud); }} title="Use in campaign"
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-semibold bg-blue-600 text-white hover:bg-blue-500 transition-colors">
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 transition-colors shadow-sm shadow-orange-500/20">
                           <Target size={10} /> Use
                         </button>
                         {subtype !== 'LOOKALIKE' && !aud._isSaved && (

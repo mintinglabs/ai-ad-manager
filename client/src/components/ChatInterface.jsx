@@ -2248,13 +2248,13 @@ const ActionCard = ({ icon, label, desc, prompt, onSend, disabled, color = 'blue
   const IconComponent = ACTION_ICON_MAP[icon] || Zap;
   return (
     <button onClick={() => onSend(prompt)} disabled={disabled}
-      className="flex flex-col bg-white border border-slate-200/80 rounded-2xl px-5 py-4 text-left hover:border-blue-200 hover:bg-blue-50/20 hover:shadow-md transition-all duration-200 disabled:opacity-40 group">
-      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${ACTION_COLOR_MAP[color] || ACTION_COLOR_MAP.blue}`}>
+      className="flex flex-col bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl px-5 py-4 text-left hover:border-orange-200/60 hover:shadow-lg hover:shadow-orange-500/5 hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-40 group">
+      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${ACTION_COLOR_MAP[color] || ACTION_COLOR_MAP.blue} group-hover:scale-105 transition-transform duration-300`}>
         <IconComponent size={18} />
       </div>
       <p className="text-[14px] font-bold text-slate-900 leading-snug mt-3">{label}</p>
       <p className="text-[12px] text-slate-400 leading-relaxed mt-1.5 flex-1">{desc}</p>
-      <div className="flex items-center gap-1 mt-3 text-[11px] font-semibold text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center gap-1 mt-3 text-[11px] font-semibold text-orange-500 opacity-0 group-hover:opacity-100 translate-x-[-4px] group-hover:translate-x-0 transition-all duration-300">
         Ask now <ArrowUpRight size={11} />
       </div>
     </button>
@@ -3146,7 +3146,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
   }, [handleSend]);
 
   return (
-    <div className="flex flex-col h-full"
+    <div className="flex flex-col h-full bg-gradient-to-br from-orange-50/40 via-white to-amber-50/30"
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -3186,7 +3186,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
           <div className="w-full max-w-2xl mx-auto">
 
             <h1 className="text-3xl font-extrabold text-slate-900 mb-6 text-center tracking-tight">
-              Hello 👋 Ready to <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">Optimize</span> Your Ads?
+              Ready to <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">Optimize</span> Your Ads?
             </h1>
             <div className="relative z-10">
               <ChatInput
@@ -3223,7 +3223,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
               <div className="flex flex-wrap gap-2 justify-center pt-2">
                 {quickChips.map(chip => (
                   <button key={chip.label} onClick={() => handleSend(chip.prompt)} disabled={isTyping}
-                    className="px-4 py-2 text-[12px] font-medium text-slate-500 bg-white border border-slate-200 rounded-full hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/30 transition-all disabled:opacity-40">
+                    className="px-4 py-2 text-[12px] font-medium text-slate-500 bg-white/70 backdrop-blur-sm border border-slate-200/80 rounded-full hover:border-orange-200 hover:text-orange-600 hover:bg-orange-50/30 transition-all disabled:opacity-40">
                     {chip.label}
                   </button>
                 ))}

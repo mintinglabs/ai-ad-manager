@@ -273,7 +273,7 @@ const StatusDot = ({ status }) => {
 const Toggle = ({ active, onChange, loading }) => (
   <button onClick={(e) => { e.stopPropagation(); if (!loading) onChange(!active); }}
     disabled={loading}
-    className={`w-8 h-[18px] rounded-full transition-colors duration-200 relative ${loading ? 'opacity-50' : ''} ${active ? 'bg-blue-500' : 'bg-slate-200'}`}>
+    className={`w-8 h-[18px] rounded-full transition-colors duration-200 relative ${loading ? 'opacity-50' : ''} ${active ? 'bg-orange-500' : 'bg-slate-200'}`}>
     <span className={`absolute top-[2px] left-[2px] w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-transform duration-200 ${active ? 'translate-x-[14px]' : ''}`} />
   </button>
 );
@@ -449,31 +449,32 @@ const AskAIPopup = ({ onSubmit, onClose, selectedIds, level }) => {
   };
   return (
     <>
-      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={onClose} />
-      <div className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[480px] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-blue-500" />
-            <h3 className="text-sm font-bold text-slate-800">Ask AI Agent</h3>
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 animate-[fadeIn_0.2s_ease-out]" onClick={onClose} />
+      <div className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[480px] rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-[fadeSlideUp_0.3s_ease-out]">
+        <div className="relative flex items-center justify-between px-5 py-4 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900">
+          <div className="absolute inset-0 overflow-hidden pointer-events-none"><div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" /><div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" /></div>
+          <div className="relative flex items-center gap-2">
+            <Sparkles size={16} className="text-orange-400" />
+            <h3 className="text-sm font-bold text-white">Ask AI Agent</h3>
             {selectedIds?.length > 0 && (
-              <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">{selectedIds.length} selected</span>
+              <span className="text-[10px] bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded-full font-medium">{selectedIds.length} selected</span>
             )}
           </div>
-          <button onClick={onClose} className="w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600">
+          <button onClick={onClose} className="relative w-6 h-6 rounded-full hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white">
             <X size={14} />
           </button>
         </div>
-        <div className="p-5">
+        <div className="p-5 bg-white/95 backdrop-blur-xl">
           <p className="text-[12px] text-slate-400 mb-3">What would you like the AI agent to do?</p>
           <textarea ref={inputRef} value={text} onChange={e => setText(e.target.value)}
             placeholder="e.g. Pause all campaigns with CPA above $100, Scale budget by 15% for top performers..."
-            className="w-full h-24 text-sm text-slate-700 border border-slate-200 rounded-xl px-3.5 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 placeholder:text-slate-300"
+            className="w-full h-24 text-sm text-slate-700 border border-slate-200 rounded-xl px-3.5 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 placeholder:text-slate-300"
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }} />
         </div>
         <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 text-[12px] text-slate-500 hover:bg-slate-100 rounded-lg font-medium">Cancel</button>
           <button onClick={handleSubmit} disabled={!text.trim()}
-            className="flex items-center gap-1.5 px-4 py-2 text-[12px] text-white bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+            className="flex items-center gap-1.5 px-4 py-2 text-[12px] text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:shadow-orange-500/50 rounded-lg font-semibold shadow-lg shadow-orange-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
             <Send size={12} /> Send to AI
           </button>
         </div>
@@ -977,47 +978,48 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-50/50">
+    <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-orange-50/60 via-white to-amber-50/40">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 shrink-0">
-        <div className="flex items-center justify-between px-6 py-4">
+      <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shrink-0">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none"><div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" /><div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" /></div>
+        <div className="relative flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
-                Campaigns
-              </h1>
+              <h1 className="text-lg font-bold text-white">Campaigns</h1>
               <p className="text-xs text-slate-400 mt-0.5">
-                {loading ? 'Loading...' : `${activeCount} active · ${pausedCount} paused`}
+                {loading ? 'Loading...' : `${currentData.length} ${levelLabel.toLowerCase()}s · ${activeCount} active · ${pausedCount} paused`}
               </p>
             </div>
-            <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
-              selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 font-medium">Ad Account:</span>
+              <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
+                selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => { if (activeTab === 'campaigns') fetchCampaigns(); else if (activeTab === 'adsets') { checkedCampaignIds.length ? fetchAdSetsMulti(checkedCampaignIds) : handleTabClick('adsets'); } else { checkedAdSetIds.length ? fetchAdsMulti(checkedAdSetIds) : handleTabClick('ads'); } }}
               disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50">
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 border border-slate-700 transition-colors disabled:opacity-50">
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
             </button>
             <button onClick={() => setShowAskAI(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-500 transition-colors shadow-sm">
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:shadow-orange-500/50 transition-all shadow-lg shadow-orange-500/30">
               <Sparkles size={13} /> Ask AI Agent
             </button>
           </div>
         </div>
 
         {/* Platform tabs */}
-        <div className="flex items-center gap-0 px-6">
+        <div className="relative flex items-center gap-0 px-6">
           <button onClick={() => setPlatform('meta')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${platform === 'meta' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${platform === 'meta' ? 'border-orange-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-300'}`}>
             <MetaIcon /> Meta Ads
           </button>
-          <button disabled className="flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 border-transparent text-slate-300 cursor-not-allowed">
-            <GoogleIcon /> Google Ads <span className="text-[9px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded-full font-semibold">Soon</span>
+          <button disabled className="flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 border-transparent text-slate-500 cursor-not-allowed">
+            <GoogleIcon /> Google Ads <span className="text-[9px] bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded-full font-semibold">Soon</span>
           </button>
-          <button disabled className="flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 border-transparent text-slate-300 cursor-not-allowed">
-            <TikTokIcon /> TikTok Ads <span className="text-[9px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded-full font-semibold">Soon</span>
+          <button disabled className="flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 border-transparent text-slate-500 cursor-not-allowed">
+            <TikTokIcon /> TikTok Ads <span className="text-[9px] bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded-full font-semibold">Soon</span>
           </button>
         </div>
       </div>
@@ -1028,7 +1030,7 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
           <div className="flex items-center gap-0">
             {['campaigns', 'adsets', 'ads'].map(tab => (
               <button key={tab} onClick={() => handleTabClick(tab)}
-                className={`px-4 py-2.5 text-[12px] font-semibold border-b-2 transition-colors ${activeTab === tab ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>
+                className={`px-4 py-2.5 text-[12px] font-semibold border-b-2 transition-colors ${activeTab === tab ? 'border-orange-500 text-orange-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>
                 {tab === 'campaigns' ? 'Campaigns' : tab === 'adsets' ? 'Ad Sets' : 'Ads'}
               </button>
             ))}
@@ -1067,14 +1069,14 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
       {/* Filters */}
       <div className="px-6 py-3 flex items-center gap-3 shrink-0 bg-white border-b border-slate-100 flex-wrap">
         <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-400/60" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search ${levelLabel.toLowerCase()}s...`}
-            className="w-full pl-9 pr-3 py-2 text-[12px] rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 placeholder:text-slate-300" />
+            className="w-full pl-9 pr-3 py-2 text-[12px] rounded-xl border border-slate-200/80 bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 placeholder:text-slate-300" />
         </div>
         <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden">
           {[['all', 'All'], ['active', 'Active'], ['paused', 'Paused']].map(([val, label]) => (
             <button key={val} onClick={() => setStatusFilter(val)}
-              className={`px-3.5 py-2 text-[11px] font-medium transition-colors ${statusFilter === val ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
+              className={`px-3.5 py-2 text-[11px] font-medium transition-colors ${statusFilter === val ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}>
               {label}
             </button>
           ))}
@@ -1189,7 +1191,7 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
             <span className="ml-2 text-sm text-slate-400">Loading {levelLabel.toLowerCase()}s...</span>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 shadow-sm overflow-x-auto hover:shadow-lg hover:shadow-orange-500/5 transition-shadow">
             <table className="w-full min-w-[700px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80">
@@ -1221,7 +1223,7 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
                 {paginatedData.map(item => (
                   <React.Fragment key={item.id}>
                     <tr
-                      className={`border-b border-slate-100 hover:bg-blue-50/30 transition-colors group ${selectedIds.has(item.id) ? 'bg-blue-50/50' : ''}`}>
+                      className={`border-b border-slate-100 hover:bg-orange-50/30 hover:shadow-lg hover:shadow-orange-500/5 transition-all group ${selectedIds.has(item.id) ? 'bg-orange-50/50' : ''}`}>
                       {/* Checkbox */}
                       <td className="py-3 px-3" onClick={e => e.stopPropagation()}>
                         <input type="checkbox" checked={selectedIds.has(item.id)}
@@ -1380,7 +1382,7 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
                   <span key={`dots-${i}`} className="px-1 text-[11px] text-slate-300">...</span>
                 ) : (
                   <button key={p} onClick={() => setPage(p)}
-                    className={`w-8 h-8 text-[11px] font-medium rounded-lg border transition-colors ${p === page ? 'bg-blue-600 text-white border-blue-600' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                    className={`w-8 h-8 text-[11px] font-medium rounded-lg border transition-colors ${p === page ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-500 shadow-sm' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
                     {p}
                   </button>
                 ))}

@@ -18,7 +18,7 @@ const RecommendationCard = ({ rec, onApply }) => {
   const sev = SEVERITY[rec.severity] || SEVERITY.warning;
   const Icon = sev.icon;
   return (
-    <div className={`rounded-xl border ${sev.border} ${sev.bg} overflow-hidden transition-all hover:shadow-md`}>
+    <div className={`rounded-xl border ${sev.border} ${sev.bg} bg-white/80 backdrop-blur-sm overflow-hidden transition-all hover:shadow-md hover:scale-[1.01]`}>
       <div className="px-5 py-4">
         <div className="flex items-start gap-3">
           <div className="mt-0.5 shrink-0">
@@ -57,7 +57,7 @@ const RecommendationCard = ({ rec, onApply }) => {
         <div className="px-5 py-2.5 border-t border-white/50 flex items-center justify-between">
           <p className="text-[11px] text-slate-500">{rec.action_label || 'Recommended action'}</p>
           <button onClick={() => onApply(rec)}
-            className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors shadow-sm">
+            className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 rounded-lg transition-colors shadow-lg shadow-orange-500/30">
             {rec.action} <ArrowRight size={12} />
           </button>
         </div>
@@ -68,7 +68,7 @@ const RecommendationCard = ({ rec, onApply }) => {
 
 // ── Summary stat ──
 const StatCard = ({ icon: Icon, iconColor, label, value, sub }) => (
-  <div className="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-center gap-3">
+  <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 px-4 py-3 flex items-center gap-3 transition-all hover:shadow-md hover:scale-[1.01]">
     <div className={`w-9 h-9 rounded-lg bg-slate-50 flex items-center justify-center shrink-0`}>
       <Icon size={16} className={iconColor} />
     </div>
@@ -134,14 +134,17 @@ export const Optimizations = ({ adAccountId, token, onLogin, onLogout, selectedA
   const successCount = recommendations.filter(r => r.severity === 'success').length;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-50/50">
+    <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-orange-50/60 via-white to-amber-50/40">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 shrink-0">
-        <div className="flex items-center justify-between px-6 py-4">
+      <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shrink-0">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
+        </div>
+        <div className="relative flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Zap size={20} className="text-amber-500" />
+              <h1 className="text-lg font-bold text-white flex items-center gap-2">
                 Optimizations
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
@@ -151,11 +154,12 @@ export const Optimizations = ({ adAccountId, token, onLogin, onLogout, selectedA
                 {lastScanned && ` · Last scanned: ${lastScanned.toLocaleTimeString()}`}
               </p>
             </div>
+            <span className="text-xs text-slate-400 font-medium">Ad Account:</span>
             <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
               selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
           </div>
           <button onClick={runScan} disabled={loading || !adAccountId}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-400 transition-colors shadow-sm disabled:opacity-50">
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 transition-colors shadow-lg shadow-orange-500/30 disabled:opacity-50">
             {loading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
             {loading ? 'Scanning...' : 'Scan Now'}
           </button>
@@ -211,17 +215,17 @@ export const Optimizations = ({ adAccountId, token, onLogin, onLogout, selectedA
             )}
 
             <div className="grid grid-cols-3 gap-3 max-w-lg">
-              <div className="bg-white rounded-xl border border-slate-200 px-4 py-3 text-center">
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 px-4 py-3 text-center transition-all hover:shadow-md hover:scale-[1.01]">
                 <DollarSign size={20} className="text-emerald-500 mx-auto mb-1.5" />
                 <p className="text-[11px] font-semibold text-slate-700">Budget</p>
                 <p className="text-[10px] text-slate-400">Overspend, scaling</p>
               </div>
-              <div className="bg-white rounded-xl border border-slate-200 px-4 py-3 text-center">
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 px-4 py-3 text-center transition-all hover:shadow-md hover:scale-[1.01]">
                 <Users size={20} className="text-blue-500 mx-auto mb-1.5" />
                 <p className="text-[11px] font-semibold text-slate-700">Audiences</p>
                 <p className="text-[10px] text-slate-400">Overlap, saturation</p>
               </div>
-              <div className="bg-white rounded-xl border border-slate-200 px-4 py-3 text-center">
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 px-4 py-3 text-center transition-all hover:shadow-md hover:scale-[1.01]">
                 <ImageIcon size={20} className="text-pink-500 mx-auto mb-1.5" />
                 <p className="text-[11px] font-semibold text-slate-700">Creatives</p>
                 <p className="text-[10px] text-slate-400">Fatigue, format mix</p>
@@ -229,7 +233,7 @@ export const Optimizations = ({ adAccountId, token, onLogin, onLogout, selectedA
             </div>
 
             <button onClick={runScan} disabled={loading}
-              className="mt-6 flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-amber-500 text-white hover:bg-amber-400 transition-colors shadow-sm">
+              className="mt-6 flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 transition-colors shadow-lg shadow-orange-500/30">
               <Zap size={16} /> Scan Now
             </button>
           </div>
@@ -244,10 +248,10 @@ export const Optimizations = ({ adAccountId, token, onLogin, onLogout, selectedA
             </div>
 
             {/* Filter */}
-            <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden w-fit">
+            <div className="flex rounded-xl border border-slate-200/80 bg-white/80 backdrop-blur-sm overflow-hidden w-fit">
               {[['all', 'All'], ['critical', 'Critical'], ['warning', 'Warnings'], ['opportunity', 'Opportunities']].map(([val, label]) => (
                 <button key={val} onClick={() => setFilter(val)}
-                  className={`px-3.5 py-2 text-[11px] font-medium transition-colors ${filter === val ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
+                  className={`px-3.5 py-2 text-[11px] font-medium transition-colors ${filter === val ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}>
                   {label}
                 </button>
               ))}
