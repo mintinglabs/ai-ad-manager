@@ -785,7 +785,7 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
         <div className="relative flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-lg font-extrabold text-white tracking-tight">Instant Forms</h1>
+              <h1 className="text-lg font-extrabold text-white tracking-tight">Lead Forms</h1>
               <p className="text-xs text-slate-400 mt-0.5">
                 {loading ? 'Loading...' : activeCount > 0 ? `${activeCount} active · ${archivedCount} archived` : 'Capture leads from your ads'}
               </p>
