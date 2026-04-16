@@ -214,7 +214,7 @@ export const parseMarkdownTable = (text) => {
   let textBuf = [];
   let i = 0;
 
-  const RICH_BLOCKS = ['adlib', 'metrics', 'options', 'insights', 'score', 'copyvariations', 'steps', 'quickreplies', 'funnel', 'comparison', 'budget', 'trend', 'adpreview', 'setupcard', 'mediagrid', 'videoaudience', 'engagementaudience', 'lookalikeaudience', 'savedaudience', 'websiteaudience', 'dashboard'];
+  const RICH_BLOCKS = ['adlib', 'metrics', 'options', 'insights', 'score', 'copyvariations', 'steps', 'quickreplies', 'funnel', 'comparison', 'budget', 'trend', 'adpreview', 'setupcard', 'mediagrid', 'videoaudience', 'engagementaudience', 'lookalikeaudience', 'savedaudience', 'websiteaudience', 'dashboard', 'postpicker'];
   // Aliases for common LLM misspellings
   const BLOCK_ALIASES = { option: 'options', quickreplie: 'quickreplies', quickreply: 'quickreplies', copyvariation: 'copyvariations', metric: 'metrics', step: 'steps', setupcard: 'setupcard', videogrid: 'mediagrid', postgrid: 'mediagrid' };
 
@@ -1477,11 +1477,67 @@ const AdPreviewBlock = ({ data }) => {
   );
 };
 
+// ── Post Picker — visual post cards for boost workflow ──────────────────────
+// Schema: { posts: [{ id, thumbnail, caption, likes, comments, shares, media_type, permalink, recommendation }], title? }
+const PostPickerCard = ({ data, onSend }) => {
+  const { posts = [], title } = typeof data === 'string' ? JSON.parse(data) : data;
+  return (
+    <div className="my-3">
+      {title && <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">{title}</p>}
+      <div className="grid grid-cols-1 gap-3" style={{ maxWidth: posts.length === 1 ? '320px' : posts.length === 2 ? '640px' : '100%' }}>
+        <div className={`grid gap-3 ${posts.length === 1 ? 'grid-cols-1' : posts.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+          {posts.map((post, i) => (
+            <div key={post.id || i} className="group bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl hover:shadow-orange-500/8 hover:border-orange-200 hover:-translate-y-1 transition-all duration-300">
+              {/* Post image */}
+              {post.thumbnail && (
+                <div className="aspect-square bg-slate-50 overflow-hidden relative">
+                  <img src={post.thumbnail} alt="" className="w-full h-full object-cover" loading="lazy" />
+                  {post.media_type === 'VIDEO' && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
+                        <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                      </div>
+                    </div>
+                  )}
+                  {post.recommendation && (
+                    <span className="absolute top-2 left-2 px-2 py-1 rounded-lg bg-orange-500 text-white text-[9px] font-bold shadow-lg">
+                      {post.recommendation}
+                    </span>
+                  )}
+                </div>
+              )}
+              {/* Post info */}
+              <div className="p-3.5">
+                {post.caption && (
+                  <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-2 mb-2">{post.caption}</p>
+                )}
+                {/* Engagement */}
+                <div className="flex items-center gap-3 text-[10px] text-slate-400 mb-3">
+                  {post.likes != null && <span className="flex items-center gap-1">❤️ {post.likes.toLocaleString()}</span>}
+                  {post.comments != null && <span className="flex items-center gap-1">💬 {post.comments.toLocaleString()}</span>}
+                  {post.shares != null && <span className="flex items-center gap-1">🔄 {post.shares.toLocaleString()}</span>}
+                </div>
+                {/* Boost button */}
+                <button onClick={() => onSend(`Boost this post (ID: ${post.id}). Set it up with the best targeting and budget.`)}
+                  className="w-full py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[11px] font-semibold hover:brightness-110 transition-all shadow-sm shadow-orange-500/20">
+                  Boost this post
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Rich text renderer ───────────────────────────────────────────────────────
 const renderInline = (text) =>
-  text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((part, i) => {
+  text.split(/(\*\*[^*]+\*\*|`[^`]+`|!\[[^\]]*\]\([^)]+\))/g).map((part, i) => {
     if (part.startsWith('**')) return <strong key={i} className="text-slate-800 font-semibold">{part.slice(2, -2)}</strong>;
     if (part.startsWith('`'))  return <code key={i} className="bg-slate-100 text-blue-700 px-1.5 py-0.5 rounded text-xs font-mono">{part.slice(1, -1)}</code>;
+    const imgMatch = part.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (imgMatch) return <img key={i} src={imgMatch[2]} alt={imgMatch[1]} className="max-w-full max-h-[300px] rounded-xl border border-slate-200 my-2 object-cover" loading="lazy" />;
     return <span key={i}>{part}</span>;
   });
 
@@ -1502,6 +1558,12 @@ const renderRichText = (text) => {
   };
 
   for (const line of lines) {
+    // Standalone image line — markdown syntax
+    const imgLine = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (imgLine) { flushList(); elements.push(<img key={elements.length} src={imgLine[2]} alt={imgLine[1]} className="max-w-full max-h-[300px] rounded-xl border border-slate-200 my-2 object-cover" loading="lazy" />); continue; }
+    // Bare image URL on its own line (scontent, fbcdn, cdninstagram)
+    const bareImg = line.trim().match(/^(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp)(\?[^\s]*)?)$/i) || line.trim().match(/^(https?:\/\/(scontent|.*fbcdn|.*cdninstagram)[^\s]+)$/i);
+    if (bareImg) { flushList(); elements.push(<img key={elements.length} src={bareImg[1]} alt="Post" className="max-w-full max-h-[300px] rounded-xl border border-slate-200 my-2 object-cover" loading="lazy" />); continue; }
     if (line.startsWith('### ')) { flushList(); elements.push(<p key={elements.length} className="text-sm font-bold text-slate-800 mt-3 mb-1">{renderInline(line.slice(4))}</p>); continue; }
     if (line.startsWith('## '))  { flushList(); elements.push(<p key={elements.length} className="text-base font-bold text-slate-800 mt-3 mb-1">{renderInline(line.slice(3))}</p>); continue; }
     const bullet = line.match(/^[\-\*]\s+(.*)/);
@@ -1751,6 +1813,7 @@ export const RichContent = ({ text, onSend }) => {
           case 'trend': return <TrendCard key={i} data={seg.data} />;
           case 'adpreview': return <AdPreviewBlock key={i} data={seg.data} />;
           case 'videoaudience': return <VideoAudienceCard key={i} data={seg.data} onSend={onSend} />;
+          case 'postpicker': return <PostPickerCard key={i} data={seg.data} onSend={onSend} />;
           case 'engagementaudience': return <EngagementAudienceCard key={i} data={seg.data} onSend={onSend} />;
           case 'lookalikeaudience': return <LookalikeAudienceCard key={i} data={seg.data} onSend={onSend} />;
           case 'savedaudience': return <SavedAudienceCard key={i} data={seg.data} onSend={onSend} />;
@@ -2165,6 +2228,7 @@ const MessageBubble = ({ message, isLatest, onSend, isTyping, onSaveItem, folder
                   case 'adpreview': return <AdPreviewBlock key={i} data={seg.data} />;
                   case 'mediagrid': return <MediaGridCard key={i} data={seg.data} onSend={onSend} isAnswered={isAnswered} selectedTitle={selectedTitle} />;
                   case 'videoaudience': return <VideoAudienceCard key={i} data={seg.data} onSend={onSend} isAnswered={isAnswered} adAccountId={adAccountId} token={token} />;
+                  case 'postpicker': return <PostPickerCard key={i} data={seg.data} onSend={onSend} />;
                   case 'engagementaudience': return <EngagementAudienceCard key={i} data={seg.data} onSend={onSend} isAnswered={isAnswered} adAccountId={adAccountId} token={token} />;
                   case 'lookalikeaudience': return <LookalikeAudienceCard key={i} data={seg.data} onSend={onSend} isAnswered={isAnswered} adAccountId={adAccountId} token={token} />;
                   case 'savedaudience': return <SavedAudienceCard key={i} data={seg.data} onSend={onSend} isAnswered={isAnswered} adAccountId={adAccountId} token={token} />;

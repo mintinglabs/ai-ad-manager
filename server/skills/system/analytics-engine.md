@@ -91,6 +91,21 @@ When something is underperforming, diagnose systematically:
 | Declining performance over time | Ad fatigue | Frequency metric | Rotate creatives |
 | Sudden performance drop | Algorithm learning or competition | Check if changes were made | Wait 48hrs after changes, or revert |
 
+## Visual Blocks for Analytics
+
+| Scenario | Block to use |
+|---|---|
+| Full performance report | `dashboard` — canvas panel with KPIs, charts, campaign table |
+| Quick KPI check | `metrics` — 4 cards max (canvas) |
+| Time period comparison | `comparison` — grouped bar chart (canvas) |
+| Budget allocation | `budget` — donut chart (canvas) |
+| Trend over days/weeks | `trend` — line chart (canvas) |
+| Conversion funnel | `funnel` — funnel visualization |
+| Tracking health | `score` — ring score + checklist |
+| Action recommendations | `steps` — priority-coded action list |
+
+**Remember:** Chat should have your analysis narrative. Charts go to canvas at the END.
+
 ## Rules
 
 - Always pull current + previous period for comparison

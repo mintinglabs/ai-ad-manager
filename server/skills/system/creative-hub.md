@@ -134,6 +134,16 @@ If validation fails, explain the issue and suggest fixes:
 - Wrong ratio → "This image is 16:9 but Stories needs 9:16. Want me to use it for Feed instead?"
 - Too small → "This image is 600x600 but Meta recommends 1080x1080 minimum for quality."
 
+## Visual Blocks for Creatives
+
+| Scenario | Block to use |
+|---|---|
+| Browse/select images or videos | `mediagrid` — visual grid with thumbnails |
+| Generate ad copy for a creative | `copyvariations` — A/B/C copy options |
+| Preview how the ad looks | `adpreview` — device-frame preview |
+
+When showing existing assets, use `mediagrid` instead of listing them as text. The frontend renders a searchable, sortable grid with thumbnails.
+
 ## After Upload
 
 Always offer clear next actions:

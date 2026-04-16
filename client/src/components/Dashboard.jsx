@@ -17,6 +17,7 @@ import { EventsManager } from './EventsManager.jsx';
 import { Optimizations } from './Optimizations.jsx';
 import { AdLibrary } from './AdLibrary.jsx';
 import { BrandLibrary } from './BrandLibrary.jsx';
+import { ReportDashboard } from './ReportDashboard.jsx';
 import { ProjectDetail } from './ProjectDetail.jsx';
 import { useProjects } from '../hooks/useProjects.js';
 import { useBrandLibrary } from '../hooks/useBrandLibrary.js';
@@ -364,6 +365,10 @@ export const Dashboard = ({
     setActiveView({ type: 'adLibrary' });
   }, []);
 
+  const handleOpenReports = useCallback(() => {
+    setActiveView({ type: 'report' });
+  }, []);
+
   const handleOpenSettings = useCallback(() => {
     setShowSettings(true);
   }, []);
@@ -495,6 +500,7 @@ export const Dashboard = ({
         onOpenAdLibrary={handleOpenAdLibrary}
         onOpenBrandLibrary={handleOpenBrandLibrary}
         onOpenSkillsLibrary={handleOpenSkillsLibrary}
+        onOpenReports={handleOpenReports}
         onOpenSettings={handleOpenSettings}
         token={token}
         onLogin={onLogin}
@@ -602,6 +608,16 @@ export const Dashboard = ({
               onSendToChat={handleAudienceToChat}
               onSelectAccount={handleAccountSelect}
               onPrefillChat={handlePrefillChat}
+            />
+          ) : activeView.type === 'report' ? (
+            <ReportDashboard
+              adAccountId={adAccountId}
+              token={token}
+              onLogin={onLogin}
+              onLogout={onLogout}
+              selectedAccount={selectedAccount}
+              selectedBusiness={selectedBusiness}
+              onSelectAccount={handleAccountSelect}
             />
           ) : activeView.type === 'brandLibrary' ? (
             <BrandLibrary

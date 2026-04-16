@@ -231,6 +231,7 @@ export const Sidebar = ({
   onOpenOptimizations,
   onOpenAdLibrary,
   onOpenBrandLibrary,
+  onOpenReports,
   onOpenSettings,
   token,
   onLogin,
@@ -325,12 +326,12 @@ export const Sidebar = ({
     { icon: ClipboardList, type: 'instantForms', action: onOpenInstantForms, label: 'Lead Forms' },
     { icon: TrendingUp, type: 'eventsManager', action: onOpenEventsManager, label: 'Events Manager' },
     { icon: Zap, type: 'optimizations', action: onOpenOptimizations, label: 'Optimizations' },
-    { icon: FileText, type: 'report', action: () => {}, label: 'Reports' },
+    { icon: FileText, type: 'report', action: onOpenReports, label: 'Reports' },
   ];
 
   return (
     <aside ref={sidebarRef} style={{ width: open ? 260 : 52 }}
-      className={`shrink-0 bg-white/70 backdrop-blur-xl border-r border-slate-200 flex flex-col h-full transition-all duration-200 ease-in-out z-20 relative ${open ? 'overflow-hidden' : 'overflow-visible'}`}>
+      className={`shrink-0 bg-white/70 backdrop-blur-xl border-r border-slate-200 flex flex-col h-full transition-all duration-200 ease-in-out z-20 relative overflow-visible`}>
 
       {/* Collapsed overlay — icon rail */}
       <div className={`absolute inset-0 flex flex-col items-center transition-opacity duration-150 ${open ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>

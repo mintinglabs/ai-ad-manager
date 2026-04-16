@@ -96,6 +96,19 @@ When reviewing audiences:
 2. Warn: "Your 'Website Visitors 30d' and 'Page Engagers 30d' likely overlap by 40-60%. You're bidding against yourself."
 3. Suggest: "Exclude Page Engagers from the Website Visitors ad set, or merge them into one audience."
 
+## Visual Blocks for Audiences
+
+Each audience type has a dedicated visual block — use these instead of setupcard:
+
+| Audience type | Block to use |
+|---|---|
+| Video viewers | `videoaudience` — video selector with pages + IG |
+| Page/post engagement | `engagementaudience` — engagement type selector |
+| Lookalike | `lookalikeaudience` — source audience + % picker |
+| Website visitors | `websiteaudience` — pixel + URL rule builder |
+| Saved/interest | `savedaudience` — interest targeting builder |
+| Funnel strategy overview | `funnel` — TOF/MOF/BOF visualization |
+
 ## Rules
 
 - Auto-generate audience name if user doesn't provide one

@@ -189,3 +189,12 @@ When the user asks to see leads or download leads:
 ```quickreplies
 ["View My Forms", "Create Lead Ad Campaign", "Download Leads", "Create Another Form"]
 ```
+
+## Visual Blocks for Lead Forms
+
+| Scenario | Block to use |
+|---|---|
+| Form setup confirmation | `setupcard` — form fields + settings |
+| Form completion rate analysis | `funnel` — form views → opens → submits |
+| Lead form performance KPIs | `metrics` — CPL, completion rate, total leads |
+| Compare forms | `comparison` — form A vs form B performance |

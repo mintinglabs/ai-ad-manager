@@ -67,7 +67,8 @@ This is the most common flow. When you see `[Uploaded image: ...]` or `[Uploaded
    - Placements → Advantage+ (unless the media ratio suggests specific placements)
    - Ad format → based on what was uploaded (1 image = single, multiple = carousel or separate, video = video ad)
    - Targeting → if brand memory has audience insights, use them. Otherwise default to broad + Advantage+ targeting
-4. **Show full plan** as a confirmation card — everything in one view
+4. **Show ad copy options** using `copyvariations` block — 2-3 copy options with headline + CTA
+5. **Show full plan** as a `setupcard` — everything in one view for final confirmation
 5. **Execute on confirmation** — create all in order, show result with preview link
 
 ### When user starts from scratch (no uploads)
@@ -168,16 +169,61 @@ When user wants to boost/promote an existing Facebook or Instagram post:
 3. User picks a post → use its `id` as `object_story_id` in `create_ad_creative`
 4. For Instagram: `get_ig_posts(ig_account_id, page_id)` → same flow
 
-**The AI should suggest which posts to boost:**
-- Posts with high organic engagement (many likes/comments/shares) will likely perform well as ads
-- Recent posts (last 7-14 days) are better than old ones
-- Video posts typically have lower CPM than image posts
+**The AI should analyze and recommend — NOT dump all posts into the chat:**
+- Fetch all recent posts silently
+- Compare engagement rates (likes + comments + shares relative to reach)
+- **Pick the top 2-3 posts** and present them as a short recommendation
+- Explain WHY each post would make a good ad: "This video got 3x your average engagement"
+- Video posts typically have lower CPM than image posts — prefer those
+- Recent posts (last 7-14 days) perform better than old ones
+
+**IMPORTANT: Keep the response concise.** Do NOT show 10+ post cards. Show 2-3 recommendations max with a brief reason for each.
+
+**CRITICAL — Show posts using the `postpicker` block:**
+Use the `postpicker` code block to display posts visually. The UI renders beautiful post cards with thumbnails, engagement, and a "Boost this post" button.
+
+Schema:
+\`\`\`postpicker
+{"posts":[
+  {"id":"POST_ID","thumbnail":"THUMBNAIL_URL","caption":"First 100 chars of post...","likes":82,"comments":50,"shares":5,"media_type":"VIDEO","permalink":"https://...","recommendation":"Best engagement"},
+  {"id":"POST_ID_2","thumbnail":"THUMBNAIL_URL_2","caption":"Another post caption...","likes":175,"comments":12,"media_type":"IMAGE","recommendation":"Most likes"}
+]}
+\`\`\`
+
+- Use `thumbnail` field from IG posts tool response, or `full_picture` from FB posts
+- Include `recommendation` tag: "Best engagement", "Most likes", "Trending", "Recommended" etc.
+- Show max 3 posts
+- Write a short recommendation in text BEFORE the postpicker block explaining your reasoning
+
+**IMPORTANT — Ask which page first:**
+The ad account may manage multiple pages (e.g., Dr.Once, TopBeauty). ALWAYS:
+1. First call `get_pages()` to get the list
+2. If only 1 page → proceed directly
+3. If multiple pages → ASK the user which page/brand they want to boost for BEFORE fetching posts
+4. Example: "You have 2 pages connected — Dr. Once Hair Rehab and TopBeauty HK. Which brand's posts do you want to boost?"
+5. Only fetch posts from the selected page
+
+Do NOT fetch posts from all pages and mix them. The user thinks in terms of brands, not ad accounts.
 
 **Flow:**
-1. "I see your recent posts. This video from 3 days ago has 200+ likes organically — it would make a strong ad. Want to boost it?"
-2. Ask: budget, duration, audience (or use Advantage+ for simplicity)
-3. Create campaign → ad set → creative (using post ID) → ad
-4. Show preview → confirm → activate
+1. `get_pages()` → if multiple, ask which page
+2. Fetch recent posts from the selected page only
+3. Analyze silently → pick top 2-3 by engagement
+4. Show each visually (image + caption + engagement + why it's good)
+5. Ask: which one? + budget + duration (default: Advantage+ audience)
+6. Create campaign → ad set → creative (using post ID as object_story_id) → ad
+7. Confirm → activate
+
+## Visual Blocks for Campaigns
+
+| Scenario | Block to use |
+|---|---|
+| Show ad copy options | `copyvariations` — 2-3 copy variations with headline + CTA |
+| Final campaign confirmation | `setupcard` — editable config card |
+| Boost post selection | `postpicker` — visual post cards with thumbnails |
+| Select existing creatives | `mediagrid` — visual grid of images/videos from library |
+| Preview created ad | `adpreview` — device-frame preview |
+| Ad format choice | `options` — carousel vs single vs video |
 
 ## Rules
 
