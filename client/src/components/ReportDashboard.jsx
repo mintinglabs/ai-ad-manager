@@ -1,78 +1,134 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { RefreshCw, Loader2, TrendingUp, TrendingDown, ArrowRight, Download, Calendar, Filter } from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { RefreshCw, Loader2, TrendingUp, TrendingDown, Download, Calendar, Filter, ChevronDown } from 'lucide-react';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from 'recharts';
 import { AccountSelector } from './AccountSelector.jsx';
 import api from '../services/api.js';
 
-const fmtCurrency = (v, currency = 'HKD') => {
-  if (v == null) return '—';
-  const num = typeof v === 'string' ? parseFloat(v) : v;
-  if (num >= 1000000) return `${currency === 'HKD' ? 'HK$' : '$'}${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${currency === 'HKD' ? 'HK$' : '$'}${(num / 1000).toFixed(1)}K`;
-  return `${currency === 'HKD' ? 'HK$' : '$'}${num.toFixed(2)}`;
+// ── Formatting ──
+const COLORS = ['#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#f59e0b', '#ef4444', '#14b8a6'];
+const fmtCurrency = (v, sym = 'HK$') => {
+  if (v == null || isNaN(v)) return '—';
+  const n = Number(v);
+  if (n >= 1000000) return `${sym}${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${sym}${(n / 1000).toFixed(1)}K`;
+  return `${sym}${n.toFixed(2)}`;
 };
 const fmtNum = (v) => v != null ? Number(v).toLocaleString() : '—';
 const fmtPct = (v) => v != null ? `${Number(v).toFixed(2)}%` : '—';
 const fmtX = (v) => v != null ? `${Number(v).toFixed(2)}x` : '—';
+const pctChange = (curr, prev) => {
+  if (!prev || prev === 0) return null;
+  const change = ((curr - prev) / prev * 100).toFixed(1);
+  return change > 0 ? `+${change}%` : `${change}%`;
+};
 
 const DATE_PRESETS = [
-  { value: 'last_7d', label: 'Last 7 Days' },
-  { value: 'last_14d', label: 'Last 14 Days' },
-  { value: 'last_30d', label: 'Last 30 Days' },
-  { value: 'this_month', label: 'This Month' },
-  { value: 'last_month', label: 'Last Month' },
+  { value: 'last_7d', label: '7D', full: 'Last 7 Days' },
+  { value: 'last_14d', label: '14D', full: 'Last 14 Days' },
+  { value: 'last_30d', label: '30D', full: 'Last 30 Days' },
+  { value: 'this_month', label: 'MTD', full: 'This Month' },
+  { value: 'last_month', label: 'Last Mo', full: 'Last Month' },
 ];
 
-const CHART_COLORS = ['#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#ef4444', '#f59e0b'];
+const TABS = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'campaigns', label: 'Campaigns' },
+  { id: 'demographics', label: 'Demographics' },
+  { id: 'placements', label: 'Placements' },
+];
 
-// ── KPI Card ──
-const KpiCard = ({ label, value, change, trend, prefix }) => (
-  <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col">
-    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{label}</p>
-    <p className="text-[22px] font-extrabold text-slate-800 mt-1 tracking-tight">{prefix}{value}</p>
-    {change != null && (
-      <div className={`flex items-center gap-1 mt-1 text-[11px] font-semibold ${trend === 'up' ? 'text-emerald-600' : trend === 'down' ? 'text-red-500' : 'text-slate-400'}`}>
-        {trend === 'up' ? <TrendingUp size={12} /> : trend === 'down' ? <TrendingDown size={12} /> : null}
-        {change} <span className="text-slate-400 font-normal">vs prev</span>
-      </div>
-    )}
-  </div>
-);
+// ── KPI Card with WoW comparison ──
+const KpiCard = ({ label, value, prevValue, isCost, prefix = '' }) => {
+  const change = pctChange(value, prevValue);
+  const isPositive = change && change.startsWith('+');
+  const isNegative = change && change.startsWith('-');
+  const isGood = isCost ? isNegative : isPositive;
+
+  return (
+    <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 p-4 flex flex-col shadow-sm hover:shadow-md transition-shadow">
+      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.12em]">{label}</p>
+      <p className="text-[20px] font-extrabold text-slate-800 mt-1 tracking-tight">{prefix}{typeof value === 'number' ? (label.match(/CTR|Rate/i) ? fmtPct(value) : label.match(/ROAS/i) ? fmtX(value) : fmtCurrency(value)) : value}</p>
+      {change && (
+        <div className={`flex items-center gap-1 mt-1.5 text-[10px] font-bold ${isGood ? 'text-emerald-600' : (isPositive || isNegative) ? 'text-red-500' : 'text-slate-400'}`}>
+          {(isPositive && !isCost) || (isNegative && isCost) ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+          <span>{change}</span>
+          <span className="text-slate-300 font-normal ml-0.5">vs prev</span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Heatmap Row ──
+const HeatmapCell = ({ value, max, label }) => {
+  const intensity = max > 0 ? Math.min(value / max, 1) : 0;
+  const bg = intensity > 0.7 ? 'bg-orange-500 text-white' : intensity > 0.4 ? 'bg-orange-200 text-orange-900' : intensity > 0.1 ? 'bg-orange-50 text-orange-700' : 'bg-slate-50 text-slate-400';
+  return (
+    <td className={`px-2 py-1.5 text-center text-[10px] font-medium ${bg} transition-colors`} title={`${label}: ${value}`}>
+      {value > 0 ? fmtNum(value) : '—'}
+    </td>
+  );
+};
 
 // ── Campaign Row ──
-const CampaignRow = ({ campaign, currency }) => {
-  const status = (campaign.effective_status || campaign.status || '').toUpperCase();
-  const statusColor = status === 'ACTIVE' ? 'bg-emerald-500' : status === 'PAUSED' ? 'bg-slate-400' : 'bg-red-400';
-  const insights = campaign.insights?.data?.[0] || {};
+const CampaignRow = ({ c, currency }) => {
+  const insights = c.insights?.data?.[0] || {};
   const spend = parseFloat(insights.spend || 0);
-  const impressions = parseInt(insights.impressions || 0);
+  const impr = parseInt(insights.impressions || 0);
   const clicks = parseInt(insights.clicks || 0);
   const ctr = parseFloat(insights.ctr || 0);
   const cpc = parseFloat(insights.cpc || 0);
   const cpm = parseFloat(insights.cpm || 0);
+  const reach = parseInt(insights.reach || 0);
+  const freq = parseFloat(insights.frequency || 0);
   const actions = insights.actions || [];
-  const results = actions.reduce((sum, a) => sum + parseInt(a.value || 0), 0);
-  const costPerResult = results > 0 ? spend / results : 0;
+  const results = actions.reduce((s, a) => s + parseInt(a.value || 0), 0);
+  const cpr = results > 0 ? spend / results : 0;
   const roas = insights.purchase_roas?.[0]?.value ? parseFloat(insights.purchase_roas[0].value) : null;
+  const qr = insights.quality_ranking || '—';
+  const er = insights.engagement_rate_ranking || '—';
+  const status = (c.effective_status || c.status || '').toUpperCase();
+  const statusColor = status === 'ACTIVE' ? 'bg-emerald-500' : status === 'PAUSED' ? 'bg-slate-400' : 'bg-red-400';
 
   return (
-    <tr className="border-b border-slate-100 hover:bg-orange-50/30 transition-colors text-[11px]">
-      <td className="py-3 px-4">
-        <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${statusColor} shrink-0`} />
-          <span className="font-medium text-slate-700 truncate max-w-[200px]">{campaign.name}</span>
-        </div>
-      </td>
-      <td className="py-3 px-3 text-right font-medium text-slate-700">{fmtCurrency(spend, currency)}</td>
-      <td className="py-3 px-3 text-right text-slate-500">{fmtNum(impressions)}</td>
-      <td className="py-3 px-3 text-right text-slate-500">{fmtNum(clicks)}</td>
-      <td className="py-3 px-3 text-right text-slate-500">{fmtPct(ctr)}</td>
-      <td className="py-3 px-3 text-right text-slate-500">{fmtCurrency(cpc, currency)}</td>
-      <td className="py-3 px-3 text-right text-slate-500">{fmtCurrency(cpm, currency)}</td>
-      <td className="py-3 px-3 text-right font-medium text-slate-700">{fmtNum(results)}</td>
-      <td className="py-3 px-3 text-right text-slate-500">{costPerResult > 0 ? fmtCurrency(costPerResult, currency) : '—'}</td>
-      <td className="py-3 px-3 text-right font-semibold">{roas ? <span className={roas >= 2 ? 'text-emerald-600' : roas >= 1 ? 'text-amber-600' : 'text-red-500'}>{fmtX(roas)}</span> : '—'}</td>
+    <tr className="border-b border-slate-100/80 hover:bg-orange-50/30 transition-colors text-[11px]">
+      <td className="py-3 px-3"><span className={`w-2 h-2 rounded-full ${statusColor} inline-block mr-2`} /><span className="font-medium text-slate-700 truncate">{c.name?.slice(0, 30)}</span></td>
+      <td className="py-3 px-2 text-right font-semibold text-slate-800">{fmtCurrency(spend, currency)}</td>
+      <td className="py-3 px-2 text-right text-slate-500">{fmtNum(impr)}</td>
+      <td className="py-3 px-2 text-right text-slate-500">{fmtNum(reach)}</td>
+      <td className="py-3 px-2 text-right text-slate-500">{fmtNum(clicks)}</td>
+      <td className="py-3 px-2 text-right text-slate-500">{fmtPct(ctr)}</td>
+      <td className="py-3 px-2 text-right text-slate-500">{fmtCurrency(cpc, currency)}</td>
+      <td className="py-3 px-2 text-right text-slate-500">{fmtCurrency(cpm, currency)}</td>
+      <td className="py-3 px-2 text-right font-semibold text-slate-800">{fmtNum(results)}</td>
+      <td className="py-3 px-2 text-right text-slate-500">{cpr > 0 ? fmtCurrency(cpr, currency) : '—'}</td>
+      <td className="py-3 px-2 text-right">{roas ? <span className={roas >= 2 ? 'text-emerald-600 font-bold' : roas >= 1 ? 'text-amber-600' : 'text-red-500'}>{fmtX(roas)}</span> : '—'}</td>
+      <td className="py-3 px-2 text-right text-[10px] text-slate-400">{freq.toFixed(1)}</td>
     </tr>
+  );
+};
+
+// ── Chart Card ──
+const ChartCard = ({ title, children, className = '', colSpan = 1 }) => (
+  <div className={`bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 p-5 shadow-sm ${colSpan === 2 ? 'lg:col-span-2' : ''} ${className}`}>
+    <p className="text-[11px] font-bold text-slate-500 mb-4">{title}</p>
+    {children}
+  </div>
+);
+
+// ── Tooltip ──
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-slate-900 text-white rounded-lg px-3 py-2 shadow-xl text-[10px]">
+      <p className="font-semibold mb-1">{label}</p>
+      {payload.map((p, i) => (
+        <p key={i} className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
+          {p.name}: <span className="font-bold ml-auto">{typeof p.value === 'number' ? p.value.toLocaleString() : p.value}</span>
+        </p>
+      ))}
+    </div>
   );
 };
 
@@ -81,94 +137,144 @@ export const ReportDashboard = ({ adAccountId, token, onLogin, onLogout, selecte
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [datePreset, setDatePreset] = useState('last_7d');
-  const [accountData, setAccountData] = useState(null);
-  const [campaigns, setCampaigns] = useState([]);
-  const [dailyData, setDailyData] = useState([]);
+  const [activeTab, setActiveTab] = useState('overview');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const currency = accountData?.currency || 'HKD';
-  const currencySymbol = currency === 'HKD' ? 'HK$' : currency === 'USD' ? '$' : currency;
+  // Data
+  const [currentInsights, setCurrentInsights] = useState(null);
+  const [prevInsights, setPrevInsights] = useState(null);
+  const [campaigns, setCampaigns] = useState([]);
+  const [dailyData, setDailyData] = useState([]);
+  const [ageGenderData, setAgeGenderData] = useState([]);
+  const [placementData, setPlacementData] = useState([]);
+
+  const currency = 'HK$';
+
+  // Map date preset to previous period
+  const prevPreset = useMemo(() => {
+    const map = { last_7d: 'last_14d', last_14d: 'last_30d', last_30d: 'last_30d', this_month: 'last_month', last_month: 'last_month' };
+    return map[datePreset] || 'last_14d';
+  }, [datePreset]);
 
   const fetchReport = useCallback(async () => {
     if (!adAccountId || !token) return;
     setLoading(true);
     setError(null);
     try {
-      // Fetch account insights, campaign data (with insights), and daily breakdown in parallel
-      const [insightsRes, campaignsRes, dailyRes] = await Promise.all([
+      const [currRes, prevRes, campaignsRes, dailyRes, ageRes, placeRes] = await Promise.all([
         api.get('/insights', { params: { adAccountId, date_preset: datePreset } }),
+        api.get('/insights', { params: { adAccountId, date_preset: prevPreset } }).catch(() => ({ data: null })),
         api.get('/campaigns', { params: { adAccountId } }),
-        api.get(`/insights/${adAccountId}`, { params: { date_preset: datePreset, time_increment: 1, fields: 'spend,impressions,clicks,ctr,cpm,cpc,actions,purchase_roas' } }),
+        api.get(`/insights/${adAccountId}`, { params: { date_preset: datePreset, time_increment: 1, fields: 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,purchase_roas' } }).catch(() => ({ data: [] })),
+        api.get(`/insights/${adAccountId}`, { params: { date_preset: datePreset, breakdowns: 'age,gender', fields: 'spend,impressions,clicks,actions', level: 'account' } }).catch(() => ({ data: [] })),
+        api.get(`/insights/${adAccountId}`, { params: { date_preset: datePreset, breakdowns: 'publisher_platform', fields: 'spend,impressions,clicks,actions,cpm,ctr', level: 'account' } }).catch(() => ({ data: [] })),
       ]);
-      setAccountData(insightsRes.data);
+
+      setCurrentInsights(currRes.data);
+      setPrevInsights(prevRes.data);
       setCampaigns(campaignsRes.data?.data || campaignsRes.data || []);
 
-      // Process daily data for charts — response might be { data: [...] } or [...]
       const rawDaily = Array.isArray(dailyRes.data) ? dailyRes.data : (dailyRes.data?.data || []);
-      const daily = rawDaily.map(d => ({
+      setDailyData(rawDaily.map(d => ({
         date: d.date_start?.slice(5) || '',
         spend: parseFloat(d.spend || 0),
+        impressions: parseInt(d.impressions || 0),
+        clicks: parseInt(d.clicks || 0),
         ctr: parseFloat(d.ctr || 0),
         cpc: parseFloat(d.cpc || 0),
         cpm: parseFloat(d.cpm || 0),
-        impressions: parseInt(d.impressions || 0),
-        clicks: parseInt(d.clicks || 0),
+        reach: parseInt(d.reach || 0),
         roas: d.purchase_roas?.[0]?.value ? parseFloat(d.purchase_roas[0].value) : null,
-      }));
-      setDailyData(daily);
+      })));
+
+      const rawAge = Array.isArray(ageRes.data) ? ageRes.data : (ageRes.data?.data || []);
+      setAgeGenderData(rawAge);
+
+      const rawPlace = Array.isArray(placeRes.data) ? placeRes.data : (placeRes.data?.data || []);
+      setPlacementData(rawPlace);
 
     } catch (err) {
       setError(err.response?.data?.error?.message || err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
     }
-  }, [adAccountId, token, datePreset]);
+  }, [adAccountId, token, datePreset, prevPreset]);
 
   useEffect(() => { fetchReport(); }, [fetchReport]);
 
-  // KPIs from account-level insights
+  // KPIs with WoW
   const kpis = useMemo(() => {
-    if (!accountData) return null;
-    const totalSpend = accountData.totalSpend || 0;
-    const impressions = accountData.impressions || 0;
-    const clicks = accountData.clicks || 0;
-    const avgCtr = accountData.ctr || 0;
-    const avgCpc = clicks > 0 ? totalSpend / clicks : 0;
-    const avgCpm = impressions > 0 ? (totalSpend / impressions * 1000) : 0;
-    const avgRoas = accountData.purchaseRoas || null;
-    const totalResults = (accountData.leads || 0) + (accountData.purchases || 0) + (accountData.linkClicks || 0);
-    const costPerResult = totalResults > 0 ? totalSpend / totalResults : 0;
-    return { totalSpend, totalImpressions: impressions, totalClicks: clicks, avgCtr, avgCpc, avgCpm, avgRoas, totalResults, costPerResult };
-  }, [accountData]);
+    if (!currentInsights) return null;
+    const c = currentInsights;
+    const p = prevInsights || {};
+    return {
+      spend: { curr: c.totalSpend, prev: p.totalSpend },
+      impressions: { curr: c.impressions, prev: p.impressions },
+      clicks: { curr: c.clicks, prev: p.clicks },
+      ctr: { curr: c.ctr, prev: p.ctr },
+      reach: { curr: c.reach, prev: p.reach },
+      frequency: { curr: c.frequency, prev: p.frequency },
+      roas: { curr: c.purchaseRoas, prev: p.purchaseRoas },
+      leads: { curr: c.leads, prev: p.leads },
+      linkClicks: { curr: c.linkClicks, prev: p.linkClicks },
+    };
+  }, [currentInsights, prevInsights]);
 
-  // Budget distribution by campaign
+  // Budget by campaign
   const budgetData = useMemo(() => {
     return campaigns
-      .filter(c => {
-        const spend = parseFloat(c.insights?.data?.[0]?.spend || 0);
-        return spend > 0;
-      })
-      .map(c => ({
-        name: c.name?.length > 20 ? c.name.slice(0, 20) + '...' : c.name,
-        value: parseFloat(c.insights?.data?.[0]?.spend || 0),
-      }))
+      .filter(c => parseFloat(c.insights?.data?.[0]?.spend || 0) > 0)
+      .map(c => ({ name: c.name?.length > 18 ? c.name.slice(0, 18) + '...' : c.name, value: parseFloat(c.insights?.data?.[0]?.spend || 0) }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 6);
   }, [campaigns]);
 
+  // Age breakdown for chart
+  const ageBreakdown = useMemo(() => {
+    const grouped = {};
+    ageGenderData.forEach(row => {
+      const age = row.age || 'Unknown';
+      if (!grouped[age]) grouped[age] = { age, male: 0, female: 0, total: 0 };
+      const spend = parseFloat(row.spend || 0);
+      if (row.gender === 'male') grouped[age].male += spend;
+      else if (row.gender === 'female') grouped[age].female += spend;
+      grouped[age].total += spend;
+    });
+    return Object.values(grouped).sort((a, b) => {
+      const order = ['13-17', '18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
+      return order.indexOf(a.age) - order.indexOf(b.age);
+    });
+  }, [ageGenderData]);
+
+  // Placement breakdown
+  const placementBreakdown = useMemo(() => {
+    return placementData.map(row => ({
+      platform: row.publisher_platform || 'Unknown',
+      spend: parseFloat(row.spend || 0),
+      impressions: parseInt(row.impressions || 0),
+      clicks: parseInt(row.clicks || 0),
+      ctr: parseFloat(row.ctr || 0),
+      cpm: parseFloat(row.cpm || 0),
+    })).sort((a, b) => b.spend - a.spend);
+  }, [placementData]);
+
   const filteredCampaigns = useMemo(() => {
     let list = [...campaigns];
-    if (statusFilter !== 'all') {
-      list = list.filter(c => (c.effective_status || c.status || '').toUpperCase() === statusFilter);
-    }
-    // Sort by spend descending
+    if (statusFilter !== 'all') list = list.filter(c => (c.effective_status || c.status || '').toUpperCase() === statusFilter);
     list.sort((a, b) => parseFloat(b.insights?.data?.[0]?.spend || 0) - parseFloat(a.insights?.data?.[0]?.spend || 0));
     return list;
   }, [campaigns, statusFilter]);
 
+  // Daily heatmap data
+  const heatmapMax = useMemo(() => ({
+    spend: Math.max(...dailyData.map(d => d.spend), 1),
+    clicks: Math.max(...dailyData.map(d => d.clicks), 1),
+    impressions: Math.max(...dailyData.map(d => d.impressions), 1),
+  }), [dailyData]);
+
   return (
     <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-orange-50/40 via-white to-amber-50/30">
-      {/* Header */}
+      {/* Dark Header */}
       <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shrink-0">
         <div className="absolute inset-0 overflow-hidden pointer-events-none"><div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.15),transparent_60%)]" /></div>
         <div className="relative flex items-center justify-between px-6 py-4">
@@ -176,7 +282,7 @@ export const ReportDashboard = ({ adAccountId, token, onLogin, onLogout, selecte
             <div>
               <h1 className="text-lg font-bold text-white">Reports</h1>
               <p className="text-xs text-slate-400 mt-0.5">
-                {loading ? 'Loading...' : `${campaigns.length} campaigns · ${datePreset.replace(/_/g, ' ').replace('last ', 'Last ')}`}
+                {loading ? 'Loading...' : `${campaigns.length} campaigns · ${DATE_PRESETS.find(p => p.value === datePreset)?.full || datePreset}`}
               </p>
             </div>
             <span className="text-xs text-slate-400 font-medium">Ad Account:</span>
@@ -192,27 +298,36 @@ export const ReportDashboard = ({ adAccountId, token, onLogin, onLogout, selecte
         </div>
       </div>
 
-      {/* Date + Filters bar */}
-      <div className="px-6 py-2.5 flex items-center gap-3 bg-white/90 backdrop-blur-md border-b border-slate-200/60 shrink-0">
-        <Calendar size={14} className="text-slate-400" />
+      {/* Tabs + Date + Filters */}
+      <div className="px-6 py-2.5 flex items-center gap-4 bg-white/90 backdrop-blur-md border-b border-slate-200/60 shrink-0">
+        {/* Tabs */}
+        <div className="flex rounded-lg bg-slate-100 p-0.5">
+          {TABS.map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className={`px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all ${activeTab === tab.id ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Date presets */}
         <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden">
           {DATE_PRESETS.map(p => (
             <button key={p.value} onClick={() => setDatePreset(p.value)}
-              className={`px-3 py-1.5 text-[10px] font-medium transition-colors ${datePreset === p.value ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
+              className={`px-2.5 py-1.5 text-[10px] font-semibold transition-colors ${datePreset === p.value ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
               {p.label}
             </button>
           ))}
         </div>
-        <div className="ml-auto flex items-center gap-2">
-          <Filter size={13} className="text-slate-400" />
-          <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden">
-            {[['all', 'All'], ['ACTIVE', 'Active'], ['PAUSED', 'Paused']].map(([val, label]) => (
-              <button key={val} onClick={() => setStatusFilter(val)}
-                className={`px-2.5 py-1.5 text-[10px] font-medium transition-colors ${statusFilter === val ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
-                {label}
-              </button>
-            ))}
-          </div>
+
+        {/* Status filter */}
+        <div className="ml-auto flex rounded-lg border border-slate-200 bg-white overflow-hidden">
+          {[['all', 'All'], ['ACTIVE', 'Active'], ['PAUSED', 'Paused']].map(([v, l]) => (
+            <button key={v} onClick={() => setStatusFilter(v)}
+              className={`px-2.5 py-1.5 text-[10px] font-semibold transition-colors ${statusFilter === v ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
+              {l}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -223,111 +338,195 @@ export const ReportDashboard = ({ adAccountId, token, onLogin, onLogout, selecte
         {!token || !adAccountId ? (
           <div className="flex flex-col items-center justify-center py-20">
             <p className="text-sm font-semibold text-slate-700 mb-1">{!token ? 'Connect an ad platform' : 'Select an ad account'}</p>
-            <p className="text-xs text-slate-400">Use the account selector above to get started.</p>
           </div>
         ) : loading && !kpis ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 size={24} className="animate-spin text-slate-400" />
-          </div>
+          <div className="flex items-center justify-center py-20"><Loader2 size={24} className="animate-spin text-slate-400" /></div>
         ) : (
           <div className="space-y-5">
-            {/* KPI Cards */}
-            {kpis && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-3">
-                <KpiCard label="Spend" value={fmtCurrency(kpis.totalSpend, currency)} />
-                <KpiCard label="CTR" value={fmtPct(kpis.avgCtr)} />
-                <KpiCard label="CPC" value={fmtCurrency(kpis.avgCpc, currency)} />
-                <KpiCard label="CPM" value={fmtCurrency(kpis.avgCpm, currency)} />
-                <KpiCard label="ROAS" value={kpis.avgRoas ? fmtX(kpis.avgRoas) : '—'} />
-                <KpiCard label="Results" value={fmtNum(kpis.totalResults)} />
-                <KpiCard label="Cost/Result" value={kpis.costPerResult > 0 ? fmtCurrency(kpis.costPerResult, currency) : '—'} />
+
+            {/* ── OVERVIEW TAB ── */}
+            {activeTab === 'overview' && kpis && (
+              <>
+                {/* KPI Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  <KpiCard label="Total Spend" value={kpis.spend.curr} prevValue={kpis.spend.prev} isCost prefix={currency} />
+                  <KpiCard label="Impressions" value={kpis.impressions.curr} prevValue={kpis.impressions.prev} />
+                  <KpiCard label="Reach" value={kpis.reach.curr} prevValue={kpis.reach.prev} />
+                  <KpiCard label="Clicks" value={kpis.clicks.curr} prevValue={kpis.clicks.prev} />
+                  <KpiCard label="CTR" value={kpis.ctr.curr} prevValue={kpis.ctr.prev} />
+                </div>
+
+                {/* Charts row */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <ChartCard title="Performance Trend" colSpan={2}>
+                    {dailyData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={220}>
+                        <AreaChart data={dailyData}>
+                          <defs>
+                            <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#f97316" stopOpacity={0.15}/>
+                              <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                          <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                          <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Area type="monotone" dataKey="spend" stroke="#f97316" strokeWidth={2} fill="url(#spendGrad)" name="Spend" />
+                          <Line type="monotone" dataKey="clicks" stroke="#3b82f6" strokeWidth={2} dot={false} name="Clicks" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    ) : <div className="h-[220px] flex items-center justify-center text-sm text-slate-400">No data</div>}
+                  </ChartCard>
+
+                  <ChartCard title="Budget Distribution">
+                    {budgetData.length > 0 ? (
+                      <>
+                        <ResponsiveContainer width="100%" height={160}>
+                          <PieChart>
+                            <Pie data={budgetData} dataKey="value" cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={2}>
+                              {budgetData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                            </Pie>
+                            <Tooltip content={<CustomTooltip />} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="space-y-1 mt-2">
+                          {budgetData.map((d, i) => (
+                            <div key={i} className="flex items-center gap-2 text-[10px]">
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                              <span className="text-slate-600 truncate flex-1">{d.name}</span>
+                              <span className="font-semibold text-slate-700">{fmtCurrency(d.value, currency)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : <div className="h-[160px] flex items-center justify-center text-sm text-slate-400">No data</div>}
+                  </ChartCard>
+                </div>
+
+                {/* Daily Heatmap */}
+                {dailyData.length > 0 && (
+                  <ChartCard title={`Daily Heatmap — ${DATE_PRESETS.find(p => p.value === datePreset)?.full || ''}`}>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-[10px]">
+                        <thead>
+                          <tr className="border-b border-slate-100">
+                            <th className="py-2 px-2 text-left font-semibold text-slate-400 uppercase tracking-wider">Date</th>
+                            <th className="py-2 px-2 text-center font-semibold text-slate-400 uppercase tracking-wider">Spend</th>
+                            <th className="py-2 px-2 text-center font-semibold text-slate-400 uppercase tracking-wider">Impr.</th>
+                            <th className="py-2 px-2 text-center font-semibold text-slate-400 uppercase tracking-wider">Clicks</th>
+                            <th className="py-2 px-2 text-center font-semibold text-slate-400 uppercase tracking-wider">CTR</th>
+                            <th className="py-2 px-2 text-center font-semibold text-slate-400 uppercase tracking-wider">CPC</th>
+                            <th className="py-2 px-2 text-center font-semibold text-slate-400 uppercase tracking-wider">CPM</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {dailyData.map((d, i) => (
+                            <tr key={i} className="border-b border-slate-50">
+                              <td className="py-1.5 px-2 font-medium text-slate-600">{d.date}</td>
+                              <HeatmapCell value={d.spend} max={heatmapMax.spend} label="Spend" />
+                              <HeatmapCell value={d.impressions} max={heatmapMax.impressions} label="Impressions" />
+                              <HeatmapCell value={d.clicks} max={heatmapMax.clicks} label="Clicks" />
+                              <td className="py-1.5 px-2 text-center text-slate-500">{fmtPct(d.ctr)}</td>
+                              <td className="py-1.5 px-2 text-center text-slate-500">{fmtCurrency(d.cpc, currency)}</td>
+                              <td className="py-1.5 px-2 text-center text-slate-500">{fmtCurrency(d.cpm, currency)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </ChartCard>
+                )}
+              </>
+            )}
+
+            {/* ── CAMPAIGNS TAB ── */}
+            {activeTab === 'campaigns' && (
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 overflow-hidden shadow-sm">
+                <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="text-[12px] font-bold text-slate-700">Campaigns ({filteredCampaigns.length})</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/50">
+                        {['Campaign', 'Spend', 'Impr.', 'Reach', 'Clicks', 'CTR', 'CPC', 'CPM', 'Results', 'CPR', 'ROAS', 'Freq.'].map(h => (
+                          <th key={h} className="py-2.5 px-2 text-[9px] font-bold text-slate-400 uppercase tracking-wider text-right first:text-left">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredCampaigns.map(c => <CampaignRow key={c.id} c={c} currency={currency} />)}
+                      {filteredCampaigns.length === 0 && <tr><td colSpan={12} className="py-8 text-center text-sm text-slate-400">No campaigns</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 
-            {/* Charts row */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Performance trend — takes 2 cols */}
-              <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
-                <h3 className="text-[12px] font-bold text-slate-700 mb-4">Performance Trend</h3>
-                {dailyData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={240}>
-                    <LineChart data={dailyData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                      <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                      <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e2e8f0' }} />
-                      <Legend wrapperStyle={{ fontSize: 10 }} />
-                      <Line type="monotone" dataKey="spend" stroke="#f97316" strokeWidth={2} dot={false} name="Spend" />
-                      <Line type="monotone" dataKey="cpc" stroke="#3b82f6" strokeWidth={2} dot={false} name="CPC" />
-                      <Line type="monotone" dataKey="ctr" stroke="#10b981" strokeWidth={2} dot={false} name="CTR" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-[240px] flex items-center justify-center text-sm text-slate-400">No data</div>
-                )}
-              </div>
-
-              {/* Budget distribution — 1 col */}
-              <div className="bg-white rounded-xl border border-slate-200 p-5">
-                <h3 className="text-[12px] font-bold text-slate-700 mb-4">Budget Distribution</h3>
-                {budgetData.length > 0 ? (
-                  <>
-                    <ResponsiveContainer width="100%" height={180}>
-                      <PieChart>
-                        <Pie data={budgetData} dataKey="value" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2}>
-                          {budgetData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                        </Pie>
-                        <Tooltip formatter={(v) => fmtCurrency(v, currency)} contentStyle={{ fontSize: 11, borderRadius: 8 }} />
-                      </PieChart>
+            {/* ── DEMOGRAPHICS TAB ── */}
+            {activeTab === 'demographics' && (
+              <>
+                <ChartCard title="Spend by Age & Gender">
+                  {ageBreakdown.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={260}>
+                      <BarChart data={ageBreakdown} barGap={2}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="age" tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                        <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend wrapperStyle={{ fontSize: 10 }} />
+                        <Bar dataKey="female" fill="#ec4899" radius={[4, 4, 0, 0]} name="Female" />
+                        <Bar dataKey="male" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Male" />
+                      </BarChart>
                     </ResponsiveContainer>
-                    <div className="space-y-1.5 mt-2">
-                      {budgetData.map((d, i) => (
-                        <div key={i} className="flex items-center gap-2 text-[10px]">
-                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                          <span className="text-slate-600 truncate flex-1">{d.name}</span>
-                          <span className="font-medium text-slate-700">{fmtCurrency(d.value, currency)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <div className="h-[180px] flex items-center justify-center text-sm text-slate-400">No data</div>
-                )}
-              </div>
-            </div>
+                  ) : <div className="h-[260px] flex items-center justify-center text-sm text-slate-400">No demographic data available</div>}
+                </ChartCard>
+              </>
+            )}
 
-            {/* Campaign table */}
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-              <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="text-[12px] font-bold text-slate-700">Campaigns ({filteredCampaigns.length})</h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50/50">
-                      <th className="py-2.5 px-4 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Campaign</th>
-                      <th className="py-2.5 px-3 text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Spend</th>
-                      <th className="py-2.5 px-3 text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Impr.</th>
-                      <th className="py-2.5 px-3 text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Clicks</th>
-                      <th className="py-2.5 px-3 text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider">CTR</th>
-                      <th className="py-2.5 px-3 text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider">CPC</th>
-                      <th className="py-2.5 px-3 text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider">CPM</th>
-                      <th className="py-2.5 px-3 text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Results</th>
-                      <th className="py-2.5 px-3 text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Cost/Result</th>
-                      <th className="py-2.5 px-3 text-right text-[10px] font-semibold text-slate-400 uppercase tracking-wider">ROAS</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredCampaigns.map(c => (
-                      <CampaignRow key={c.id} campaign={c} currency={currency} />
-                    ))}
-                    {filteredCampaigns.length === 0 && (
-                      <tr><td colSpan={10} className="py-8 text-center text-sm text-slate-400">No campaigns found</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            {/* ── PLACEMENTS TAB ── */}
+            {activeTab === 'placements' && (
+              <>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <ChartCard title="Spend by Platform">
+                    {placementBreakdown.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={placementBreakdown} layout="vertical">
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                          <XAxis type="number" tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                          <YAxis dataKey="platform" type="category" tick={{ fontSize: 10, fill: '#94a3b8' }} width={80} />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Bar dataKey="spend" fill="#f97316" radius={[0, 4, 4, 0]} name="Spend" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : <div className="h-[220px] flex items-center justify-center text-sm text-slate-400">No placement data</div>}
+                  </ChartCard>
+
+                  <ChartCard title="Platform Performance">
+                    {placementBreakdown.length > 0 ? (
+                      <div className="space-y-3">
+                        {placementBreakdown.map((p, i) => (
+                          <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50/80">
+                            <span className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: COLORS[i % COLORS.length] }}>
+                              {p.platform.slice(0, 2).toUpperCase()}
+                            </span>
+                            <div className="flex-1">
+                              <p className="text-[12px] font-semibold text-slate-700 capitalize">{p.platform}</p>
+                              <div className="flex gap-4 text-[10px] text-slate-400 mt-0.5">
+                                <span>Spend: {fmtCurrency(p.spend, currency)}</span>
+                                <span>CTR: {fmtPct(p.ctr)}</span>
+                                <span>CPM: {fmtCurrency(p.cpm, currency)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <div className="h-[220px] flex items-center justify-center text-sm text-slate-400">No placement data</div>}
+                  </ChartCard>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

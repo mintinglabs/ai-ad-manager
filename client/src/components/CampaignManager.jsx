@@ -484,7 +484,7 @@ const AskAIPopup = ({ onSubmit, onClose, selectedIds, level }) => {
 };
 
 // ── Main Component ──
-export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount }) => {
+export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillChat, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount }) => {
   const [platform, setPlatform] = useState('meta');
   const [showAskAI, setShowAskAI] = useState(false);
   const [search, setSearch] = useState('');
@@ -1002,7 +1002,7 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, token, onLo
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 border border-slate-700 transition-colors disabled:opacity-50">
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
             </button>
-            <button onClick={() => setShowAskAI(true)}
+            <button onClick={() => onPrefillChat?.('I want to create new ads for my campaigns.', 'Campaign')}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:shadow-orange-500/50 transition-all shadow-lg shadow-orange-500/30">
               <Sparkles size={13} /> Ask AI Agent
             </button>

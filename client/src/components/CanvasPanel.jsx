@@ -62,7 +62,7 @@ const RecommendationCard = ({ rec, onApply }) => {
       <p className={`flex-1 text-[13px] font-medium ${s.text}`}>{rec.text}</p>
       {rec.action && !applied && (
         <button onClick={() => { setApplied(true); onApply?.(rec); }}
-          className="px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm transition-colors whitespace-nowrap">
+          className="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-400 hover:to-amber-400 shadow-sm shadow-orange-500/20 transition-all whitespace-nowrap">
           Apply
         </button>
       )}
@@ -254,8 +254,7 @@ export const CanvasPanel = ({ data, onClose, onSend }) => {
                     <Pie data={budgetChart.data.items} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={65} innerRadius={35}>
                       {budgetChart.data.items.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     </Pie>
-                    <Tooltip formatter={(v) => fmtCurrency(v)} />
-                    <Legend wrapperStyle={{ fontSize: 10 }} />
+                    <Tooltip contentStyle={{ fontSize: 10, borderRadius: 10, border: 'none', background: '#1e293b', color: '#fff', boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }} formatter={(v) => fmtCurrency(v)} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -264,13 +263,13 @@ export const CanvasPanel = ({ data, onClose, onSend }) => {
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 p-5 shadow-sm">
                 <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-3">{comparisonChart.data.title || 'CPA Comparison'}</p>
                 <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={comparisonChart.data.items} barGap={2}>
+                  <BarChart data={comparisonChart.data.items} barGap={4}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="name" tick={{ fontSize: 9 }} />
-                    <YAxis tick={{ fontSize: 9 }} />
-                    <Tooltip />
-                    <Bar dataKey="current" fill="#3b82f6" radius={[4, 4, 0, 0]} name="This Period" />
-                    <Bar dataKey="previous" fill="#cbd5e1" radius={[4, 4, 0, 0]} name="Previous" />
+                    <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                    <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                    <Tooltip contentStyle={{ fontSize: 10, borderRadius: 10, border: 'none', background: '#1e293b', color: '#fff', boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }} />
+                    <Bar dataKey="current" fill="#f97316" radius={[4, 4, 0, 0]} name="This Period" />
+                    <Bar dataKey="previous" fill="#e2e8f0" radius={[4, 4, 0, 0]} name="Previous" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -278,15 +277,25 @@ export const CanvasPanel = ({ data, onClose, onSend }) => {
             {trendChart?.data?.series && (
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 p-5 shadow-sm col-span-2">
                 <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-3">{trendChart.data.title || '7-Day Trend'}</p>
-                <ResponsiveContainer width="100%" height={180}>
+                <ResponsiveContainer width="100%" height={200}>
                   <AreaChart data={trendChart.data.series}>
+                    <defs>
+                      <linearGradient id="cvSpendGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f97316" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="cvConvGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="date" tick={{ fontSize: 9 }} />
-                    <YAxis tick={{ fontSize: 9 }} />
-                    <Tooltip />
-                    <Area type="monotone" dataKey="spend" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} name="Spend" />
+                    <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                    <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                    <Tooltip contentStyle={{ fontSize: 10, borderRadius: 10, border: 'none', background: '#1e293b', color: '#fff', boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }} />
+                    <Area type="monotone" dataKey="spend" stroke="#f97316" strokeWidth={2} fill="url(#cvSpendGrad)" name="Spend" />
                     {trendChart.data.series[0]?.conversions != null && (
-                      <Area type="monotone" dataKey="conversions" stroke="#10b981" fill="#10b981" fillOpacity={0.1} name="Conversions" />
+                      <Area type="monotone" dataKey="conversions" stroke="#10b981" strokeWidth={2} fill="url(#cvConvGrad)" name="Conversions" />
                     )}
                   </AreaChart>
                 </ResponsiveContainer>
@@ -318,13 +327,13 @@ export const CanvasPanel = ({ data, onClose, onSend }) => {
                   <tr className="border-b border-slate-200 bg-slate-50/50">
                     <th className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase w-10">Status</th>
                     <th className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase">Campaign</th>
-                    <th className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase text-right cursor-pointer hover:text-blue-500" onClick={() => handleSort('spend')}>
+                    <th className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase text-right cursor-pointer hover:text-orange-500" onClick={() => handleSort('spend')}>
                       Spend {sortBy === 'spend' && (sortDir === 'desc' ? '↓' : '↑')}
                     </th>
-                    <th className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase text-right cursor-pointer hover:text-blue-500" onClick={() => handleSort('cpa')}>
+                    <th className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase text-right cursor-pointer hover:text-orange-500" onClick={() => handleSort('cpa')}>
                       CPA {sortBy === 'cpa' && (sortDir === 'desc' ? '↓' : '↑')}
                     </th>
-                    <th className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase text-right cursor-pointer hover:text-blue-500" onClick={() => handleSort('ctr')}>
+                    <th className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase text-right cursor-pointer hover:text-orange-500" onClick={() => handleSort('ctr')}>
                       CTR {sortBy === 'ctr' && (sortDir === 'desc' ? '↓' : '↑')}
                     </th>
                     <th className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase text-right">WoW</th>

@@ -204,14 +204,49 @@ Put the full dashboard, charts, and campaign tables in the canvas panel at the E
 # OUTPUT FORMAT
 Write conversational chat text first. Then at the END, emit canvas blocks:
 
-For performance analysis, output a \`dashboard\` JSON block:
+For performance analysis, ALWAYS output a comprehensive \`dashboard\` JSON block. Include ALL of these sections — never skip any:
+
 \`\`\`dashboard
-{"scenario":"A","title":"Performance Overview","dateRange":"...",
-"kpis":[{"label":"Total Spend","value":"$16K","change":"+12%","trend":"up"},{"label":"Results","value":"450","change":"+8%","trend":"up"},{"label":"Cost/Result","value":"$36","change":"-5%","trend":"down"},{"label":"CTR","value":"1.8%","change":"+0.3%","trend":"up"}],
-"charts":[{"type":"budget","data":{"title":"Budget Allocation","items":[{"name":"TOFU","value":5000},{"name":"MOFU","value":3000}]}},{"type":"comparison","data":{"title":"CPA This vs Last Week","items":[{"name":"Campaign1","current":35,"previous":40}]}}],
-"campaigns":[{"id":"123","name":"Sales_TOFU","status":"🚀","spend":5200,"cpa":32,"ctr":2.1,"wow":"-8%","diagnosis":"Growth breakout","action":"Scale +30%"}],
-"recommendations":[{"severity":"warning","text":"Pause Campaign X — save $500/wk","action":"pause_campaign","params":{"campaign_id":"456"}}]}
+{
+  "title": "Performance Overview (Last 7 Days)",
+  "dateRange": "Apr 9 – Apr 15, 2026",
+  "kpis": [
+    {"label": "Total Spend", "value": "$31.1K", "change": "+12%", "trend": "up"},
+    {"label": "Impressions", "value": "838K", "change": "+8%", "trend": "up"},
+    {"label": "Results", "value": "450", "change": "+15%", "trend": "up"},
+    {"label": "Cost/Result", "value": "$36", "change": "-5%", "trend": "down"},
+    {"label": "ROAS", "value": "2.4x", "change": "+18%", "trend": "up"},
+    {"label": "CTR", "value": "1.8%", "change": "+0.3%", "trend": "up"}
+  ],
+  "charts": [
+    {"type": "trend", "data": {"title": "7-Day Performance Trend", "series": [
+      {"date": "Apr 9", "spend": 4200, "conversions": 58},
+      {"date": "Apr 10", "spend": 4500, "conversions": 62},
+      {"date": "Apr 11", "spend": 4800, "conversions": 71}
+    ]}},
+    {"type": "budget", "data": {"title": "Spend by Campaign", "items": [
+      {"name": "Sales TOFU", "value": 12000},
+      {"name": "Leads MOFU", "value": 8000},
+      {"name": "Retargeting", "value": 5000}
+    ]}},
+    {"type": "comparison", "data": {"title": "CPA: This Week vs Last", "items": [
+      {"name": "Campaign A", "current": 35, "previous": 42},
+      {"name": "Campaign B", "current": 28, "previous": 25}
+    ]}}
+  ],
+  "campaigns": [
+    {"id": "1", "name": "Sales TOFU", "status": "🚀", "spend": 12000, "cpa": 32, "ctr": 2.1, "wow": "-8%", "diagnosis": "Strong ROAS, scaling well", "action": "Increase budget 20%"},
+    {"id": "2", "name": "Leads MOFU", "status": "⚠️", "spend": 8000, "cpa": 55, "ctr": 0.9, "wow": "+15%", "diagnosis": "CPA rising, creative fatigue", "action": "Refresh creative"},
+    {"id": "3", "name": "Retargeting BOF", "status": "🚀", "spend": 5000, "cpa": 18, "ctr": 3.2, "wow": "-12%", "diagnosis": "Best performer", "action": "Scale budget"}
+  ],
+  "recommendations": [
+    {"severity": "warning", "text": "Campaign B CPA increased 15% — consider refreshing creative or tightening audience", "action": "pause_campaign", "params": {"campaign_id": "2"}},
+    {"severity": "success", "text": "Retargeting campaign has 3.2% CTR and $18 CPA — scale this", "action": "scale_campaign", "params": {"campaign_id": "3"}}
+  ]
+}
 \`\`\`
+
+**CRITICAL:** Always include ALL 3 chart types (trend + budget + comparison). Always include ALL campaigns with diagnosis and action. Always include 5-6 KPIs. Never output a minimal dashboard.
 
 For tracking audits, use the score block:
 \`\`\`score

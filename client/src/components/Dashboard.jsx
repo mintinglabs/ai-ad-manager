@@ -375,6 +375,7 @@ export const Dashboard = ({
 
   const [pendingInput, setPendingInput] = useState(null);
   const [pendingSlashSkill, setPendingSlashSkill] = useState(null);
+  const [pendingPill, setPendingPill] = useState(null);
 
   // Skill toggles — single source of truth, shared with SkillsLibrary
   const [skillToggles, setSkillToggles] = useState(() => {
@@ -425,11 +426,15 @@ export const Dashboard = ({
     sendMessage(prompt);
   }, [sendMessage]);
 
-  const handlePrefillChat = useCallback((text) => {
+  const handlePrefillChat = useCallback((text, pill) => {
     createNewChat();
     setPendingInput(text);
+    if (pill) setPendingPill(pill);
     setActiveView({ type: 'chat' });
   }, [createNewChat]);
+
+  // Close canvas when switching to any module
+  useEffect(() => { setCanvasData(null); }, [activeView]);
 
   const handleOpenCanvas = useCallback((data) => {
     setCanvasData(data);
@@ -539,6 +544,7 @@ export const Dashboard = ({
               adAccountId={adAccountId}
               onBack={() => setActiveView({ type: 'chat' })}
               onSendToChat={handleAudienceToChat}
+              onPrefillChat={handlePrefillChat}
               token={token}
               onLogin={onLogin}
               onLogout={onLogout}
@@ -716,6 +722,7 @@ export const Dashboard = ({
               }}
               onOpenCanvas={handleOpenCanvas}
               initialInput={pendingInput}
+              initialPill={pendingPill}
               initialSlashSkill={pendingSlashSkill}
               enabledSkillIds={enabledSkillIds}
               onCreateSkill={createSkill}

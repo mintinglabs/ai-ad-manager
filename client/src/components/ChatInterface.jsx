@@ -2983,7 +2983,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
-export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = [], onSend, onStop, suggestedActions = [], cardCategories = [], quickChips = [], adAccountId, onSaveItem, folders = [], activeSkill = null, activeSkills = [], activeSkillIds, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, initialInput, initialSlashSkill, enabledSkillIds = [], onCreateSkill, generateSkill, brandEnabledCount = 0, onSaveToBrand, userName = '' }) => {
+export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = [], onSend, onStop, suggestedActions = [], cardCategories = [], quickChips = [], adAccountId, onSaveItem, folders = [], activeSkill = null, activeSkills = [], activeSkillIds, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, initialInput, initialPill, initialSlashSkill, enabledSkillIds = [], onCreateSkill, generateSkill, brandEnabledCount = 0, onSaveToBrand, userName = '' }) => {
   const [input, setInput] = useState('');
   // Package as Skill state
   const [packagingMessage, setPackagingMessage] = useState(null);
@@ -3045,7 +3045,10 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
   const lastId   = messages[messages.length - 1]?.id;
   // Empty state: no messages, or only the old welcome message
   const isEmptyState = messages.length === 0 || (messages.length === 1 && messages[0].id === 'welcome');
-  const [activePill, setActivePill] = useState(null);
+  const [activePill, setActivePill] = useState(initialPill || null);
+
+  // Set pill when navigating from a module
+  useEffect(() => { if (initialPill) setActivePill(initialPill); }, [initialPill]);
   const dragCounter = useRef(0);
 
   // Upload a single file to Meta via our bulk-upload endpoint
