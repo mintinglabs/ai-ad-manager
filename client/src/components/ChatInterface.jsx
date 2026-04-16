@@ -2605,84 +2605,120 @@ const useSuggestedSkill = (input, skills, activeSkill, slashSkills) => {
 
 // ── Action Pills with Use Case Tabs ──
 const ACTION_PILLS = [
-  { icon: '📊', label: 'Campaign', useCases: [
-    { label: 'Create new campaign', prompt: 'I want to create a new conversion campaign. Help me choose the right objective, set budget, define targeting, and structure the ad sets and ads.' },
-    { label: 'Optimize existing', prompt: 'Review my active campaigns and suggest optimizations — which to scale, which to pause, budget reallocation, and bid adjustments.' },
-    { label: 'Scale winning ads', prompt: 'Identify my best performing ads and help me scale them — increase budget, duplicate to new audiences, or expand targeting.' },
-    { label: 'Pause underperformers', prompt: 'Analyze my campaigns and identify which ads or ad sets should be paused based on poor CPA, low ROAS, or high frequency.' },
+  { icon: '📊', label: 'Campaign', primary: true, cards: [
+    { title: 'Launch new ads', desc: 'Drop in your materials or start fresh — AI builds everything', prompt: 'I want to launch new ads. Help me set up a complete campaign — ask me about my goal, materials, budget, and audience, then build everything for me.' },
+    { title: 'Improve what\'s running', desc: 'Find waste, scale winners, optimize performance', prompt: 'Review my active campaigns — what\'s wasting money, what should I scale, and what changes will improve performance? Give me specific actions.' },
+    { title: 'Manage & organize', desc: 'Duplicate, bulk edit, restructure campaigns', prompt: 'Help me manage my campaigns — I want to duplicate, bulk update budgets, or reorganize my campaign structure. Show me what I have.' },
   ]},
-  { icon: '👥', label: 'Audience', useCases: [
-    { label: 'Build custom audience', prompt: 'Help me create a custom audience from my website visitors, customer list, or app activity. Guide me through the setup.' },
-    { label: 'Create lookalike', prompt: 'I want to create a lookalike audience based on my best customers. Help me choose the right source audience and percentage.' },
-    { label: 'Find new targeting', prompt: 'Suggest new interest-based and behavior-based targeting ideas for my business. What audiences should I be testing?' },
-    { label: 'Check audience overlap', prompt: 'Check if my audiences have significant overlap and suggest how to consolidate or differentiate them to avoid competing against myself.' },
+  { icon: '👥', label: 'Audience', primary: true, cards: [
+    { title: 'Build new audiences', desc: 'From customer data, website visitors, or lookalikes', prompt: 'Help me build audiences — create custom audiences from my data, retargeting segments, or lookalikes from my best converters. Guide me.' },
+    { title: 'Find untapped segments', desc: 'New interests, behaviors, competitor fans', prompt: 'Suggest new audience segments I haven\'t tested — interests, behaviors, competitor fans, or angles that could work for my business.' },
+    { title: 'Audit & clean up', desc: 'Fix overlap, refresh stale, consolidate', prompt: 'Audit my existing audiences — check for overlap, find stale segments, and suggest which to merge, refresh, or retire.' },
   ]},
-  { icon: '⚡', label: 'Automations', useCases: [
-    { label: 'Auto-pause bad ads', prompt: 'Create a rule to automatically pause ads when CPA exceeds my target or CTR drops too low. Help me set the right thresholds.' },
-    { label: 'Auto-scale winners', prompt: 'Set up a rule to automatically increase budget by 20% when an ad set maintains strong ROAS for 3 consecutive days.' },
-    { label: 'Budget alerts', prompt: 'Create notification rules to alert me when daily spend exceeds my limit or when a campaign is pacing too fast.' },
+  { icon: '⚡', label: 'Automations', primary: true, cards: [
+    { title: 'Protect my budget', desc: 'Auto-pause bad ads, set spend alerts', prompt: 'Set up automation rules to protect my budget — auto-pause ads when performance drops, and alert me when spend exceeds my limits.' },
+    { title: 'Auto-scale winners', desc: 'Increase budget when ads perform well', prompt: 'Create rules to automatically scale my best-performing ad sets — increase budget when ROAS is strong, with guardrails to prevent overspend.' },
+    { title: 'Smart monitoring', desc: 'Frequency caps, day-of-week rules, alerts', prompt: 'Set up smart monitoring — watch for ad fatigue, adjust budgets by day of week, and notify me when something needs attention.' },
   ]},
-  { icon: '📈', label: 'Performance', useCases: [
-    { label: 'Weekly report', prompt: 'Generate a weekly performance report for all my active campaigns — compare this week vs last week, highlight wins and concerns.' },
-    { label: 'Campaign deep dive', prompt: 'Give me a detailed performance analysis of my campaigns — breakdown by ad set and ad, identify what\'s working and what to change.' },
-    { label: 'Creative analysis', prompt: 'Analyze which ad creatives are performing best across all my campaigns — compare by format, messaging theme, and visual style.' },
-    { label: 'Cost benchmarks', prompt: 'How do my campaign metrics (CPA, CPM, CTR, ROAS) compare to typical benchmarks? Where am I overspending?' },
+  { icon: '📈', label: 'Performance', primary: true, cards: [
+    { title: 'Quick snapshot', desc: 'How are things right now?', prompt: 'Give me a quick performance snapshot — how are my active campaigns doing? Any red flags or wins I should know about?' },
+    { title: 'Deep analysis', desc: 'Full breakdown by campaign, creative, audience', prompt: 'Deep performance analysis — break down by campaign, ad set, creative, and audience. What\'s working, what\'s not, what should I do?' },
+    { title: 'Weekly report', desc: 'This week vs last with actions', prompt: 'Generate my weekly report — compare this week vs last, highlight top and bottom performers, give me 3 actionable recommendations.' },
   ]},
-  { icon: '📋', label: 'Lead Forms', useCases: [
-    { label: 'Create lead form', prompt: 'I want to create a new lead generation form. Help me design the questions, set up the privacy policy, and configure the thank-you page.' },
-    { label: 'Analyze leads', prompt: 'Show me lead form performance — completion rates, cost per lead, and which forms are generating the best quality leads.' },
-    { label: 'Optimize conversion', prompt: 'Review my existing lead forms and suggest ways to improve completion rates — fewer fields, better copy, or different question types.' },
+  { icon: '🎨', label: 'Creatives', primary: true, cards: [
+    { title: 'Manage assets', desc: 'Upload, organize, audit usage', prompt: 'Help me manage my creative assets — upload new ones, see what\'s being used vs available, and organize my library.' },
+    { title: 'Creative strategy', desc: 'What\'s winning and what to make next', prompt: 'Analyze my creative performance — which visuals and messages work best? What new concepts should I produce?' },
   ]},
-  { icon: '🔍', label: 'Ad Gallery', useCases: [
-    { label: 'View all ads', prompt: 'Show me all the ads currently running in my ad account with their status and performance.' },
-    { label: 'Find fatigued ads', prompt: 'Identify ads that are showing signs of fatigue — high frequency, declining CTR, or rising CPA over time. Suggest replacements.' },
-    { label: 'Review by page', prompt: 'Show me all ads grouped by Facebook page, so I can review what each brand is running.' },
+  // Secondary — shown in "More" expandable
+  { icon: '📋', label: 'Lead Forms', cards: [
+    { title: 'Create a lead form', desc: 'Questions, privacy, thank-you page', prompt: 'I want to create a lead generation form. Help me design the questions, set up privacy, and configure a thank-you page that converts.' },
+    { title: 'Analyze & improve', desc: 'Completion rates, CPL, drop-off', prompt: 'Show me how my lead forms are performing — completion rates, cost per lead, and where people drop off. Suggest improvements.' },
   ]},
-  { icon: '🎯', label: 'Tracking', useCases: [
-    { label: 'Setup Meta Pixel', prompt: 'Help me set up Meta Pixel tracking for my website — install the base code and configure key conversion events.' },
-    { label: 'Check events', prompt: 'Show me what conversion events are being tracked and whether they\'re firing correctly.' },
-    { label: 'Setup CAPI', prompt: 'Help me set up Conversions API (server-side tracking) to improve my data quality and attribution.' },
+  { icon: '🔍', label: 'Ad Review', cards: [
+    { title: 'Review all ads', desc: 'What\'s running across campaigns', prompt: 'Show me all ads running in my account — status, preview, which campaign. Full picture of what\'s live.' },
+    { title: 'Find ad fatigue', desc: 'Declining CTR, high frequency', prompt: 'Which ads are showing fatigue? High frequency, declining CTR, rising CPA — suggest what to replace them with.' },
   ]},
-  { icon: '🎨', label: 'Creative Hub', useCases: [
-    { label: 'Upload assets', prompt: 'I want to upload new images and videos for my ad campaigns. Help me organize them in the creative hub.' },
-    { label: 'Find available creatives', prompt: 'Show me which creatives are available (not currently used in any active ad) that I can use for new campaigns.' },
-    { label: 'Audit creative usage', prompt: 'Give me an overview of my creative assets — which are being used, which are available, and which have been used before but are now free.' },
+  { icon: '🎯', label: 'Tracking', cards: [
+    { title: 'Set up tracking', desc: 'Pixel, CAPI, events', prompt: 'Help me set up tracking — Meta Pixel, server-side CAPI, and the right conversion events for my business.' },
+    { title: 'Check my setup', desc: 'Verify events are firing', prompt: 'Check if my tracking is working — are events firing correctly? Any missing data or setup issues?' },
   ]},
 ];
 
-const ActionPills = ({ onSelect }) => {
-  const [activePill, setActivePill] = useState(null);
+const ActionPills = ({ onSelect, activePill, setActivePill }) => {
+  const [showMore, setShowMore] = useState(false);
+  const moreRef = useRef(null);
+  const primaryPills = ACTION_PILLS.filter(p => p.primary);
+  const secondaryPills = ACTION_PILLS.filter(p => !p.primary);
+
+  // Close More dropdown on outside click
+  useEffect(() => {
+    if (!showMore) return;
+    const handler = (e) => { if (moreRef.current && !moreRef.current.contains(e.target)) setShowMore(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showMore]);
+
 
   return (
     <div className="mt-6 relative z-0">
-      {/* Pills row */}
-      <div className="flex flex-wrap items-center justify-center gap-2.5">
-        {ACTION_PILLS.map(pill => (
-          <button key={pill.label} onClick={() => setActivePill(activePill === pill.label ? null : pill.label)}
-            className={`group flex items-center gap-2 px-5 py-2.5 rounded-2xl backdrop-blur-xl border text-[12px] font-semibold transition-all duration-200 hover:-translate-y-0.5 ${
-              activePill === pill.label
-                ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-400 shadow-lg shadow-orange-500/20'
-                : 'bg-white/70 border-white/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)] text-slate-600 hover:shadow-[0_4px_12px_rgba(251,146,60,0.15)] hover:border-orange-200 hover:text-orange-700'
-            }`}>
-            <span className="text-[15px] group-hover:scale-110 transition-transform duration-200">{pill.icon}</span>
-            {pill.label}
-          </button>
-        ))}
-      </div>
+      {/* Pills row — hidden when a pill is selected */}
+      {!activePill && (
+        <div className="relative flex items-center justify-center gap-2.5">
+          {primaryPills.map(pill => (
+            <button key={pill.label} onClick={() => setActivePill(pill.label)}
+              className="group flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[12px] font-semibold bg-white border border-slate-200/70 text-slate-600 hover:border-orange-200 hover:shadow-[0_4px_16px_-2px_rgba(251,146,60,0.15)] hover:text-orange-700 transition-all duration-300 hover:-translate-y-0.5">
+              <span className="text-[15px] group-hover:scale-110 transition-transform duration-200">{pill.icon}</span>
+              {pill.label}
+            </button>
+          ))}
+          <div className="relative" ref={moreRef}>
+            <button onClick={() => setShowMore(!showMore)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[12px] font-semibold transition-all duration-300 ${
+                showMore ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20' : 'bg-white border border-slate-200/70 text-slate-600 hover:border-orange-200 hover:shadow-[0_4px_16px_-2px_rgba(251,146,60,0.15)] hover:text-orange-700 hover:-translate-y-0.5'
+              }`}>
+              More
+            </button>
+            {showMore && (
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-2xl z-30 py-2 min-w-[180px] animate-[fadeSlideUp_0.15s_ease-out]">
+                {secondaryPills.map(pill => (
+                  <button key={pill.label} onClick={() => { setActivePill(pill.label); setShowMore(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-[12px] font-medium text-slate-600 hover:bg-orange-50/50 hover:text-orange-700 transition-colors text-left">
+                    <span className="text-[15px]">{pill.icon}</span>
+                    {pill.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
-      {/* Use case tabs — appear when a pill is selected */}
+      {/* Workflow cards — shown when pill selected */}
       {activePill && (() => {
         const pill = ACTION_PILLS.find(p => p.label === activePill);
-        if (!pill) return null;
+        if (!pill?.cards) return null;
         return (
-          <div className="mt-4 animate-[fadeSlideUp_0.2s_ease-out]">
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center mb-2">What do you want to do?</p>
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {pill.useCases.map(uc => (
-                <button key={uc.label} onClick={() => { onSelect(uc.prompt); setActivePill(null); }}
-                  className="px-4 py-2 rounded-xl bg-white/80 backdrop-blur-sm border border-slate-200 text-[11px] font-medium text-slate-600 hover:border-orange-300 hover:text-orange-700 hover:bg-orange-50/50 hover:shadow-sm transition-all">
-                  {uc.label}
-                </button>
+          <div className="animate-[fadeSlideUp_0.2s_ease-out]" data-workflow-cards>
+            <div className={`grid gap-3 ${pill.cards.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+              {pill.cards.map((card) => (
+                  <button key={card.title} onClick={() => onSelect(card.prompt)}
+                    className="group text-left rounded-2xl bg-white border border-orange-100 relative overflow-hidden hover:shadow-xl hover:shadow-orange-500/10 hover:border-orange-200 hover:-translate-y-1 transition-all duration-300 flex flex-col min-h-[160px]">
+                    {/* Warm gradient bg — always subtle, stronger on hover */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-orange-50/40 to-amber-50/20 group-hover:from-orange-50/80 group-hover:to-amber-50/40 transition-all duration-500" />
+                    {/* Top accent bar */}
+                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-orange-400 to-amber-400 opacity-30 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="relative p-5 flex flex-col flex-1">
+                      <p className="text-[13px] font-bold text-slate-800 group-hover:text-orange-800 transition-colors leading-snug">{card.title}</p>
+                      <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed flex-1">{card.desc}</p>
+                      <div className="flex justify-end mt-3">
+                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-sm shadow-orange-500/20 group-hover:shadow-md group-hover:shadow-orange-500/30 group-hover:scale-110 transition-all duration-300">
+                          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M7 17L17 7M17 7H7M17 7V17" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
               ))}
             </div>
           </div>
@@ -2692,7 +2728,7 @@ const ActionPills = ({ onSelect }) => {
   );
 };
 
-const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, attachments, onRemoveAttachment, onRetryUpload, fileRef, isTyping, handleFileUpload, isOver, activeSkill, activeSkills = [], onDeactivateSkill, skills = [], onSlashSelect, slashSkills = [], onRemoveSlashSkill, onClearAllSlash, onToggleSkill, onManageSkills, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, enabledSkillIds = [], activeSkillIds, brandEnabledCount = 0, isEmptyState = false }) => {
+const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, attachments, onRemoveAttachment, onRetryUpload, fileRef, isTyping, handleFileUpload, isOver, activeSkill, activeSkills = [], onDeactivateSkill, skills = [], onSlashSelect, slashSkills = [], onRemoveSlashSkill, onClearAllSlash, onToggleSkill, onManageSkills, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, enabledSkillIds = [], activeSkillIds, brandEnabledCount = 0, isEmptyState = false, activePill, setActivePill }) => {
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -2716,7 +2752,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
     // Auto-grow textarea
     const el = e.target;
     el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 160) + 'px'; // max ~7 rows
+    el.style.height = Math.min(el.scrollHeight, 300) + 'px'; // max ~14 rows, then scroll
   };
 
   const handleSlashKeyDown = (e) => {
@@ -2803,7 +2839,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
             rows={1}
             disabled={isTyping}
             className="w-full resize-none text-sm bg-transparent text-slate-800 placeholder:text-slate-400 focus:outline-none disabled:text-slate-400 overflow-y-auto"
-            style={{ lineHeight: '1.5', maxHeight: '160px' }}
+            style={{ lineHeight: '1.5', maxHeight: '300px' }}
           />
         </div>
         <div className="px-4 pb-3 flex items-center justify-between">
@@ -2845,6 +2881,19 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
             )}
 
             <AccountConnector token={token} onLogin={onLogin} onLogout={onLogout} isLoginLoading={isLoginLoading} loginError={loginError} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} dropUp={!isEmptyState} />
+            {/* Active pill chip — orange theme */}
+            {activePill && setActivePill && (() => {
+              const pill = ACTION_PILLS.find(p => p.label === activePill);
+              return pill ? (
+                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-50 text-[11px] font-semibold text-orange-700 border border-orange-200">
+                  <span className="text-[13px]">{pill.icon}</span>
+                  {pill.label}
+                  <button onClick={() => setActivePill(null)} className="text-orange-400 hover:text-orange-600 ml-0.5 transition-colors">
+                    <X size={12} />
+                  </button>
+                </span>
+              ) : null;
+            })()}
           </div>
           <div className="flex items-center gap-2">
             {isTyping ? (
@@ -2933,6 +2982,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
   const lastId   = messages[messages.length - 1]?.id;
   // Empty state: no messages, or only the old welcome message
   const isEmptyState = messages.length === 0 || (messages.length === 1 && messages[0].id === 'welcome');
+  const [activePill, setActivePill] = useState(null);
   const dragCounter = useRef(0);
 
   // Upload a single file to Meta via our bulk-upload endpoint
@@ -3244,15 +3294,17 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
         </div>
       )}
 
-      {/* Empty State */}
+      {/* Empty State — title+input anchored at ~40% height, content grows below with scroll */}
       {isEmptyState && (
-        <div className="flex-1 flex flex-col px-8 overflow-y-auto">
-          <div className="flex-1" />
-          <div className="w-full max-w-2xl mx-auto">
-
-            <h1 className="text-3xl font-extrabold text-slate-900 mb-6 text-center tracking-tight">
-              Ready to <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">Optimize</span> Your Ads?
-            </h1>
+        <div className="flex-1 overflow-y-auto">
+          <div style={{ height: '25vh' }} />
+          <div className="w-full max-w-[820px] mx-auto px-8">
+            <div className="text-center mb-6">
+              {userName && <p className="text-[14px] text-slate-400 mb-1">Hello, {userName.split(' ')[0]} 👋</p>}
+              <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                Ready to <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">Optimize</span> Your Ads?
+              </h1>
+            </div>
             <div className="relative z-10">
               <ChatInput
                 input={input} setInput={setInput} onKeyDown={handleKeyDown}
@@ -3266,36 +3318,11 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
                 token={token} onLogin={onLogin} onLogout={onLogout} isLoginLoading={isLoginLoading} loginError={loginError} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount}
                 brandEnabledCount={brandEnabledCount}
                 isEmptyState={true}
+                activePill={activePill} setActivePill={setActivePill}
               />
             </div>
-
-            {/* Action pills */}
-            <ActionPills onSelect={(prompt) => setInput(prompt)} />
+            <ActionPills activePill={activePill} setActivePill={setActivePill} onSelect={(prompt) => { setInput(prompt); setTimeout(() => { const el = document.querySelector('textarea'); if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 300) + 'px'; } }, 0); }} />
           </div>
-
-          <div className="w-full max-w-2xl mx-auto mt-8 pb-8 space-y-6">
-            {cardCategories.map(cat => (
-              <div key={cat.heading}>
-                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">{cat.heading}</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {cat.cards.map(card => (
-                    <ActionCard key={card.label} {...card} onSend={handleSend} disabled={isTyping} />
-                  ))}
-                </div>
-              </div>
-            ))}
-            {quickChips.length > 0 && (
-              <div className="flex flex-wrap gap-2 justify-center pt-2">
-                {quickChips.map(chip => (
-                  <button key={chip.label} onClick={() => handleSend(chip.prompt)} disabled={isTyping}
-                    className="px-4 py-2 text-[12px] font-medium text-slate-500 bg-white/70 backdrop-blur-sm border border-slate-200/80 rounded-full hover:border-orange-200 hover:text-orange-600 hover:bg-orange-50/30 transition-all disabled:opacity-40">
-                    {chip.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="flex-1" />
         </div>
       )}
 
@@ -3349,6 +3376,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
                 onToggleSkill={onToggleSkill} onManageSkills={onManageSkills}
                 token={token} onLogin={onLogin} isLoginLoading={isLoginLoading} loginError={loginError} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount}
                 brandEnabledCount={brandEnabledCount}
+                activePill={activePill} setActivePill={setActivePill}
               />
             </div>
           </div>

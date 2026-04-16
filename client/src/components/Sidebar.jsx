@@ -533,7 +533,7 @@ export const Sidebar = ({
                     ${isActive ? 'bg-orange-50 text-orange-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}>
                   <Icon size={13} className={isActive ? 'text-orange-500' : 'text-slate-400'} />
                   <span className="flex-1 text-left">{label}</span>
-                                  </button>
+                </button>
               );
             })}
           </div>
