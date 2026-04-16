@@ -2603,29 +2603,94 @@ const useSuggestedSkill = (input, skills, activeSkill, slashSkills) => {
   return suggested;
 };
 
-// ── Action Pills (homepage quick actions) ──
+// ── Action Pills with Use Case Tabs ──
 const ACTION_PILLS = [
-  { icon: '📊', label: 'Campaign', prompt: 'I want to create a new ad campaign. Help me set it up.' },
-  { icon: '👥', label: 'Audience', prompt: 'I want to build a custom audience for my campaigns.' },
-  { icon: '⚡', label: 'Automations', prompt: 'I want to create an automation rule for my campaigns. Help me set it up.' },
-  { icon: '📈', label: 'Performance', prompt: 'Analyze the performance of my ad campaigns and give me insights.' },
-  { icon: '📋', label: 'Lead Forms', prompt: 'I want to create a new lead generation form for my campaigns.' },
-  { icon: '🔍', label: 'Ad Gallery', prompt: 'Show me the ads running in my ad account.' },
-  { icon: '🎯', label: 'Pixel Setup', prompt: 'Help me set up tracking for my website with Meta Pixel.' },
-  { icon: '🎨', label: 'Creative Hub', prompt: 'I want to upload and manage creative assets for my ad campaigns.' },
+  { icon: '📊', label: 'Campaign', useCases: [
+    { label: 'Create new campaign', prompt: 'I want to create a new conversion campaign. Help me choose the right objective, set budget, define targeting, and structure the ad sets and ads.' },
+    { label: 'Optimize existing', prompt: 'Review my active campaigns and suggest optimizations — which to scale, which to pause, budget reallocation, and bid adjustments.' },
+    { label: 'Scale winning ads', prompt: 'Identify my best performing ads and help me scale them — increase budget, duplicate to new audiences, or expand targeting.' },
+    { label: 'Pause underperformers', prompt: 'Analyze my campaigns and identify which ads or ad sets should be paused based on poor CPA, low ROAS, or high frequency.' },
+  ]},
+  { icon: '👥', label: 'Audience', useCases: [
+    { label: 'Build custom audience', prompt: 'Help me create a custom audience from my website visitors, customer list, or app activity. Guide me through the setup.' },
+    { label: 'Create lookalike', prompt: 'I want to create a lookalike audience based on my best customers. Help me choose the right source audience and percentage.' },
+    { label: 'Find new targeting', prompt: 'Suggest new interest-based and behavior-based targeting ideas for my business. What audiences should I be testing?' },
+    { label: 'Check audience overlap', prompt: 'Check if my audiences have significant overlap and suggest how to consolidate or differentiate them to avoid competing against myself.' },
+  ]},
+  { icon: '⚡', label: 'Automations', useCases: [
+    { label: 'Auto-pause bad ads', prompt: 'Create a rule to automatically pause ads when CPA exceeds my target or CTR drops too low. Help me set the right thresholds.' },
+    { label: 'Auto-scale winners', prompt: 'Set up a rule to automatically increase budget by 20% when an ad set maintains strong ROAS for 3 consecutive days.' },
+    { label: 'Budget alerts', prompt: 'Create notification rules to alert me when daily spend exceeds my limit or when a campaign is pacing too fast.' },
+  ]},
+  { icon: '📈', label: 'Performance', useCases: [
+    { label: 'Weekly report', prompt: 'Generate a weekly performance report for all my active campaigns — compare this week vs last week, highlight wins and concerns.' },
+    { label: 'Campaign deep dive', prompt: 'Give me a detailed performance analysis of my campaigns — breakdown by ad set and ad, identify what\'s working and what to change.' },
+    { label: 'Creative analysis', prompt: 'Analyze which ad creatives are performing best across all my campaigns — compare by format, messaging theme, and visual style.' },
+    { label: 'Cost benchmarks', prompt: 'How do my campaign metrics (CPA, CPM, CTR, ROAS) compare to typical benchmarks? Where am I overspending?' },
+  ]},
+  { icon: '📋', label: 'Lead Forms', useCases: [
+    { label: 'Create lead form', prompt: 'I want to create a new lead generation form. Help me design the questions, set up the privacy policy, and configure the thank-you page.' },
+    { label: 'Analyze leads', prompt: 'Show me lead form performance — completion rates, cost per lead, and which forms are generating the best quality leads.' },
+    { label: 'Optimize conversion', prompt: 'Review my existing lead forms and suggest ways to improve completion rates — fewer fields, better copy, or different question types.' },
+  ]},
+  { icon: '🔍', label: 'Ad Gallery', useCases: [
+    { label: 'View all ads', prompt: 'Show me all the ads currently running in my ad account with their status and performance.' },
+    { label: 'Find fatigued ads', prompt: 'Identify ads that are showing signs of fatigue — high frequency, declining CTR, or rising CPA over time. Suggest replacements.' },
+    { label: 'Review by page', prompt: 'Show me all ads grouped by Facebook page, so I can review what each brand is running.' },
+  ]},
+  { icon: '🎯', label: 'Tracking', useCases: [
+    { label: 'Setup Meta Pixel', prompt: 'Help me set up Meta Pixel tracking for my website — install the base code and configure key conversion events.' },
+    { label: 'Check events', prompt: 'Show me what conversion events are being tracked and whether they\'re firing correctly.' },
+    { label: 'Setup CAPI', prompt: 'Help me set up Conversions API (server-side tracking) to improve my data quality and attribution.' },
+  ]},
+  { icon: '🎨', label: 'Creative Hub', useCases: [
+    { label: 'Upload assets', prompt: 'I want to upload new images and videos for my ad campaigns. Help me organize them in the creative hub.' },
+    { label: 'Find available creatives', prompt: 'Show me which creatives are available (not currently used in any active ad) that I can use for new campaigns.' },
+    { label: 'Audit creative usage', prompt: 'Give me an overview of my creative assets — which are being used, which are available, and which have been used before but are now free.' },
+  ]},
 ];
 
-const ActionPills = ({ onSelect }) => (
-  <div className="flex flex-wrap items-center justify-center gap-2.5 mt-6 relative z-0">
-    {ACTION_PILLS.map(pill => (
-      <button key={pill.label} onClick={() => onSelect(pill.prompt)}
-        className="group flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/70 backdrop-blur-xl border border-white/80 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.02)] text-[12px] font-semibold text-slate-600 hover:shadow-[0_4px_12px_rgba(251,146,60,0.15)] hover:border-orange-200 hover:text-orange-700 transition-all duration-200 hover:-translate-y-0.5">
-        <span className="text-[15px] group-hover:scale-110 transition-transform duration-200">{pill.icon}</span>
-        {pill.label}
-      </button>
-    ))}
-  </div>
-);
+const ActionPills = ({ onSelect }) => {
+  const [activePill, setActivePill] = useState(null);
+
+  return (
+    <div className="mt-6 relative z-0">
+      {/* Pills row */}
+      <div className="flex flex-wrap items-center justify-center gap-2.5">
+        {ACTION_PILLS.map(pill => (
+          <button key={pill.label} onClick={() => setActivePill(activePill === pill.label ? null : pill.label)}
+            className={`group flex items-center gap-2 px-5 py-2.5 rounded-2xl backdrop-blur-xl border text-[12px] font-semibold transition-all duration-200 hover:-translate-y-0.5 ${
+              activePill === pill.label
+                ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-400 shadow-lg shadow-orange-500/20'
+                : 'bg-white/70 border-white/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)] text-slate-600 hover:shadow-[0_4px_12px_rgba(251,146,60,0.15)] hover:border-orange-200 hover:text-orange-700'
+            }`}>
+            <span className="text-[15px] group-hover:scale-110 transition-transform duration-200">{pill.icon}</span>
+            {pill.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Use case tabs — appear when a pill is selected */}
+      {activePill && (() => {
+        const pill = ACTION_PILLS.find(p => p.label === activePill);
+        if (!pill) return null;
+        return (
+          <div className="mt-4 animate-[fadeSlideUp_0.2s_ease-out]">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center mb-2">What do you want to do?</p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {pill.useCases.map(uc => (
+                <button key={uc.label} onClick={() => { onSelect(uc.prompt); setActivePill(null); }}
+                  className="px-4 py-2 rounded-xl bg-white/80 backdrop-blur-sm border border-slate-200 text-[11px] font-medium text-slate-600 hover:border-orange-300 hover:text-orange-700 hover:bg-orange-50/50 hover:shadow-sm transition-all">
+                  {uc.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+};
 
 const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, attachments, onRemoveAttachment, onRetryUpload, fileRef, isTyping, handleFileUpload, isOver, activeSkill, activeSkills = [], onDeactivateSkill, skills = [], onSlashSelect, slashSkills = [], onRemoveSlashSkill, onClearAllSlash, onToggleSkill, onManageSkills, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, enabledSkillIds = [], activeSkillIds, brandEnabledCount = 0, isEmptyState = false }) => {
   const [skillsOpen, setSkillsOpen] = useState(false);

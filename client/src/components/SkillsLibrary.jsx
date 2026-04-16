@@ -623,6 +623,7 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
         </div>
       )}
 
+      {/* Header — compact dark bar (hidden when embedded in settings) */}
       {/* Header — compact dark bar */}
       <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shrink-0">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">

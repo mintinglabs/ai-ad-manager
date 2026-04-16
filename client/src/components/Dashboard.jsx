@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Menu, Zap } from 'lucide-react';
+import { Menu, Zap, Settings, Sparkles, Users, User, LogOut, ChevronRight, X } from 'lucide-react';
 import { useChatSessions } from '../hooks/useChatSessions.js';
 import { useSkills } from '../hooks/useSkills.js';
 import { ChatInterface } from './ChatInterface.jsx';
@@ -24,6 +24,201 @@ import { useBrandLibrary } from '../hooks/useBrandLibrary.js';
 const CARD_CATEGORIES = [];
 const QUICK_CHIPS = [];
 
+// ── Settings View — left sidebar + right panel like Claude settings ──
+const SettingsView = ({ onClose, onLogout, token, userName }) => {
+  const [activeTab, setActiveTab] = useState('account');
+  const [showTeamHelp, setShowTeamHelp] = useState(false);
+
+  const navItems = [
+    { id: 'account', label: 'Account', icon: User },
+    { id: 'team', label: 'Team', icon: Users },
+  ];
+
+
+  const roleColors = {
+    Admin: 'bg-orange-50 text-orange-600 border-orange-200',
+    Editor: 'bg-blue-50 text-blue-600 border-blue-200',
+    Viewer: 'bg-slate-50 text-slate-500 border-slate-200',
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 animate-[fadeIn_0.15s_ease-out]" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-8" onClick={onClose}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[80vh] flex overflow-hidden animate-[fadeSlideUp_0.2s_ease-out]" onClick={e => e.stopPropagation()}>
+
+      {/* Left sidebar nav — dark theme */}
+      <div className="w-[200px] shrink-0 flex flex-col rounded-l-2xl relative overflow-hidden bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
+        <div className="absolute inset-0 pointer-events-none"><div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(249,115,22,0.1),transparent_60%)]" /></div>
+        <div className="relative px-4 py-5">
+          <h2 className="text-[15px] font-bold text-white">Settings</h2>
+          <p className="text-[10px] text-slate-400 mt-0.5">Manage your workspace</p>
+        </div>
+        <nav className="relative px-3 flex-1">
+          {navItems.map(item => (
+            <button key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[12px] font-medium mb-1 transition-all ${
+                activeTab === item.id
+                  ? 'bg-white/10 text-white'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+              }`}>
+              <item.icon size={14} className={activeTab === item.id ? 'text-orange-400' : 'text-slate-500'} />
+              {item.label}
+            </button>
+          ))}
+        </nav>
+        <div className="relative px-3 py-4">
+          <button onClick={onClose} className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[11px] font-medium text-slate-500 hover:text-white hover:bg-white/5 transition-all">
+            <X size={13} /> Close
+          </button>
+        </div>
+      </div>
+
+      {/* Right content panel */}
+      <div className="flex-1 overflow-auto bg-gradient-to-br from-orange-50/40 via-white to-amber-50/30">
+        {activeTab === 'account' && (
+          <div className="p-8 max-w-2xl">
+            <h2 className="text-[16px] font-bold text-slate-800 mb-1">Account</h2>
+            <p className="text-[12px] text-slate-400 mb-6">Manage your profile and connected platforms</p>
+
+            {/* Profile */}
+            <div className="bg-white rounded-xl border border-slate-200 p-5 mb-5">
+              <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-4">Profile</h3>
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+                  <span className="text-white text-xl font-bold">{(userName || 'A').charAt(0).toUpperCase()}</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-[14px] font-semibold text-slate-800">{userName || 'User'}</p>
+                  <p className="text-[12px] text-slate-400">andy.wong@presslogic.com</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Connected Platforms */}
+            <div className="bg-white rounded-xl border border-slate-200 p-5 mb-5">
+              <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-4">Connected Platforms</h3>
+              <div className="flex items-center justify-between py-3 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center">
+                    <span className="text-white text-[11px] font-bold">f</span>
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-medium text-slate-700">Meta (Facebook & Instagram)</p>
+                    <p className="text-[11px] text-slate-400">Ad accounts, campaigns, audiences, creatives</p>
+                  </div>
+                </div>
+                {token ? (
+                  <button onClick={onLogout} className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 hover:bg-red-50 hover:text-red-500 transition-colors group">
+                    <span className={`w-1.5 h-1.5 rounded-full bg-emerald-500 group-hover:bg-red-500 transition-colors`} />
+                    <span className="group-hover:hidden">Connected</span>
+                    <span className="hidden group-hover:inline">Disconnect</span>
+                  </button>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300" /> Not connected
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center justify-between py-3 border-b border-slate-100 opacity-40">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-red-500 flex items-center justify-center">
+                    <span className="text-white text-[11px] font-bold">G</span>
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-medium text-slate-700">Google Ads</p>
+                    <p className="text-[11px] text-slate-400">Search, Display, YouTube campaigns</p>
+                  </div>
+                </div>
+                <span className="text-[11px] text-slate-300 font-medium">Coming Soon</span>
+              </div>
+              <div className="flex items-center justify-between py-3 opacity-40">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-black flex items-center justify-center">
+                    <span className="text-white text-[11px] font-bold">T</span>
+                  </div>
+                  <div>
+                    <p className="text-[13px] font-medium text-slate-700">TikTok Ads</p>
+                    <p className="text-[11px] text-slate-400">In-feed, TopView, Spark Ads</p>
+                  </div>
+                </div>
+                <span className="text-[11px] text-slate-300 font-medium">Coming Soon</span>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {activeTab === 'team' && (
+          <div className="p-8 max-w-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <h2 className="text-[16px] font-bold text-slate-800">Team</h2>
+                <button onClick={() => setShowTeamHelp(v => !v)}
+                  className="w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:border-slate-400 transition-colors text-[10px] font-bold">
+                  ?
+                </button>
+              </div>
+            </div>
+
+            {/* Help panel — collapsed by default */}
+            {showTeamHelp && (
+              <div className="bg-blue-50/50 rounded-xl border border-blue-200/60 p-4 mb-5 animate-[fadeSlideUp_0.2s_ease-out]">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">How Access Works</h3>
+                  <button onClick={() => setShowTeamHelp(false)} className="text-blue-400 hover:text-blue-600"><X size={14} /></button>
+                </div>
+                <p className="text-[11px] text-slate-600 mb-3">Everyone logs in with their own Facebook account. Their Meta Business role auto-maps to an app role. Admin can override.</p>
+                <div className="bg-white rounded-lg border border-blue-100 overflow-hidden">
+                  <table className="w-full text-[10px]">
+                    <thead><tr className="bg-blue-50/50">
+                      <th className="text-left px-3 py-1.5 font-semibold text-slate-500">Meta Role</th>
+                      <th className="text-left px-3 py-1.5 font-semibold text-slate-500">→ App Role</th>
+                      <th className="text-left px-3 py-1.5 font-semibold text-slate-500">Can do</th>
+                    </tr></thead>
+                    <tbody>
+                      <tr className="border-t border-blue-50"><td className="px-3 py-1.5">First user (you)</td><td className="px-3 py-1.5"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${roleColors.Admin}`}>Admin</span></td><td className="px-3 py-1.5 text-slate-400">Everything + manage team</td></tr>
+                      <tr className="border-t border-blue-50"><td className="px-3 py-1.5">Admin / Advertiser</td><td className="px-3 py-1.5"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${roleColors.Editor}`}>Editor</span></td><td className="px-3 py-1.5 text-slate-400">Create, edit, publish</td></tr>
+                      <tr className="border-t border-blue-50"><td className="px-3 py-1.5">Analyst</td><td className="px-3 py-1.5"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${roleColors.Viewer}`}>Viewer</span></td><td className="px-3 py-1.5 text-slate-400">View only</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2">Admin can override any role, and restrict access to specific ad accounts, pages, or modules.</p>
+              </div>
+            )}
+
+            {/* Members list */}
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              {/* You (admin) */}
+              <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center shadow-sm shrink-0">
+                  <span className="text-white text-sm font-bold">{(userName || 'A').charAt(0).toUpperCase()}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-medium text-slate-700">{userName || 'User'}</p>
+                  <p className="text-[10px] text-slate-400">All accounts · All pages · All modules</p>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${roleColors.Admin}`}>Admin</span>
+              </div>
+              {/* Empty state */}
+              <div className="px-5 py-10 text-center">
+                <Users size={28} className="text-slate-200 mx-auto mb-3" />
+                <p className="text-[13px] font-medium text-slate-500 mb-1">No team members yet</p>
+                <p className="text-[11px] text-slate-400 max-w-xs mx-auto">When teammates log in with their own Facebook account, they'll auto-appear here. You can then adjust their role and access.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
@@ -44,6 +239,7 @@ export const Dashboard = ({
   const [chatLanguage, setChatLanguage] = useState('en');
   const [activeView, setActiveView] = useState({ type: 'chat' });
   const [canvasData, setCanvasData] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   const {
     skills, activeSkill, activeSkills, activeSkillId, activeSkillIds, toggleSkill,
@@ -166,6 +362,10 @@ export const Dashboard = ({
 
   const handleOpenAdLibrary = useCallback(() => {
     setActiveView({ type: 'adLibrary' });
+  }, []);
+
+  const handleOpenSettings = useCallback(() => {
+    setShowSettings(true);
   }, []);
 
   const [pendingInput, setPendingInput] = useState(null);
@@ -295,6 +495,7 @@ export const Dashboard = ({
         onOpenAdLibrary={handleOpenAdLibrary}
         onOpenBrandLibrary={handleOpenBrandLibrary}
         onOpenSkillsLibrary={handleOpenSkillsLibrary}
+        onOpenSettings={handleOpenSettings}
         token={token}
         onLogin={onLogin}
       />
@@ -521,6 +722,16 @@ export const Dashboard = ({
           )}
         </div>
       </main>
+
+      {/* Settings Modal — floating overlay */}
+      {showSettings && (
+        <SettingsView
+          onClose={() => setShowSettings(false)}
+          onLogout={onLogout}
+          token={token}
+          userName={userName}
+        />
+      )}
 
       {/* Notification Toast */}
       {notification && (

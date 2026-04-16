@@ -231,6 +231,7 @@ export const Sidebar = ({
   onOpenOptimizations,
   onOpenAdLibrary,
   onOpenBrandLibrary,
+  onOpenSettings,
   token,
   onLogin,
 }) => {
@@ -348,17 +349,16 @@ export const Sidebar = ({
             <span className="absolute left-full ml-2 px-2.5 py-1 text-[11px] font-medium text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[60] shadow-lg">New Task</span>
           </button>
         </div>
+
         {/* Skills */}
         <div className="w-full px-1.5 shrink-0">
           <button onClick={onOpenSkillsLibrary}
             className={`group relative w-full h-[36px] rounded-xl flex items-center justify-center transition-colors
-              ${activeView?.type === 'skillsLibrary' ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}>
+              ${activeView?.type === 'skillsLibrary' || activeView?.type === 'skillConfig' ? 'bg-orange-50 text-orange-600' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}>
             <Sparkles size={16} />
             <span className="absolute left-full ml-2 px-2.5 py-1 text-[11px] font-medium text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[60] shadow-lg">Skills</span>
           </button>
         </div>
-
-
 
         {/* Manage Ads — single icon with flyout for all modules */}
         <div className="relative w-full px-1.5 shrink-0">
@@ -458,11 +458,13 @@ export const Sidebar = ({
           )}
         </div>
         <div className="flex-1" />
-        <div className="pb-4">
-          <div className="group relative w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shrink-0 shadow-sm">
-            <span className="text-white text-[10px] font-bold">A</span>
-            <span className="absolute left-full ml-2 px-2.5 py-1 text-[11px] font-medium text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[60] shadow-lg">Andy Wong</span>
-          </div>
+        <div className="pb-4 px-1.5">
+          <button onClick={onOpenSettings}
+            className={`group relative w-full h-[36px] rounded-xl flex items-center justify-center transition-colors
+              ${activeView?.type === 'settings' ? 'bg-slate-100 text-slate-600' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}>
+            <Settings size={16} />
+            <span className="absolute left-full ml-2 px-2.5 py-1 text-[11px] font-medium text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[60] shadow-lg">Settings</span>
+          </button>
         </div>
       </div>
 
@@ -498,10 +500,10 @@ export const Sidebar = ({
         {/* Skills */}
         <button
           onClick={onOpenSkillsLibrary}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border
+          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border mb-1
             ${activeView?.type === 'skillsLibrary' || activeView?.type === 'skillConfig'
               ? 'bg-orange-50 text-orange-700 border-orange-200'
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
+              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border-transparent'}`}
         >
           <Sparkles size={14} className={activeView?.type === 'skillsLibrary' || activeView?.type === 'skillConfig' ? 'text-orange-500' : 'text-slate-400'} />
           <span className="flex-1 text-left">Skills</span>
@@ -652,22 +654,16 @@ export const Sidebar = ({
       </div>
       )}
 
-      {/* User Profile — always at bottom */}
+      {/* Settings — always at bottom */}
       <div className="px-3 pb-4 pt-2 shrink-0 border-t border-slate-100 mt-auto">
-        <div className="flex items-center gap-3 px-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shrink-0 shadow-sm">
-            <span className="text-white text-xs font-bold">A</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-800 truncate">Andy Wong</p>
-            <p className="text-[11px] text-slate-400 truncate">andy.wong@presslogic.com</p>
-          </div>
-          {token && onLogout && (
-            <button onClick={onLogout} className="text-slate-400 hover:text-slate-600 transition-colors" title="Log out">
-              <LogOut size={16} />
-            </button>
-          )}
-        </div>
+        <button onClick={onOpenSettings}
+          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all
+            ${activeView?.type === 'settings' || activeView?.type === 'skillsLibrary' || activeView?.type === 'skillConfig'
+              ? 'bg-slate-100 text-slate-700'
+              : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}>
+          <Settings size={15} />
+          <span>Settings</span>
+        </button>
       </div>
       {/* Context Menu for chat sessions */}
       {contextMenu && (
