@@ -162,15 +162,15 @@ export const ReportDashboard = ({ adAccountId, token, onLogin, onLogout, selecte
     setError(null);
     try {
       const [currRes, prevRes, campaignsRes, dailyRes, ageRes, placeRes] = await Promise.all([
-        api.get('/insights', { params: { adAccountId, date_preset: datePreset } }),
+        api.get('/insights', { params: { adAccountId, date_preset: datePreset } }).catch(() => ({ data: null })),
         api.get('/insights', { params: { adAccountId, date_preset: prevPreset } }).catch(() => ({ data: null })),
-        api.get('/campaigns', { params: { adAccountId } }),
+        api.get('/campaigns', { params: { adAccountId } }).catch(() => ({ data: [] })),
         api.get(`/insights/${adAccountId}`, { params: { date_preset: datePreset, time_increment: 1, fields: 'spend,impressions,clicks,ctr,cpm,cpc,reach,frequency,actions,purchase_roas' } }).catch(() => ({ data: [] })),
         api.get(`/insights/${adAccountId}`, { params: { date_preset: datePreset, breakdowns: 'age,gender', fields: 'spend,impressions,clicks,actions', level: 'account' } }).catch(() => ({ data: [] })),
         api.get(`/insights/${adAccountId}`, { params: { date_preset: datePreset, breakdowns: 'publisher_platform', fields: 'spend,impressions,clicks,actions,cpm,ctr', level: 'account' } }).catch(() => ({ data: [] })),
       ]);
 
-      setCurrentInsights(currRes.data);
+      if (currRes.data) setCurrentInsights(currRes.data);
       setPrevInsights(prevRes.data);
       setCampaigns(campaignsRes.data?.data || campaignsRes.data || []);
 
