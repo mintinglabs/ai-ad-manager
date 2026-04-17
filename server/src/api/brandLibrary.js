@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import axios from 'axios';
 import multer from 'multer';
-import pdf from 'pdf-parse/lib/pdf-parse.js';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const pdf = require('pdf-parse');
 import { GoogleGenAI } from '@google/genai';
 import { supabase } from '../lib/supabase.js';
 
