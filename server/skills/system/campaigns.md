@@ -99,7 +99,7 @@ Ask only what's missing. Skip anything brand memory provides.
 ### Step 4 — Auto-determine (NEVER ask)
 - Objective → from goal
 - Campaign name → `YYYYMMDD [Objective] — [Product]`
-- Ad copy → via Ad Copy Writer skill (if enabled)
+- Ad copy → auto-generate from product info + brand memory context
 - CTA → SHOP_NOW (sales), LEARN_MORE (traffic), SIGN_UP (leads)
 - Targeting → brand memory audience or Advantage+ broad
 - Placements → Advantage+ (unless media ratio suggests specific)
