@@ -486,7 +486,14 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
 
   const filtered = items.filter(item => {
     if (search && !item.name?.toLowerCase().includes(search.toLowerCase())) return false;
-    if (typeFilter !== 'all' && item.type !== typeFilter) return false;
+    // Source filters
+    if (typeFilter === 'chat' && item.metadata?.source !== 'chat') return false;
+    if (typeFilter === 'file' && !item.metadata?.source_file) return false;
+    if (typeFilter === 'url' && (!item.metadata?.source_url || item.metadata?.page_name)) return false;
+    if (typeFilter === 'social' && !item.metadata?.page_name) return false;
+    if (typeFilter === 'manual' && (item.metadata?.source || item.metadata?.source_file || item.metadata?.source_url)) return false;
+    // Type filters
+    if (['guidelines', 'tone', 'visual', 'content', 'crawled'].includes(typeFilter) && item.type !== typeFilter) return false;
     return true;
   });
 
@@ -582,75 +589,72 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
         </div>
       </div>
 
-      {/* Search + Type filter */}
-      <div className="px-6 py-3 shrink-0 bg-white border-b border-slate-100 flex items-center gap-3">
-        <div className="relative max-w-[200px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..."
-            className="w-full pl-9 pr-3 py-1.5 text-[11px] rounded-lg border border-slate-200/80 bg-white/80 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 placeholder:text-slate-300" />
+      {/* Search bar — simple */}
+      {items.length > 0 && (
+        <div className="px-6 py-2.5 shrink-0 bg-white/90 backdrop-blur-md border-b border-slate-200/60">
+          <div className="relative max-w-xs">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search brand memory..."
+              className="w-full pl-9 pr-3 py-1.5 text-[11px] rounded-lg border border-slate-200/80 bg-white/80 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300 placeholder:text-slate-300" />
+          </div>
         </div>
-        <div className="flex rounded-md border border-slate-200 bg-white overflow-hidden">
-          <button onClick={() => setTypeFilter('all')}
-            className={`px-2.5 py-1.5 text-[10px] font-medium transition-colors ${typeFilter === 'all' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
-            All ({items.length})
-          </button>
-          {Object.entries(ITEM_TYPES).map(([key, cfg]) => {
-            const count = typeCounts[key] || 0;
-            if (count === 0) return null;
-            return (
-              <button key={key} onClick={() => setTypeFilter(typeFilter === key ? 'all' : key)}
-                className={`px-2.5 py-1.5 text-[10px] font-medium transition-colors ${typeFilter === key ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
-                {cfg.label} ({count})
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      )}
 
       {error && <div className="mx-6 mt-3 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{error}</div>}
 
-      {/* Content — card grid like skills */}
+      {/* Content */}
       <div className="flex-1 overflow-auto px-6 py-5">
         {loading && items.length === 0 ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 size={24} className="animate-spin text-slate-400" />
           </div>
-        ) : filtered.length === 0 && !search ? (
-          /* Demo cards when no items exist */
-          <div>
-            <div className="text-center mb-6">
-              <p className="text-sm font-semibold text-slate-700 mb-1">No brand memory yet for this account</p>
-              <p className="text-[11px] text-slate-400">Save insights from chat conversations or click "Create with AI" to get started. Here's what it looks like:</p>
+        ) : items.length === 0 ? (
+          /* Empty state — simple onboarding */
+          <div className="max-w-lg mx-auto py-12">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-100 to-amber-50 flex items-center justify-center mx-auto mb-4">
+                <BookMarked size={28} className="text-orange-500" />
+              </div>
+              <h2 className="text-lg font-bold text-slate-800 mb-2">Build Your Brand Knowledge Base</h2>
+              <p className="text-[12px] text-slate-500 max-w-sm mx-auto">The more you add, the smarter your AI becomes for this account. Every item is auto-applied to all conversations.</p>
             </div>
-            <h3 className="text-[10px] font-bold text-slate-300 uppercase tracking-wider mb-3">Demo Preview</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 opacity-50 pointer-events-none select-none">
-              {[
-                { id: 'd1', name: 'Brand Voice & Tone', type: 'tone', enabled: true, content: 'We speak with confidence and warmth. Our tone is professional yet approachable — like a trusted friend who happens to be an expert. Avoid jargon. Use short, punchy sentences.', metadata: { source: 'chat' }, created_at: '2026-04-10' },
-                { id: 'd2', name: 'Target Audience Profile', type: 'guidelines', enabled: true, content: 'Primary: Women 25-45, health-conscious, mid-to-high income. Interested in skincare, wellness, and beauty treatments. Values quality over price. Active on Instagram and Facebook.', metadata: { source: 'chat' }, created_at: '2026-04-08' },
-                { id: 'd3', name: 'Dr.Once Product Messaging', type: 'content', enabled: true, content: 'Key messages: Medical-grade ingredients, salon results at home, clinically tested. Hero product: Anti-hair loss shampoo with DDS nano technology. Price point: $138/bottle.', metadata: { source_url: 'https://dr-once.com' }, created_at: '2026-04-05' },
-                { id: 'd4', name: 'Visual Identity', type: 'visual', enabled: true, content: 'Primary colors: Deep blue (#1a365d), Gold (#d69e2e). Typography: Clean sans-serif. Photography: Bright, clinical, aspirational. Product shots on white/light blue backgrounds.', metadata: { source: 'chat' }, created_at: '2026-04-03' },
-                { id: 'd5', name: 'Competitor Positioning', type: 'guidelines', enabled: false, content: 'vs. Generic shampoos: We are medical-grade, not mass-market. vs. Salon treatments: Same results, fraction of the cost, use at home. Never mention competitors by name.', metadata: { source: 'chat' }, created_at: '2026-03-28' },
-                { id: 'd6', name: 'TopBeauty Page Insights', type: 'crawled', enabled: true, content: 'Brand personality: Fun, trendy, youth-oriented. Content style: Before/after transformations, KOL reviews, limited-time offers. High engagement on video content with personal stories.', metadata: { source_url: 'https://facebook.com/topbeauty' }, created_at: '2026-03-25' },
-              ].map(demo => (
-                <BrandMemoryCard key={demo.id} item={demo} onView={() => {}} onToggle={() => {}} onDelete={() => {}} />
-              ))}
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => onPrefillChat?.('Help me set up my brand memory.')}
+                className="group text-left p-5 rounded-2xl bg-white border border-slate-200/60 hover:border-orange-200 hover:shadow-lg hover:shadow-orange-500/5 hover:-translate-y-0.5 transition-all duration-300">
+                <span className="text-2xl mb-3 block">🤖</span>
+                <p className="text-[13px] font-bold text-slate-800 group-hover:text-orange-700">Create with AI</p>
+                <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">Chat with AI to build your brand profile step by step</p>
+              </button>
+              <button onClick={() => fileRef.current?.click()}
+                className="group text-left p-5 rounded-2xl bg-white border border-slate-200/60 hover:border-orange-200 hover:shadow-lg hover:shadow-orange-500/5 hover:-translate-y-0.5 transition-all duration-300">
+                <span className="text-2xl mb-3 block">📄</span>
+                <p className="text-[13px] font-bold text-slate-800 group-hover:text-orange-700">Upload Files</p>
+                <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">PDF, PPT, brand guidelines, any docs</p>
+              </button>
+              <button onClick={() => setShowCrawlUrl(true)}
+                className="group text-left p-5 rounded-2xl bg-white border border-slate-200/60 hover:border-orange-200 hover:shadow-lg hover:shadow-orange-500/5 hover:-translate-y-0.5 transition-all duration-300">
+                <span className="text-2xl mb-3 block">🌐</span>
+                <p className="text-[13px] font-bold text-slate-800 group-hover:text-orange-700">Crawl Website</p>
+                <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">AI reads your site and extracts brand info</p>
+              </button>
+              <button onClick={() => setShowCrawlSocial(true)}
+                className="group text-left p-5 rounded-2xl bg-white border border-slate-200/60 hover:border-orange-200 hover:shadow-lg hover:shadow-orange-500/5 hover:-translate-y-0.5 transition-all duration-300">
+                <span className="text-2xl mb-3 block">📱</span>
+                <p className="text-[13px] font-bold text-slate-800 group-hover:text-orange-700">Crawl Social</p>
+                <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">Analyze your Facebook or Instagram page</p>
+              </button>
             </div>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <p className="text-sm font-semibold text-slate-700 mb-1">No matches</p>
-            <p className="text-[11px] text-slate-400">Try a different search or filter.</p>
           </div>
         ) : (
           <>
-            {/* Active in AI memory */}
+            {/* All items — enabled first, then disabled */}
             {enabledItems.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <h3 className="text-[10px] font-bold text-emerald-600 uppercase tracking-[0.12em] mb-3 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   Active in AI Memory ({enabledItems.length})
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {enabledItems.map(item => (
                     <BrandMemoryCard key={item.id} item={item} onView={() => setSelectedItem(item)}
                       onToggle={() => toggleItem(item.id, false)} onDelete={() => handleDelete(item.id)} />
@@ -658,13 +662,12 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
                 </div>
               </div>
             )}
-            {/* Disabled */}
             {disabledItems.length > 0 && (
               <div>
-                <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">
+                <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.12em] mb-3">
                   Disabled ({disabledItems.length})
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {disabledItems.map(item => (
                     <BrandMemoryCard key={item.id} item={item} onView={() => setSelectedItem(item)}
                       onToggle={() => toggleItem(item.id, true)} onDelete={() => handleDelete(item.id)} />
