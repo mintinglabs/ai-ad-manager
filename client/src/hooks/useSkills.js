@@ -5,30 +5,18 @@ const ACTIVE_KEY = 'aam_active_skills';
 
 // Fallback defaults when API hasn't loaded — must match all 18 built-in skills from server/skills/default/
 const DEFAULT_SKILLS = [
-  // ── Analytical ──
-  { id: 'insights-reporting', name: 'Insights & Reporting', description: 'Analyze Facebook ad performance with diagnostic statuses and strategic recommendations', icon: 'chart', isDefault: true },
-  { id: 'data-analysis', name: 'Data Analysis', description: 'Performance analysis, diagnostics, and business intelligence — overview, cost diagnostics, capital loss, scaling', icon: 'chart', isDefault: true },
-  { id: 'business-manager', name: 'Business Manager', description: 'Navigate Facebook Business Manager — view businesses, ad accounts, pages, pixels, and team members', icon: 'sparkles', isDefault: true },
-  // ── Strategic ──
-  { id: 'campaign-manager', name: 'Campaign Manager', description: 'Plan and configure Facebook ad campaigns — guided creation flow with diagnostic one-click fixes', icon: 'target', isDefault: true },
-  { id: 'targeting-audiences', name: 'Targeting & Audiences', description: 'Plan audience targeting strategies — custom audiences, lookalikes, saved audiences, and interest targeting', icon: 'users', isDefault: true },
-  { id: 'automation-rules', name: 'Automation Rules', description: 'Plan automation strategies — auto-pause, auto-scale, and notification rules with safety guardrails', icon: 'zap', isDefault: true },
-  // ── Operational ──
-  { id: 'ad-manager', name: 'Ad Manager', description: 'Create, update, delete, copy, and preview Facebook ads with read-first safety guardrails', icon: 'sparkles', isDefault: true },
-  { id: 'adset-manager', name: 'Ad Set Manager', description: 'Create, update, delete, and copy ad sets with targeting, budgets, bidding, and scheduling', icon: 'sparkles', isDefault: true },
-  { id: 'creative-manager', name: 'Creative Manager', description: 'Audit creative health — detect fatigue, analyze hook rates, recommend format pivots and copy refreshes', icon: 'palette', isDefault: true },
-  { id: 'tracking-conversions', name: 'Tracking & Conversions', description: 'Set up pixels, send server-side conversion events via CAPI, and create custom conversions', icon: 'target', isDefault: true },
-  { id: 'lead-ads', name: 'Lead Ads', description: 'Create lead generation forms, retrieve and export lead submissions, and connect forms to ads', icon: 'sparkles', isDefault: true },
-  { id: 'product-catalogs', name: 'Product Catalogs', description: 'Manage product catalogs, feeds, product sets, and batch operations for dynamic product ads', icon: 'sparkles', isDefault: true },
-  // ── Pipeline ──
-  { id: 'campaign-creation', name: 'Campaign Creation', description: 'Complete campaign creation — from strategy to launch. Guided, materials-based, boost, bulk, and clone', icon: 'target', isDefault: true },
-  { id: 'audience-creation', name: 'Audience Creation', description: 'Create all audience types — video, website, engagement, lookalike, saved, customer list', icon: 'users', isDefault: true },
-  { id: 'campaign-setup', name: 'Campaign Setup', description: 'Stage 1-2: Collect campaign strategy settings and audience targeting configuration', icon: 'target', isDefault: true },
-  { id: 'creative-assembly', name: 'Creative Assembly', description: 'Stage 3: Collect creative materials and auto-generate ad copy variations', icon: 'palette', isDefault: true },
-  { id: 'ad-launcher', name: 'Ad Launcher', description: 'Execution: Final review, create campaign + ad set + creative + ad, preflight, preview, activate', icon: 'zap', isDefault: true },
-  { id: 'bulk-campaign-setup', name: 'Bulk Campaign Setup', description: 'Create multiple campaigns at once from an uploaded document with campaign plan data', icon: 'zap', isDefault: true },
-  // ── Operational ──
-  { id: 'skill-creator', name: 'Skill Creator', description: 'Guide users through creating a new custom skill via structured conversation', icon: 'sparkles', isDefault: true },
+  // ── System Skills (always active, read-only) ──
+  { id: 'campaigns', name: 'Campaigns', description: 'Create, edit, boost, and manage ad campaigns — launch new ads, boost posts, bulk updates', icon: 'target', isDefault: true, visibility: 'system' },
+  { id: 'audiences', name: 'Audiences', description: 'Build and manage audiences — lookalikes, retargeting, custom lists, interest targeting', icon: 'users', isDefault: true, visibility: 'system' },
+  { id: 'analytics-engine', name: 'Analytics & Reporting', description: 'Performance analysis, diagnostics, and strategic recommendations with dashboard', icon: 'chart', isDefault: true, visibility: 'system' },
+  { id: 'automations', name: 'Automations', description: 'Create and manage automation rules — auto-pause, auto-scale, alerts, frequency caps', icon: 'zap', isDefault: true, visibility: 'system' },
+  { id: 'creative-hub', name: 'Creative Hub', description: 'Upload, manage, and organize ad images and videos — asset management layer', icon: 'palette', isDefault: true, visibility: 'system' },
+  { id: 'lead-forms', name: 'Lead Forms', description: 'Create and manage lead generation forms — design questions, privacy, thank-you pages', icon: 'sparkles', isDefault: true, visibility: 'system' },
+  { id: 'account-infrastructure', name: 'Account & Tracking', description: 'Pixels, CAPI, custom conversions, product catalogs, automation rules setup', icon: 'target', isDefault: true, visibility: 'system' },
+  { id: 'ad-gallery', name: 'Ad Gallery', description: 'Search and analyze competitor ads from Meta Ad Library — creative inspiration', icon: 'sparkles', isDefault: true, visibility: 'system' },
+  { id: 'brand-memory', name: 'Brand Memory', description: 'Per-account brand knowledge base — voice, tone, guidelines, audience insights', icon: 'sparkles', isDefault: true, visibility: 'system' },
+  // ── Official Skills (toggleable) ──
+  { id: 'skill-creator', name: 'Skill Creator', description: 'Guide users through creating a new custom skill via structured conversation', icon: 'sparkles', isDefault: true, visibility: 'official', featured: true },
 ];
 
 // Load active skill IDs from localStorage
