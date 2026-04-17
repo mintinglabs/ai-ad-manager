@@ -1,14 +1,21 @@
 import { Router } from 'express';
 import axios from 'axios';
-import multer from 'multer';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const pdf = require('pdf-parse');
 import { GoogleGenAI } from '@google/genai';
 import { supabase } from '../lib/supabase.js';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } }); // 20MB max
+
+// Lazy-load multer and pdf-parse (may not be available in all environments)
+let upload, pdfParse;
+try {
+  const { default: multer } = await import('multer');
+  upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+} catch { upload = null; }
+try {
+  const { createRequire } = await import('module');
+  const req = createRequire(import.meta.url);
+  pdfParse = req('pdf-parse');
+} catch { pdfParse = null; }
 
 // ── FB User ID extraction (cached) ──
 const userIdCache = new Map();
@@ -284,6 +291,7 @@ router.post('/crawl-social', async (req, res) => {
 });
 
 // ── File Upload — extract text from PDF, TXT, MD ──
+if (upload) {
 router.post('/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -291,9 +299,9 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     const { originalname, mimetype, buffer } = req.file;
     let text = '';
 
-    if (mimetype === 'application/pdf') {
+    if (mimetype === 'application/pdf' && pdfParse) {
       // Parse PDF
-      const data = await pdf(buffer);
+      const data = await pdfParse(buffer);
       text = data.text || '';
     } else {
       // TXT, MD, DOC (plain text fallback)
@@ -321,5 +329,6 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     res.status(500).json({ error: 'Failed to parse file: ' + err.message });
   }
 });
+} // end if (upload)
 
 export default router;
