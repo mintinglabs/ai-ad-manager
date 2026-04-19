@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import * as metaClient from '../services/metaClient.js';
+import * as metaClient from '../../services/metaClient.js';
 
 const router = Router();
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { getCampaigns, updateCampaign } from '../services/mockData.js';
-import * as metaClient from '../services/metaClient.js';
+import { getCampaigns, updateCampaign } from '../../services/mockData.js';
+import * as metaClient from '../../services/metaClient.js';
 
 const router = Router();
 const USE_MOCK = process.env.USE_MOCK_DATA === 'true';

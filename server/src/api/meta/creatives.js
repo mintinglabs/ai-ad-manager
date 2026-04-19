@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import axios from 'axios';
-import * as metaClient from '../services/metaClient.js';
+import * as metaClient from '../../services/metaClient.js';
 
 const router = Router();
 
