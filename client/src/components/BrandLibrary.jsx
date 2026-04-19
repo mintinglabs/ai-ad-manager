@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Search, RefreshCw, Plus, Loader2, X, FileText, Palette, MessageSquare, Sparkles, Globe, BookMarked, Trash2, ChevronDown, Edit3, Check, Upload, Link2, Users } from 'lucide-react';
-import { AccountSelector } from './AccountSelector.jsx';
+import { PlatformAccountSelector } from './PlatformAccountSelector.jsx';
 import { AskAIButton, AskAIPopup } from './AskAIPopup.jsx';
 import { useBrandLibrary } from '../hooks/useBrandLibrary.js';
 import api from '../services/api.js';
@@ -564,8 +564,10 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
                 {loading ? 'Loading...' : 'Long-term brand memory for AI \u2014 auto-applied to all conversations'}
               </p>
             </div>
-            <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
-              selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
+            <PlatformAccountSelector platform="meta"
+              token={token} onLoginMeta={onLogin} onLogoutMeta={onLogout}
+              selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectMetaAccount={onSelectAccount}
+              variant="header" />
           </div>
           <div className="flex items-center gap-2">
             <button onClick={fetchItems} disabled={loading}

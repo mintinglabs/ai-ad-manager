@@ -3,6 +3,7 @@ import { Users, Plus, RefreshCw, Trash2, Copy, Target, Globe, Hash, X, AlertTria
 import api from '../services/api.js';
 import { useBusinesses } from '../hooks/useBusinesses.js';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
+import { PlatformAccountSelector } from './PlatformAccountSelector.jsx';
 
 // ── Confirm Dialog ──────────────────────────────────────────────────────────
 const ConfirmDialog = ({ title, message, details, confirmLabel, confirmColor = 'blue', onConfirm, onCancel }) => (
@@ -1723,7 +1724,7 @@ const AccountSelector = ({ token, onLogin, onLogout, selectedAccount, selectedBu
 };
 
 // ── Google Audiences Panel ──
-const GoogleAudiencesPanel = ({ googleCustomerId, onOpenSettings }) => {
+const GoogleAudiencesPanel = ({ googleConnected, googleCustomerId, onGoogleConnect }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -1738,12 +1739,18 @@ const GoogleAudiencesPanel = ({ googleCustomerId, onOpenSettings }) => {
       .finally(() => setLoading(false));
   }, [googleCustomerId]);
 
-  if (!googleCustomerId) return (
+  if (!googleConnected) return (
     <div className="flex-1 flex flex-col items-center justify-center py-24 gap-4">
       <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-xl font-bold text-red-500">G</div>
       <p className="text-sm font-semibold text-slate-700">Connect Google Ads</p>
-      <p className="text-xs text-slate-400">Go to Settings → Account to connect your Google Ads account.</p>
-      <button onClick={onOpenSettings} className="text-xs font-medium px-4 py-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors">Open Settings</button>
+      <p className="text-xs text-slate-400">Sign in with Google to manage audiences.</p>
+      <button onClick={onGoogleConnect} className="text-xs font-medium px-4 py-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors">Connect Google Ads</button>
+    </div>
+  );
+  if (!googleCustomerId) return (
+    <div className="flex-1 flex flex-col items-center justify-center py-24 gap-4">
+      <p className="text-sm font-semibold text-slate-700">Select a Google Ads account</p>
+      <p className="text-xs text-slate-400">Pick an account from the selector above.</p>
     </div>
   );
 
@@ -1781,7 +1788,7 @@ const GoogleAudiencesPanel = ({ googleCustomerId, onOpenSettings }) => {
   );
 };
 
-export const AudienceManager = ({ adAccountId, onSendToChat, onPrefillChat, onBack, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, googleCustomerId, onOpenSettings }) => {
+export const AudienceManager = ({ adAccountId, onSendToChat, onPrefillChat, onBack, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, googleConnected, googleCustomerId, onGoogleConnect, onGoogleDisconnect, onSelectGoogleAccount }) => {
   const [audiences, setAudiences] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -1970,13 +1977,13 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onPrefillChat, onBa
             </div>
             {/* Account selector */}
             <span className="text-xs text-slate-400">Ad Account:</span>
-            <AccountSelector
-              token={token}
-              onLogin={onLogin}
-              onLogout={onLogout}
-              selectedAccount={selectedAccount}
-              selectedBusiness={selectedBusiness}
-              onSelectAccount={onSelectAccount}
+            <PlatformAccountSelector
+              platform={platform}
+              token={token} onLoginMeta={onLogin} onLogoutMeta={onLogout}
+              selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectMetaAccount={onSelectAccount}
+              googleConnected={googleConnected} googleCustomerId={googleCustomerId}
+              onGoogleConnect={onGoogleConnect} onGoogleDisconnect={onGoogleDisconnect} onSelectGoogleAccount={onSelectGoogleAccount}
+              variant="header"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -2121,7 +2128,7 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onPrefillChat, onBa
 
       {/* Google Audiences Panel */}
       {platform === 'google' && (
-        <GoogleAudiencesPanel googleCustomerId={googleCustomerId} onOpenSettings={onOpenSettings} />
+        <GoogleAudiencesPanel googleConnected={googleConnected} googleCustomerId={googleCustomerId} onGoogleConnect={onGoogleConnect} />
       )}
 
       {/* Two-panel content */}

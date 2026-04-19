@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Search, RefreshCw, Plus, Loader2, X, Activity, Radio, Clock, CheckCircle, AlertTriangle, XCircle, Zap, ChevronDown, Copy, Check, BarChart3, Hash, Sparkles, ArrowRight } from 'lucide-react';
-import { AccountSelector } from './AccountSelector.jsx';
+import { PlatformAccountSelector } from './PlatformAccountSelector.jsx';
 import { AskAIButton, AskAIPopup } from './AskAIPopup.jsx';
 import api from '../services/api.js';
 
@@ -378,8 +378,10 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
               </p>
             </div>
             <span className="text-xs text-slate-400 font-medium">Ad Account:</span>
-            <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
-              selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
+            <PlatformAccountSelector platform="meta"
+              token={token} onLoginMeta={onLogin} onLogoutMeta={onLogout}
+              selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectMetaAccount={onSelectAccount}
+              variant="header" />
           </div>
           <div className="flex items-center gap-2">
             <button onClick={handleRefresh} disabled={loading}

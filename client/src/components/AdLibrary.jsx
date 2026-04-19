@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Search, RefreshCw, Loader2, X, Eye, ChevronDown, Palette, Sparkles } from 'lucide-react';
-import { AccountSelector } from './AccountSelector.jsx';
+import { PlatformAccountSelector } from './PlatformAccountSelector.jsx';
 import api from '../services/api.js';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
@@ -497,8 +497,10 @@ if (filterAdType !== 'all') {
               </p>
             </div>
             <span className="text-xs text-slate-400 font-medium">Ad Account:</span>
-            <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
-              selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
+            <PlatformAccountSelector platform="meta"
+              token={token} onLoginMeta={onLogin} onLogoutMeta={onLogout}
+              selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectMetaAccount={onSelectAccount}
+              variant="header" />
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => fetchAds()} disabled={loading}

@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { RefreshCw, Sparkles, TrendingUp, AlertTriangle, CheckCircle, ArrowRight, Zap, DollarSign, Users, Shield, Palette, MessageSquare } from 'lucide-react';
-import { AccountSelector } from './AccountSelector.jsx';
+import { PlatformAccountSelector } from './PlatformAccountSelector.jsx';
 
 // ── Config ──
 const SEVERITY = {
@@ -146,8 +146,10 @@ export const Optimizations = ({ adAccountId, token, onLogin, onLogout, selectedA
               <p className="text-xs text-slate-500 mt-0.5">{recommendations.length} recommendations · Last scan: just now</p>
             </div>
             <span className="text-xs text-slate-500 font-medium">Ad Account:</span>
-            <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
-              selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
+            <PlatformAccountSelector platform="meta"
+              token={token} onLoginMeta={onLogin} onLogoutMeta={onLogout}
+              selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectMetaAccount={onSelectAccount}
+              variant="header" />
           </div>
           <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 border border-slate-700/60 transition-colors">
             <RefreshCw size={13} /> Refresh

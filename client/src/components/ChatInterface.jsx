@@ -2462,7 +2462,7 @@ const TikTokIcon = () => (
   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 0010.86 4.46V13a8.28 8.28 0 005.58 2.17V11.7a4.84 4.84 0 01-3.77-1.81V6.69h3.77z"/></svg>
 );
 
-const AccountConnector = ({ token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, dropUp = true, googleCustomerId, onGoogleConnect, onGoogleDisconnect }) => {
+const AccountConnector = ({ token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, dropUp = true, googleConnected, googleCustomerId, onGoogleConnect, onGoogleDisconnect, onSelectGoogleAccount }) => {
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState('platforms'); // 'platforms' | 'business' | 'accounts' | 'google_accounts'
   const [activeBiz, setActiveBiz] = useState(null);
@@ -2480,14 +2480,10 @@ const AccountConnector = ({ token, onLogin, onLogout, isLoginLoading, loginError
       const res = await fetch('/api/google/accounts');
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || 'Failed to load Google accounts');
-      // Flatten MCC children into a single list
       const flat = [];
       (data.accounts || []).forEach(acc => {
-        if (acc.isManager && acc.children?.length) {
-          acc.children.forEach(c => flat.push(c));
-        } else {
-          flat.push(acc);
-        }
+        if (acc.isManager && acc.children?.length) acc.children.forEach(c => flat.push({ ...c, mccId: acc.id }));
+        else flat.push(acc);
       });
       setGoogleAccounts(flat);
     } catch (e) {
@@ -2498,12 +2494,17 @@ const AccountConnector = ({ token, onLogin, onLogout, isLoginLoading, loginError
   };
 
   const handleGoogleClick = () => {
+    if (!googleConnected) {
+      onGoogleConnect?.();
+      setOpen(false);
+      return;
+    }
     setLevel('google_accounts');
     if (googleAccounts.length === 0) fetchGoogleAccounts();
   };
 
   const handleGoogleAccountPick = (acc) => {
-    onGoogleConnect?.(acc.id);
+    onSelectGoogleAccount?.(acc.id, acc.mccId || null);
     setOpen(false);
     setLevel('platforms');
   };
@@ -2609,7 +2610,7 @@ const AccountConnector = ({ token, onLogin, onLogout, isLoginLoading, loginError
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-50 transition-colors">
                   <GoogleIcon />
                   <span className="text-[12px] font-medium text-slate-700 flex-1">Google Ads</span>
-                  {googleCustomerId ? (
+                  {googleConnected ? (
                     <button
                       onClick={(e) => { e.stopPropagation(); onGoogleDisconnect?.(); setOpen(false); }}
                       className="relative w-8 h-[18px] rounded-full bg-emerald-500 hover:bg-red-500 transition-colors group"
@@ -2870,7 +2871,7 @@ const ActionPills = ({ onSelect, activePill, setActivePill }) => {
   );
 };
 
-const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, attachments, onRemoveAttachment, onRetryUpload, fileRef, isTyping, handleFileUpload, isOver, activeSkill, activeSkills = [], onDeactivateSkill, skills = [], onSlashSelect, slashSkills = [], onRemoveSlashSkill, onClearAllSlash, onToggleSkill, onManageSkills, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, enabledSkillIds = [], activeSkillIds, brandEnabledCount = 0, isEmptyState = false, activePill, setActivePill, googleCustomerId, onGoogleConnect, onGoogleDisconnect }) => {
+const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, attachments, onRemoveAttachment, onRetryUpload, fileRef, isTyping, handleFileUpload, isOver, activeSkill, activeSkills = [], onDeactivateSkill, skills = [], onSlashSelect, slashSkills = [], onRemoveSlashSkill, onClearAllSlash, onToggleSkill, onManageSkills, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, enabledSkillIds = [], activeSkillIds, brandEnabledCount = 0, isEmptyState = false, activePill, setActivePill, googleConnected, googleCustomerId, onGoogleConnect, onGoogleDisconnect, onSelectGoogleAccount }) => {
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -3021,7 +3022,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
               <SkillsDropdown skills={skills} activeSkill={activeSkill} activeSkillIds={activeSkillIds} onToggleSkill={onToggleSkill} onSlashSelect={onSlashSelect} onManageSkills={onManageSkills} onClose={() => { setSkillsOpen(false); setPlusMenuOpen(false); }} enabledSkillIds={enabledSkillIds} dropUp={!isEmptyState} />
             )}
 
-            <AccountConnector token={token} onLogin={onLogin} onLogout={onLogout} isLoginLoading={isLoginLoading} loginError={loginError} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} dropUp={!isEmptyState} googleCustomerId={googleCustomerId} onGoogleConnect={onGoogleConnect} onGoogleDisconnect={onGoogleDisconnect} />
+            <AccountConnector token={token} onLogin={onLogin} onLogout={onLogout} isLoginLoading={isLoginLoading} loginError={loginError} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} dropUp={!isEmptyState} googleConnected={googleConnected} googleCustomerId={googleCustomerId} onGoogleConnect={onGoogleConnect} onGoogleDisconnect={onGoogleDisconnect} onSelectGoogleAccount={onSelectGoogleAccount} />
             {/* Active pill chip — orange theme */}
             {activePill && setActivePill && (() => {
               const pill = ACTION_PILLS.find(p => p.label === activePill);
@@ -3061,7 +3062,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
-export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = [], onSend, onStop, suggestedActions = [], cardCategories = [], quickChips = [], adAccountId, onSaveItem, folders = [], activeSkill = null, activeSkills = [], activeSkillIds, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, initialInput, initialPill, initialSlashSkill, enabledSkillIds = [], onCreateSkill, generateSkill, brandEnabledCount = 0, onSaveToBrand, userName = '', googleCustomerId, onGoogleConnect, onGoogleDisconnect }) => {
+export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = [], onSend, onStop, suggestedActions = [], cardCategories = [], quickChips = [], adAccountId, onSaveItem, folders = [], activeSkill = null, activeSkills = [], activeSkillIds, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, initialInput, initialPill, initialSlashSkill, enabledSkillIds = [], onCreateSkill, generateSkill, brandEnabledCount = 0, onSaveToBrand, userName = '', googleConnected, googleCustomerId, onGoogleConnect, onGoogleDisconnect, onSelectGoogleAccount }) => {
   const [input, setInput] = useState('');
   // Package as Skill state
   const [packagingMessage, setPackagingMessage] = useState(null);
@@ -3463,7 +3464,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
                 brandEnabledCount={brandEnabledCount}
                 isEmptyState={true}
                 activePill={activePill} setActivePill={setActivePill}
-                googleCustomerId={googleCustomerId} onGoogleConnect={onGoogleConnect} onGoogleDisconnect={onGoogleDisconnect}
+                googleConnected={googleConnected} googleCustomerId={googleCustomerId} onGoogleConnect={onGoogleConnect} onGoogleDisconnect={onGoogleDisconnect} onSelectGoogleAccount={onSelectGoogleAccount}
               />
             </div>
             <ActionPills activePill={activePill} setActivePill={setActivePill} onSelect={(prompt) => { setInput(prompt); setTimeout(() => { const el = document.querySelector('textarea'); if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 300) + 'px'; } }, 0); }} />
@@ -3522,7 +3523,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
                 token={token} onLogin={onLogin} isLoginLoading={isLoginLoading} loginError={loginError} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount}
                 brandEnabledCount={brandEnabledCount}
                 activePill={activePill} setActivePill={setActivePill}
-                googleCustomerId={googleCustomerId} onGoogleConnect={onGoogleConnect} onGoogleDisconnect={onGoogleDisconnect}
+                googleConnected={googleConnected} googleCustomerId={googleCustomerId} onGoogleConnect={onGoogleConnect} onGoogleDisconnect={onGoogleDisconnect} onSelectGoogleAccount={onSelectGoogleAccount}
               />
             </div>
           </div>

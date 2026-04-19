@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Search, RefreshCw, Loader2, X, ChevronDown, FileText, Download, Clock, Eye, Plus, Archive, MessageSquare, Users, Trash2, AlertTriangle, Palette, Zap, Smartphone, Sparkles, ArrowRight, Copy } from 'lucide-react';
-import { AccountSelector } from './AccountSelector.jsx';
+import { PlatformAccountSelector } from './PlatformAccountSelector.jsx';
 import { AskAIButton, AskAIPopup } from './AskAIPopup.jsx';
 import api from '../services/api.js';
 
@@ -792,8 +792,10 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-semibold text-slate-400">Ad Account:</span>
-              <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
-                selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
+              <PlatformAccountSelector platform="meta"
+                token={token} onLoginMeta={onLogin} onLogoutMeta={onLogout}
+                selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectMetaAccount={onSelectAccount}
+                variant="header" />
             </div>
             {pages.length > 0 && (
               <div className="flex items-center gap-1.5">

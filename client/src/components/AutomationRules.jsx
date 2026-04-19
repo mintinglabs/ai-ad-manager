@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Search, RefreshCw, Plus, Loader2, Trash2, X, Play, Pause, ChevronDown, ChevronRight, Clock, AlertTriangle, CheckCircle, Settings2, Edit3, Sparkles, ArrowRight, TrendingUp, Zap, Target, BarChart3, Shield, DollarSign, Eye } from 'lucide-react';
-import { AccountSelector } from './AccountSelector.jsx';
+import { PlatformAccountSelector } from './PlatformAccountSelector.jsx';
 import api from '../services/api.js';
 
 // ── Helpers ──
@@ -715,8 +715,10 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-semibold text-slate-400">Ad Account:</span>
-              <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
-                selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
+              <PlatformAccountSelector platform="meta"
+                token={token} onLoginMeta={onLogin} onLogoutMeta={onLogout}
+                selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectMetaAccount={onSelectAccount}
+                variant="header" />
             </div>
           </div>
           <div className="flex items-center gap-2">

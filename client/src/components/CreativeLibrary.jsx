@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Search, RefreshCw, Image as ImageIcon, Film, Loader2, Trash2, X, Download, Clock, Maximize2, Grid, List, Plus, Layers, Edit3, Check, Upload, Sparkles } from 'lucide-react';
-import { AccountSelector } from './AccountSelector.jsx';
+import { PlatformAccountSelector } from './PlatformAccountSelector.jsx';
 import { AskAIButton, AskAIPopup } from './AskAIPopup.jsx';
 import { useCreativeSets } from '../hooks/useCreativeSets.js';
 import api from '../services/api.js';
@@ -565,8 +565,10 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-400 font-medium">Ad Account:</span>
-              <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
-                selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
+              <PlatformAccountSelector platform="meta"
+                token={token} onLoginMeta={onLogin} onLogoutMeta={onLogout}
+                selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectMetaAccount={onSelectAccount}
+                variant="header" />
             </div>
           </div>
           <div className="flex items-center gap-2">

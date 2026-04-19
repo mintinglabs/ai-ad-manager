@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { RefreshCw, Loader2, TrendingUp, TrendingDown, Download, Calendar, Filter, ChevronDown, Sparkles, Zap, ArrowRight } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from 'recharts';
-import { AccountSelector } from './AccountSelector.jsx';
+import { PlatformAccountSelector } from './PlatformAccountSelector.jsx';
 import api from '../services/api.js';
 
 // ── Formatting ──
@@ -135,7 +135,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 // ── Google Reports Panel ──
 const GOOGLE_DATE_MAP = { last_7d: 'LAST_7_DAYS', last_14d: 'LAST_14_DAYS', last_30d: 'LAST_30_DAYS', this_month: 'THIS_MONTH', last_month: 'LAST_MONTH' };
 
-const GoogleReportsPanel = ({ googleCustomerId, onOpenSettings }) => {
+const GoogleReportsPanel = ({ googleConnected, googleCustomerId, onGoogleConnect }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -152,12 +152,18 @@ const GoogleReportsPanel = ({ googleCustomerId, onOpenSettings }) => {
       .finally(() => setLoading(false));
   }, [googleCustomerId, datePreset]);
 
-  if (!googleCustomerId) return (
+  if (!googleConnected) return (
     <div className="flex-1 flex flex-col items-center justify-center py-24 gap-4">
       <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-xl font-bold text-red-500">G</div>
       <p className="text-sm font-semibold text-slate-700">Connect Google Ads</p>
-      <p className="text-xs text-slate-400">Go to Settings → Account to connect your Google Ads account.</p>
-      <button onClick={onOpenSettings} className="text-xs font-medium px-4 py-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors">Open Settings</button>
+      <p className="text-xs text-slate-400">Sign in with Google to view performance reports.</p>
+      <button onClick={onGoogleConnect} className="text-xs font-medium px-4 py-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors">Connect Google Ads</button>
+    </div>
+  );
+  if (!googleCustomerId) return (
+    <div className="flex-1 flex flex-col items-center justify-center py-24 gap-4">
+      <p className="text-sm font-semibold text-slate-700">Select a Google Ads account</p>
+      <p className="text-xs text-slate-400">Pick an account from the selector above.</p>
     </div>
   );
 
@@ -201,7 +207,7 @@ const GoogleReportsPanel = ({ googleCustomerId, onOpenSettings }) => {
 };
 
 // ── Main Report Dashboard ──
-export const ReportDashboard = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onNavigateToOptimizations, googleCustomerId, onOpenSettings }) => {
+export const ReportDashboard = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onNavigateToOptimizations, googleConnected, googleCustomerId, onGoogleConnect, onGoogleDisconnect, onSelectGoogleAccount }) => {
   const [platform, setPlatform] = useState('meta');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -355,8 +361,14 @@ export const ReportDashboard = ({ adAccountId, token, onLogin, onLogout, selecte
               </p>
             </div>
             <span className="text-xs text-slate-400 font-medium">Ad Account:</span>
-            <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
-              selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
+            <PlatformAccountSelector
+              platform={platform}
+              token={token} onLoginMeta={onLogin} onLogoutMeta={onLogout}
+              selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectMetaAccount={onSelectAccount}
+              googleConnected={googleConnected} googleCustomerId={googleCustomerId}
+              onGoogleConnect={onGoogleConnect} onGoogleDisconnect={onGoogleDisconnect} onSelectGoogleAccount={onSelectGoogleAccount}
+              variant="header"
+            />
           </div>
           <div className="flex items-center gap-2">
             <button onClick={fetchReport} disabled={loading}
@@ -414,7 +426,7 @@ export const ReportDashboard = ({ adAccountId, token, onLogin, onLogout, selecte
 
       {/* Google Reports Panel */}
       {platform === 'google' && (
-        <GoogleReportsPanel googleCustomerId={googleCustomerId} onOpenSettings={onOpenSettings} />
+        <GoogleReportsPanel googleConnected={googleConnected} googleCustomerId={googleCustomerId} onGoogleConnect={onGoogleConnect} />
       )}
 
       {/* Content */}
