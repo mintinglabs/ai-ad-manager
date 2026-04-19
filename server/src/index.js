@@ -22,6 +22,10 @@ import chatRouter from './api/chat.js';
 import skillsRouter from './api/skills.js';
 import brandLibraryRouter from './api/brandLibrary.js';
 import creativeSetsRouter from './api/creativeSets.js';
+import googleAccountsRouter from './api/google/accounts.js';
+import googleCampaignsRouter from './api/google/campaigns.js';
+import googleReportsRouter from './api/google/reports.js';
+import googleAudiencesRouter from './api/google/audiences.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -82,8 +86,14 @@ import('./lib/supabase.js').then(({ supabase }) => {
     if (!error) console.log('[startup] Cleaned up accidental skill_creator custom skill (if any)');
   });
 }).catch(() => {});
-app.use('/api/brand-library', brandLibraryRouter); // Brand Library handles its own auth
-app.use('/api/creative-sets', creativeSetsRouter); // Creative Sets handles its own auth
+app.use('/api/brand-library', brandLibraryRouter);
+app.use('/api/creative-sets', creativeSetsRouter);
+
+// Google Ads API routes (no Meta token required — uses own credentials)
+app.use('/api/google/accounts', googleAccountsRouter);
+app.use('/api/google/campaigns', googleCampaignsRouter);
+app.use('/api/google/reports', googleReportsRouter);
+app.use('/api/google/audiences', googleAudiencesRouter);
 
 app.use((err, _req, res, _next) => {
   console.error('EXPRESS ERROR:', err?.message, err?.stack);

@@ -1709,4 +1709,25 @@ const rootTools = pick(
   'create_skill'
 );
 
-export { adTools, rootTools, analystTools, executorTools };
+import { googleTools } from './googleTools.js';
+
+// ── Merge Google tools into pick-able map ─────────────────────────────────────
+const _googleToolByName = Object.fromEntries(googleTools.map(t => [t.name, t]));
+const pickGoogle = (...names) => [...new Set(names)].map(n => _googleToolByName[n]).filter(Boolean);
+
+const googleReadTools = pickGoogle(
+  'google_account_overview', 'google_list_campaigns', 'google_campaign_insights',
+  'google_list_ad_groups', 'google_list_keywords', 'google_list_search_terms',
+  'google_list_ads', 'google_reports', 'google_list_audiences',
+  'google_list_negative_keywords', 'google_list_recommendations',
+  'google_list_conversions', 'google_search_geo_targets', 'google_gaql_query'
+);
+
+const googleWriteTools = pickGoogle(
+  'google_update_campaign', 'google_create_campaign',
+  'google_add_keywords', 'google_add_negative_keywords',
+  'google_set_campaign_targeting', 'google_create_website_visitors_audience',
+  'google_create_custom_audience', 'google_apply_recommendation'
+);
+
+export { adTools, rootTools, analystTools, executorTools, googleTools, googleReadTools, googleWriteTools };

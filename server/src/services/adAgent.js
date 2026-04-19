@@ -1,5 +1,5 @@
 import { LlmAgent, Runner, InMemorySessionService } from '@google/adk';
-import { rootTools, analystTools, executorTools } from '../lib/tools.js';
+import { rootTools, analystTools, executorTools, googleReadTools, googleWriteTools } from '../lib/tools.js';
 import { buildInstruction, buildAnalystInstruction, buildExecutorInstruction } from '../lib/instructions.js';
 
 // ── 2 Sub-agents ─────────────────────────────────────────────────────────────
@@ -9,7 +9,7 @@ const analystAgent = new LlmAgent({
   model: 'gemini-3-flash-preview',
   description: 'All read-only operations — performance diagnostics, creative health, audience analysis, tracking audits.',
   instruction: buildAnalystInstruction(),
-  tools: analystTools,
+  tools: [...analystTools, ...googleReadTools],
 });
 
 const executorAgent = new LlmAgent({
@@ -17,7 +17,7 @@ const executorAgent = new LlmAgent({
   model: 'gemini-3-flash-preview',
   description: 'All write operations — campaign/ad CRUD, audience creation, tracking setup. The only agent that writes to Meta API.',
   instruction: buildExecutorInstruction(),
-  tools: executorTools,
+  tools: [...executorTools, ...googleReadTools, ...googleWriteTools],
 });
 
 // ── Debug: log tool counts ───────────────────────────────────────────────────
@@ -31,7 +31,7 @@ const agent = new LlmAgent({
   name: 'ad_manager',
   model: 'gemini-3-flash-preview',
   instruction: buildInstruction(),
-  tools: rootTools,
+  tools: [...rootTools, ...googleReadTools],
   subAgents: [analystAgent, executorAgent],
 });
 
