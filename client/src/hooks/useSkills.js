@@ -60,8 +60,8 @@ export const useSkills = () => {
   }, [persistIds]);
 
   // Create a new custom skill
-  const createSkill = useCallback(async ({ name, description, content, icon }) => {
-    const { data } = await api.post('/skills', { name, description, content, icon });
+  const createSkill = useCallback(async ({ name, description, content, icon, preview }) => {
+    const { data } = await api.post('/skills', { name, description, content, icon, preview });
     setSkills(prev => [...prev, { ...data, isDefault: false }]);
     return data;
   }, []);
@@ -91,6 +91,16 @@ export const useSkills = () => {
   const generateSkill = useCallback(async (rawText) => {
     const { data } = await api.post('/skills/generate', { rawText });
     return data; // { name, description, content, preview }
+  }, []);
+
+  // Enrich an existing skill with AI-generated description + preview (keeps content)
+  const enrichSkill = useCallback(async (name, content) => {
+    try {
+      const { data } = await api.post('/skills/enrich', { name, content });
+      return data; // { description, preview }
+    } catch {
+      return { description: '', preview: '' };
+    }
   }, []);
 
   // Get all currently active skills
@@ -128,6 +138,7 @@ export const useSkills = () => {
     updateSkill,
     deleteSkill,
     generateSkill,
+    enrichSkill,
     getSkillContext,
     getSkillContextById,
     fetchSkills,

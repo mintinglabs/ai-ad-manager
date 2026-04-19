@@ -404,7 +404,7 @@ const AddDropdown = ({ open, onClose, onSelect }) => {
 
   const options = [
     { id: 'build', icon: <Sparkles size={16} className="text-indigo-500" />, label: 'Build with AI Agent', desc: 'Build great skills through conversation' },
-    { id: 'upload', icon: <Upload size={16} className="text-emerald-500" />, label: 'Upload a skill', desc: 'Upload a .skill or .md file' },
+    { id: 'upload', icon: <Upload size={16} className="text-emerald-500" />, label: 'Upload a skill', desc: 'Upload one or more .md files' },
   ];
 
   return (
@@ -473,7 +473,7 @@ const GitHubImportBar = ({ onClose, onImport }) => {
 };
 
 // ── Main Skills Library ────────────────────────────────────────────────────
-export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithAI, onTrySkill, onRefresh, skillToggles, onToggleChange }) => {
+export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithAI, onTrySkill, onRefresh, onEnrich, skillToggles, onToggleChange }) => {
   // Re-fetch skills on mount to pick up skills created by AI agent
   useEffect(() => { if (onRefresh) onRefresh(); }, [onRefresh]);
 
@@ -536,14 +536,15 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
   const [uploadError, setUploadError] = useState(null);
 
   const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
     setUploadError(null);
 
-    // Read skill/markdown/text files in browser
-    try {
+    const parseAndCreate = async (file) => {
       const text = await file.text();
-      if (!text.trim()) { setUploadError('File is empty'); e.target.value = ''; return; }
+      if (!text.trim()) return;
+
+      let name, description = '', preview = '', content = text;
       const match = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
       if (match) {
         const meta = {};
@@ -551,14 +552,25 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
           const [key, ...rest] = line.split(':');
           if (key && rest.length) meta[key.trim()] = rest.join(':').trim();
         });
-        if (meta.name && match[2].trim()) {
-          await onCreate({ name: meta.name, description: meta.description || '', content: match[2].trim(), type: 'strategy' });
-          if (onRefresh) await onRefresh();
-          e.target.value = '';
-          return;
-        }
+        name = meta.name;
+        description = meta.description || '';
+        preview = meta.preview || '';
+        content = match[2].trim() || text;
       }
-      await onCreate({ name: file.name.replace(/\.(skill|md|zip|txt)$/, ''), description: '', content: text, type: 'strategy' });
+      if (!name) name = file.name.replace(/\.(md|txt)$/, '');
+
+      // Auto-generate missing description/preview via AI
+      if (onEnrich && (!description || !preview)) {
+        const enriched = await onEnrich(name, content);
+        if (!description) description = enriched.description || '';
+        if (!preview) preview = enriched.preview || '';
+      }
+
+      await onCreate({ name, description, content, preview, type: 'strategy' });
+    };
+
+    try {
+      await Promise.all(files.map(parseAndCreate));
       if (onRefresh) await onRefresh();
     } catch (err) {
       setUploadError(err.response?.data?.error || err.message || 'Upload failed');
@@ -595,7 +607,7 @@ const handleDelete = async () => {
   return (
     <div className="w-full h-full bg-gradient-to-br from-orange-50/60 via-white to-amber-50/40 flex flex-col">
       {/* Hidden file input */}
-      <input ref={fileInputRef} type="file" accept=".skill,.md,.txt" onChange={handleFileUpload} className="hidden" />
+      <input ref={fileInputRef} type="file" accept=".md,.txt" multiple onChange={handleFileUpload} className="hidden" />
 
       {/* Upload error */}
       {uploadError && (

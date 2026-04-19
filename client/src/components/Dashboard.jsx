@@ -244,7 +244,7 @@ export const Dashboard = ({
 
   const {
     skills, activeSkill, activeSkills, activeSkillId, activeSkillIds, toggleSkill,
-    createSkill, updateSkill, deleteSkill, generateSkill, getSkillContext, getSkillContextById, fetchSkills,
+    createSkill, updateSkill, deleteSkill, generateSkill, enrichSkill, getSkillContext, getSkillContextById, fetchSkills,
   } = useSkills();
 
   const {
@@ -526,6 +526,7 @@ export const Dashboard = ({
               onBuildWithAI={handleBuildSkillWithAI}
               onTrySkill={handleTrySkill}
               onRefresh={fetchSkills}
+              onEnrich={enrichSkill}
               skillToggles={skillToggles}
               onToggleChange={setSkillToggles}
             />

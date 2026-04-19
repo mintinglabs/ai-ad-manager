@@ -108,6 +108,36 @@ router.post('/generate', async (req, res) => {
   }
 });
 
+// POST /api/skills/enrich — generate description + preview for an existing skill (keeps content)
+router.post('/enrich', async (req, res) => {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: 'AI not configured' });
+    const { name, content } = req.body;
+    if (!content?.trim()) return res.status(400).json({ error: 'Content is required' });
+
+    const genAI = new GoogleGenAI({ apiKey });
+    const result = await genAI.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Given this AI skill named "${name || 'Unnamed'}", write a short description and a 2-3 line sample output preview.\n\nReturn JSON:\n- description (string, one sentence explaining what the skill does)\n- preview (string, 2-3 lines of example output the AI would produce)\n\nSkill content:\n${content.slice(0, 6000)}`,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'object',
+          properties: { description: { type: 'string' }, preview: { type: 'string' } },
+          required: ['description', 'preview'],
+        },
+      },
+    });
+
+    const parsed = JSON.parse(result.text);
+    res.json({ description: parsed.description || '', preview: parsed.preview || '' });
+  } catch (err) {
+    console.error('[skills/enrich] error:', err.message);
+    res.status(500).json({ error: 'Failed to enrich: ' + err.message });
+  }
+});
+
 // GET /api/skills — official (from files) + user's custom (from Supabase)
 router.get('/', async (req, res) => {
   try {
