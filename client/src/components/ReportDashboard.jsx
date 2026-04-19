@@ -136,7 +136,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 // ── Google Reports Panel ──
 const GOOGLE_DATE_MAP = { last_7d: 'LAST_7_DAYS', last_14d: 'LAST_14_DAYS', last_30d: 'LAST_30_DAYS', this_month: 'THIS_MONTH', last_month: 'LAST_MONTH' };
 
-const GoogleReportsPanel = ({ googleConnected, googleCustomerId, onGoogleConnect }) => {
+const GoogleReportsPanel = ({ googleConnected, googleCustomerId, googleLoginCustomerId, onGoogleConnect }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -146,12 +146,13 @@ const GoogleReportsPanel = ({ googleConnected, googleCustomerId, onGoogleConnect
     if (!googleCustomerId) return;
     setLoading(true);
     const range = GOOGLE_DATE_MAP[datePreset] || 'LAST_30_DAYS';
-    fetch(`/api/google/reports?accountId=${googleCustomerId}&dateRange=${range}`)
+    const login = googleLoginCustomerId ? `&loginCustomerId=${googleLoginCustomerId}` : '';
+    fetch(`/api/google/reports?accountId=${googleCustomerId}${login}&dateRange=${range}`)
       .then(r => r.json())
       .then(d => { if (d.error) throw new Error(d.error); setData(d); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [googleCustomerId, datePreset]);
+  }, [googleCustomerId, googleLoginCustomerId, datePreset]);
 
   if (!googleConnected) return (
     <div className="flex-1 flex flex-col items-center justify-center py-24 gap-4">
@@ -216,7 +217,7 @@ const GoogleReportsPanel = ({ googleConnected, googleCustomerId, onGoogleConnect
 };
 
 // ── Main Report Dashboard ──
-export const ReportDashboard = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onNavigateToOptimizations, googleConnected, googleCustomerId, onGoogleConnect, onGoogleDisconnect, onSelectGoogleAccount }) => {
+export const ReportDashboard = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onNavigateToOptimizations, googleConnected, googleCustomerId, googleLoginCustomerId, onGoogleConnect, onGoogleDisconnect, onSelectGoogleAccount }) => {
   const [platform, setPlatform] = useState('meta');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -429,7 +430,7 @@ export const ReportDashboard = ({ adAccountId, token, onLogin, onLogout, selecte
 
       {/* Google Reports Panel */}
       {platform === 'google' && (
-        <GoogleReportsPanel googleConnected={googleConnected} googleCustomerId={googleCustomerId} onGoogleConnect={onGoogleConnect} />
+        <GoogleReportsPanel googleConnected={googleConnected} googleCustomerId={googleCustomerId} googleLoginCustomerId={googleLoginCustomerId} onGoogleConnect={onGoogleConnect} />
       )}
 
       {/* Content */}

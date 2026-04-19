@@ -485,7 +485,7 @@ const AskAIPopup = ({ onSubmit, onClose, selectedIds, level }) => {
 };
 
 // ── Google Campaigns Panel ──
-const GoogleCampaignsPanel = ({ googleConnected, googleCustomerId, onGoogleConnect }) => {
+const GoogleCampaignsPanel = ({ googleConnected, googleCustomerId, googleLoginCustomerId, onGoogleConnect }) => {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -494,12 +494,13 @@ const GoogleCampaignsPanel = ({ googleConnected, googleCustomerId, onGoogleConne
     if (!googleCustomerId) return;
     setLoading(true);
     setError(null);
-    fetch(`/api/google/campaigns?accountId=${googleCustomerId}&dateRange=LAST_30_DAYS`)
+    const login = googleLoginCustomerId ? `&loginCustomerId=${googleLoginCustomerId}` : '';
+    fetch(`/api/google/campaigns?accountId=${googleCustomerId}${login}&dateRange=LAST_30_DAYS`)
       .then(r => r.json())
       .then(data => { if (data.error) throw new Error(data.error); setCampaigns(data.campaigns || []); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [googleCustomerId]);
+  }, [googleCustomerId, googleLoginCustomerId]);
 
   if (!googleConnected) return (
     <div className="flex-1 flex flex-col items-center justify-center py-24 gap-4">
@@ -564,7 +565,7 @@ const GoogleCampaignsPanel = ({ googleConnected, googleCustomerId, onGoogleConne
 };
 
 // ── Main Component ──
-export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillChat, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, googleConnected, googleCustomerId, onGoogleConnect, onGoogleDisconnect, onSelectGoogleAccount }) => {
+export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillChat, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, googleConnected, googleCustomerId, googleLoginCustomerId, onGoogleConnect, onGoogleDisconnect, onSelectGoogleAccount }) => {
   const [platform, setPlatform] = useState('meta');
   const [showAskAI, setShowAskAI] = useState(false);
   const [search, setSearch] = useState('');
@@ -1258,7 +1259,7 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillCh
 
       {/* Google Ads Panel */}
       {platform === 'google' && (
-        <GoogleCampaignsPanel googleConnected={googleConnected} googleCustomerId={googleCustomerId} onGoogleConnect={onGoogleConnect} />
+        <GoogleCampaignsPanel googleConnected={googleConnected} googleCustomerId={googleCustomerId} googleLoginCustomerId={googleLoginCustomerId} onGoogleConnect={onGoogleConnect} />
       )}
 
       {/* Content */}

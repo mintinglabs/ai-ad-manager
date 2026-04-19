@@ -69,27 +69,17 @@ export const PlatformAccountSelector = ({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Compute dropdown position on open / resize / scroll
+  // Reposition on resize/scroll while open
   useLayoutEffect(() => {
-    if (!open || !btnRef.current) return;
-    const update = () => {
-      const r = btnRef.current.getBoundingClientRect();
-      const DROPDOWN_W = 280;
-      // keep within viewport on the right
-      const left = Math.min(r.left, window.innerWidth - DROPDOWN_W - 8);
-      setPos(dropUp
-        ? { left, bottom: window.innerHeight - r.top + 4 }
-        : { left, top: r.bottom + 4 }
-      );
-    };
-    update();
+    if (!open) return;
+    const update = () => setPos(computePos());
     window.addEventListener('resize', update);
     window.addEventListener('scroll', update, true);
     return () => {
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
     };
-  }, [open, dropUp]);
+  }, [open, dropUp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset level when opening / when platform changes
   useEffect(() => { setLevel('main'); }, [platform, open]);
@@ -114,11 +104,23 @@ export const PlatformAccountSelector = ({
     }
   }
 
+  const computePos = () => {
+    if (!btnRef.current) return null;
+    const r = btnRef.current.getBoundingClientRect();
+    const DROPDOWN_W = 280;
+    const left = Math.min(r.left, window.innerWidth - DROPDOWN_W - 8);
+    return dropUp
+      ? { left, bottom: window.innerHeight - r.top + 4 }
+      : { left, top: r.bottom + 4 };
+  };
+
   const handleButtonClick = () => {
     // Direct action when no dropdown needed
     if (isMeta && !token) { onLoginMeta?.(); return; }
     if (isGoogle && !googleConnected) { onGoogleConnect?.(); return; }
-    setOpen(v => !v);
+    const nextOpen = !open;
+    if (nextOpen) setPos(computePos());
+    setOpen(nextOpen);
     if (isMeta) setLevel(selectedBusiness ? 'meta_accounts' : 'meta_business');
     else if (isGoogle) setLevel('google_accounts');
   };

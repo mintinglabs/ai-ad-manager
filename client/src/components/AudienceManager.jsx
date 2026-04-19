@@ -1725,7 +1725,7 @@ const AccountSelector = ({ token, onLogin, onLogout, selectedAccount, selectedBu
 };
 
 // ── Google Audiences Panel ──
-const GoogleAudiencesPanel = ({ googleConnected, googleCustomerId, onGoogleConnect }) => {
+const GoogleAudiencesPanel = ({ googleConnected, googleCustomerId, googleLoginCustomerId, onGoogleConnect }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -1733,12 +1733,13 @@ const GoogleAudiencesPanel = ({ googleConnected, googleCustomerId, onGoogleConne
   useEffect(() => {
     if (!googleCustomerId) return;
     setLoading(true);
-    fetch(`/api/google/audiences?accountId=${googleCustomerId}`)
+    const login = googleLoginCustomerId ? `&loginCustomerId=${googleLoginCustomerId}` : '';
+    fetch(`/api/google/audiences?accountId=${googleCustomerId}${login}`)
       .then(r => r.json())
       .then(d => { if (d.error) throw new Error(d.error); setData(d); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [googleCustomerId]);
+  }, [googleCustomerId, googleLoginCustomerId]);
 
   if (!googleConnected) return (
     <div className="flex-1 flex flex-col items-center justify-center py-24 gap-4">
@@ -1797,7 +1798,7 @@ const GoogleAudiencesPanel = ({ googleConnected, googleCustomerId, onGoogleConne
   );
 };
 
-export const AudienceManager = ({ adAccountId, onSendToChat, onPrefillChat, onBack, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, googleConnected, googleCustomerId, onGoogleConnect, onGoogleDisconnect, onSelectGoogleAccount }) => {
+export const AudienceManager = ({ adAccountId, onSendToChat, onPrefillChat, onBack, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, googleConnected, googleCustomerId, googleLoginCustomerId, onGoogleConnect, onGoogleDisconnect, onSelectGoogleAccount }) => {
   const [audiences, setAudiences] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -2122,7 +2123,7 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onPrefillChat, onBa
 
       {/* Google Audiences Panel */}
       {platform === 'google' && (
-        <GoogleAudiencesPanel googleConnected={googleConnected} googleCustomerId={googleCustomerId} onGoogleConnect={onGoogleConnect} />
+        <GoogleAudiencesPanel googleConnected={googleConnected} googleCustomerId={googleCustomerId} googleLoginCustomerId={googleLoginCustomerId} onGoogleConnect={onGoogleConnect} />
       )}
 
       {/* Two-panel content */}
