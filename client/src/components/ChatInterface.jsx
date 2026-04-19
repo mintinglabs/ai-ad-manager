@@ -2462,7 +2462,7 @@ const TikTokIcon = () => (
   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 0010.86 4.46V13a8.28 8.28 0 005.58 2.17V11.7a4.84 4.84 0 01-3.77-1.81V6.69h3.77z"/></svg>
 );
 
-const AccountConnector = ({ token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, dropUp = true }) => {
+const AccountConnector = ({ token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, dropUp = true, googleCustomerId, onOpenSettings }) => {
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState('platforms'); // 'platforms' | 'business' | 'accounts'
   const [activeBiz, setActiveBiz] = useState(null);
@@ -2567,11 +2567,16 @@ const AccountConnector = ({ token, onLogin, onLogout, isLoginLoading, loginError
                   </div>
                 )}
                 {/* Google Ads */}
-                <div className="w-full flex items-center gap-2.5 px-3 py-2.5 opacity-50 cursor-default">
+                <button onClick={() => { setOpen(false); onOpenSettings?.(); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-50 transition-colors">
                   <GoogleIcon />
-                  <span className="text-[12px] font-medium text-slate-400 flex-1">Google Ads</span>
-                  <span className="text-[9px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded-full font-semibold">Soon</span>
-                </div>
+                  <span className="text-[12px] font-medium text-slate-700 flex-1">Google Ads</span>
+                  {googleCustomerId ? (
+                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">Connected</span>
+                  ) : (
+                    <span className="text-[10px] font-medium text-blue-600">Connect</span>
+                  )}
+                </button>
                 {/* TikTok Ads */}
                 <div className="w-full flex items-center gap-2.5 px-3 py-2.5 opacity-50 cursor-default">
                   <TikTokIcon />
@@ -2946,7 +2951,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
               <SkillsDropdown skills={skills} activeSkill={activeSkill} activeSkillIds={activeSkillIds} onToggleSkill={onToggleSkill} onSlashSelect={onSlashSelect} onManageSkills={onManageSkills} onClose={() => { setSkillsOpen(false); setPlusMenuOpen(false); }} enabledSkillIds={enabledSkillIds} dropUp={!isEmptyState} />
             )}
 
-            <AccountConnector token={token} onLogin={onLogin} onLogout={onLogout} isLoginLoading={isLoginLoading} loginError={loginError} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} dropUp={!isEmptyState} />
+            <AccountConnector token={token} onLogin={onLogin} onLogout={onLogout} isLoginLoading={isLoginLoading} loginError={loginError} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} dropUp={!isEmptyState} googleCustomerId={googleCustomerId} onOpenSettings={onOpenSettings} />
             {/* Active pill chip — orange theme */}
             {activePill && setActivePill && (() => {
               const pill = ACTION_PILLS.find(p => p.label === activePill);
@@ -2986,7 +2991,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
-export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = [], onSend, onStop, suggestedActions = [], cardCategories = [], quickChips = [], adAccountId, onSaveItem, folders = [], activeSkill = null, activeSkills = [], activeSkillIds, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, initialInput, initialPill, initialSlashSkill, enabledSkillIds = [], onCreateSkill, generateSkill, brandEnabledCount = 0, onSaveToBrand, userName = '' }) => {
+export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = [], onSend, onStop, suggestedActions = [], cardCategories = [], quickChips = [], adAccountId, onSaveItem, folders = [], activeSkill = null, activeSkills = [], activeSkillIds, onDeactivateSkill, skills = [], onToggleSkill, onManageSkills, onNavigate, onOpenCanvas, token, onLogin, onLogout, isLoginLoading, loginError, selectedAccount, selectedBusiness, onSelectAccount, initialInput, initialPill, initialSlashSkill, enabledSkillIds = [], onCreateSkill, generateSkill, brandEnabledCount = 0, onSaveToBrand, userName = '', googleCustomerId, onOpenSettings }) => {
   const [input, setInput] = useState('');
   // Package as Skill state
   const [packagingMessage, setPackagingMessage] = useState(null);
