@@ -26,6 +26,7 @@ import googleAccountsRouter from './api/google/accounts.js';
 import googleCampaignsRouter from './api/google/campaigns.js';
 import googleReportsRouter from './api/google/reports.js';
 import googleAudiencesRouter from './api/google/audiences.js';
+import googleAuthRouter from './api/google/auth.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -90,6 +91,7 @@ app.use('/api/brand-library', brandLibraryRouter);
 app.use('/api/creative-sets', creativeSetsRouter);
 
 // Google Ads API routes (no Meta token required — uses own credentials)
+app.use('/api/google/auth', googleAuthRouter);
 app.use('/api/google/accounts', googleAccountsRouter);
 app.use('/api/google/campaigns', googleCampaignsRouter);
 app.use('/api/google/reports', googleReportsRouter);

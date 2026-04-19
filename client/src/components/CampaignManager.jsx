@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Search, RefreshCw, ChevronRight, ChevronDown, Image as ImageIcon, Loader2, Sparkles, X, Send, Pause, Play, Trash2, BarChart3, Layers } from 'lucide-react';
-import { AccountSelector } from './AccountSelector.jsx';
+import { PlatformAccountSelector } from './PlatformAccountSelector.jsx';
 import api from '../services/api.js';
 
 // ── Platform Icons ──
@@ -484,7 +484,7 @@ const AskAIPopup = ({ onSubmit, onClose, selectedIds, level }) => {
 };
 
 // ── Google Campaigns Panel ──
-const GoogleCampaignsPanel = ({ googleCustomerId, onOpenSettings }) => {
+const GoogleCampaignsPanel = ({ googleConnected, googleCustomerId, onGoogleConnect }) => {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -500,12 +500,18 @@ const GoogleCampaignsPanel = ({ googleCustomerId, onOpenSettings }) => {
       .finally(() => setLoading(false));
   }, [googleCustomerId]);
 
-  if (!googleCustomerId) return (
+  if (!googleConnected) return (
     <div className="flex-1 flex flex-col items-center justify-center py-24 gap-4">
       <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-xl font-bold text-red-500">G</div>
       <p className="text-sm font-semibold text-slate-700">Connect Google Ads</p>
-      <p className="text-xs text-slate-400">Go to Settings → Account to connect your Google Ads account.</p>
-      <button onClick={onOpenSettings} className="text-xs font-medium px-4 py-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors">Open Settings</button>
+      <p className="text-xs text-slate-400">Sign in with Google to manage your Google Ads campaigns.</p>
+      <button onClick={onGoogleConnect} className="text-xs font-medium px-4 py-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors">Connect Google Ads</button>
+    </div>
+  );
+  if (!googleCustomerId) return (
+    <div className="flex-1 flex flex-col items-center justify-center py-24 gap-4">
+      <p className="text-sm font-semibold text-slate-700">Select a Google Ads account</p>
+      <p className="text-xs text-slate-400">Pick an account from the selector in the header.</p>
     </div>
   );
 
@@ -549,7 +555,7 @@ const GoogleCampaignsPanel = ({ googleCustomerId, onOpenSettings }) => {
 };
 
 // ── Main Component ──
-export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillChat, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, googleCustomerId, onOpenSettings }) => {
+export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillChat, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, googleConnected, googleCustomerId, onGoogleConnect, onGoogleDisconnect, onSelectGoogleAccount }) => {
   const [platform, setPlatform] = useState('meta');
   const [showAskAI, setShowAskAI] = useState(false);
   const [search, setSearch] = useState('');
@@ -1057,8 +1063,14 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillCh
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-400 font-medium">Ad Account:</span>
-              <AccountSelector token={token} onLogin={onLogin} onLogout={onLogout}
-                selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} />
+              <PlatformAccountSelector
+                platform={platform}
+                token={token} onLoginMeta={onLogin} onLogoutMeta={onLogout}
+                selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectMetaAccount={onSelectAccount}
+                googleConnected={googleConnected} googleCustomerId={googleCustomerId}
+                onGoogleConnect={onGoogleConnect} onGoogleDisconnect={onGoogleDisconnect} onSelectGoogleAccount={onSelectGoogleAccount}
+                variant="header"
+              />
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1250,7 +1262,7 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillCh
 
       {/* Google Ads Panel */}
       {platform === 'google' && (
-        <GoogleCampaignsPanel googleCustomerId={googleCustomerId} onOpenSettings={onOpenSettings} />
+        <GoogleCampaignsPanel googleConnected={googleConnected} googleCustomerId={googleCustomerId} onGoogleConnect={onGoogleConnect} />
       )}
 
       {/* Content */}

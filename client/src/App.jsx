@@ -17,6 +17,7 @@ class ErrorBoundary extends Component {
   }
 }
 import { useAuth } from './hooks/useAuth.js';
+import { useGoogleAuth } from './hooks/useGoogleAuth.js';
 import { LoginPage } from './components/LoginPage.jsx';
 import { Dashboard } from './components/Dashboard.jsx';
 
@@ -32,9 +33,7 @@ export default function App() {
   const [selectedAccount, setSelectedAccount] = useState(() => {
     try { return JSON.parse(localStorage.getItem('aam_selected_account')); } catch { return null; }
   });
-  const [googleCustomerId, setGoogleCustomerId] = useState(() => localStorage.getItem('aam_google_customer_id') || '');
-  const handleGoogleConnect = (id) => { setGoogleCustomerId(id); localStorage.setItem('aam_google_customer_id', id); };
-  const handleGoogleDisconnect = () => { setGoogleCustomerId(''); localStorage.removeItem('aam_google_customer_id'); };
+  const google = useGoogleAuth();
 
   // Dev: sync demo token from server BEFORE rendering anything
   const [devTokenReady, setDevTokenReady] = useState(!import.meta.env.DEV);
@@ -91,9 +90,12 @@ export default function App() {
         onLogin={login}
         isLoginLoading={isLoading}
         loginError={error}
-        googleCustomerId={googleCustomerId}
-        onGoogleConnect={handleGoogleConnect}
-        onGoogleDisconnect={handleGoogleDisconnect}
+        googleConnected={google.connected}
+        googleCustomerId={google.customerId}
+        googleLoginCustomerId={google.loginCustomerId}
+        onGoogleConnect={google.connect}
+        onGoogleDisconnect={google.disconnect}
+        onSelectGoogleAccount={google.selectAccount}
       />
     </ErrorBoundary>
   );

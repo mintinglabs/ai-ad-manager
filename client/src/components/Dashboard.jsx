@@ -26,28 +26,9 @@ const CARD_CATEGORIES = [];
 const QUICK_CHIPS = [];
 
 // ── Settings View — left sidebar + right panel like Claude settings ──
-const SettingsView = ({ onClose, onLogout, token, userName, googleCustomerId, onGoogleConnect, onGoogleDisconnect }) => {
+const SettingsView = ({ onClose, onLogout, token, userName, googleConnected, googleCustomerId }) => {
   const [activeTab, setActiveTab] = useState('account');
   const [showTeamHelp, setShowTeamHelp] = useState(false);
-  const [googleConnecting, setGoogleConnecting] = useState(false);
-  const [googleError, setGoogleError] = useState(null);
-
-  const handleGoogleConnect = async () => {
-    setGoogleConnecting(true);
-    setGoogleError(null);
-    try {
-      const res = await fetch(`/api/google/accounts`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to connect');
-      const accounts = data.accounts || [];
-      const id = accounts[0]?.customerId || import.meta.env.VITE_GOOGLE_CUSTOMER_ID || '';
-      onGoogleConnect(id, accounts);
-    } catch (e) {
-      setGoogleError(e.message);
-    } finally {
-      setGoogleConnecting(false);
-    }
-  };
 
   const navItems = [
     { id: 'account', label: 'Account', icon: User },
@@ -149,21 +130,18 @@ const SettingsView = ({ onClose, onLogout, token, userName, googleCustomerId, on
                   <div>
                     <p className="text-[13px] font-medium text-slate-700">Google Ads</p>
                     <p className="text-[11px] text-slate-400">
-                      {googleCustomerId ? `Account: ${googleCustomerId}` : 'Search, Display, YouTube campaigns'}
+                      {googleConnected && googleCustomerId ? `Account: ${googleCustomerId}` : googleConnected ? 'Connected — pick an account from the chat bar' : 'Manage from the account picker in the chat bar'}
                     </p>
-                    {googleError && <p className="text-[10px] text-red-500 mt-0.5">{googleError}</p>}
                   </div>
                 </div>
-                {googleCustomerId ? (
-                  <button onClick={onGoogleDisconnect} className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 hover:bg-red-50 hover:text-red-500 transition-colors group">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 group-hover:bg-red-500 transition-colors" />
-                    <span className="group-hover:hidden">Connected</span>
-                    <span className="hidden group-hover:inline">Disconnect</span>
-                  </button>
+                {googleConnected ? (
+                  <span className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Connected
+                  </span>
                 ) : (
-                  <button onClick={handleGoogleConnect} disabled={googleConnecting} className="text-[11px] font-medium px-3 py-1.5 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors disabled:opacity-50">
-                    {googleConnecting ? 'Connecting…' : 'Connect'}
-                  </button>
+                  <span className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300" /> Not connected
+                  </span>
                 )}
               </div>
               <div className="flex items-center justify-between py-3 opacity-40">
@@ -267,9 +245,12 @@ export const Dashboard = ({
   isLoginLoading,
   loginError,
   userName = '',
+  googleConnected = false,
   googleCustomerId = '',
+  googleLoginCustomerId = '',
   onGoogleConnect,
   onGoogleDisconnect,
+  onSelectGoogleAccount,
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [chatLanguage, setChatLanguage] = useState('en');
@@ -587,8 +568,12 @@ export const Dashboard = ({
               selectedAccount={selectedAccount}
               selectedBusiness={selectedBusiness}
               onSelectAccount={handleAccountSelect}
+              googleConnected={googleConnected}
               googleCustomerId={googleCustomerId}
-              onOpenSettings={() => setShowSettings(true)}
+              googleLoginCustomerId={googleLoginCustomerId}
+              onGoogleConnect={onGoogleConnect}
+              onGoogleDisconnect={onGoogleDisconnect}
+              onSelectGoogleAccount={onSelectGoogleAccount}
             />
           ) : activeView.type === 'creativeLibrary' ? (
             <CreativeLibrary
@@ -663,8 +648,12 @@ export const Dashboard = ({
               selectedBusiness={selectedBusiness}
               onSelectAccount={handleAccountSelect}
               onNavigateToOptimizations={() => setActiveView({ type: 'optimizations' })}
+              googleConnected={googleConnected}
               googleCustomerId={googleCustomerId}
-              onOpenSettings={() => setShowSettings(true)}
+              googleLoginCustomerId={googleLoginCustomerId}
+              onGoogleConnect={onGoogleConnect}
+              onGoogleDisconnect={onGoogleDisconnect}
+              onSelectGoogleAccount={onSelectGoogleAccount}
             />
           ) : activeView.type === 'brandLibrary' ? (
             <BrandLibrary
@@ -711,8 +700,12 @@ export const Dashboard = ({
               onSendToChat={handleAudienceToChat}
               onPrefillChat={handlePrefillChat}
               activeSkills={activeSkills}
+              googleConnected={googleConnected}
               googleCustomerId={googleCustomerId}
-              onOpenSettings={() => setShowSettings(true)}
+              googleLoginCustomerId={googleLoginCustomerId}
+              onGoogleConnect={onGoogleConnect}
+              onGoogleDisconnect={onGoogleDisconnect}
+              onSelectGoogleAccount={onSelectGoogleAccount}
             />
           ) : activeView.type === 'audiences' ? (
             <AudienceManager
@@ -726,8 +719,12 @@ export const Dashboard = ({
               selectedAccount={selectedAccount}
               selectedBusiness={selectedBusiness}
               onSelectAccount={handleAccountSelect}
+              googleConnected={googleConnected}
               googleCustomerId={googleCustomerId}
-              onOpenSettings={() => setShowSettings(true)}
+              googleLoginCustomerId={googleLoginCustomerId}
+              onGoogleConnect={onGoogleConnect}
+              onGoogleDisconnect={onGoogleDisconnect}
+              onSelectGoogleAccount={onSelectGoogleAccount}
             />
           ) : activeView.type === 'saved' && currentSavedItem ? (
             <SavedItemView
@@ -777,9 +774,11 @@ export const Dashboard = ({
               brandEnabledCount={brandEnabledCount}
               onSaveToBrand={createBrandItem}
               userName={userName}
+              googleConnected={googleConnected}
               googleCustomerId={googleCustomerId}
               onGoogleConnect={onGoogleConnect}
               onGoogleDisconnect={onGoogleDisconnect}
+              onSelectGoogleAccount={onSelectGoogleAccount}
             />
           )}
         </div>
@@ -803,9 +802,8 @@ export const Dashboard = ({
           onLogout={onLogout}
           token={token}
           userName={userName}
+          googleConnected={googleConnected}
           googleCustomerId={googleCustomerId}
-          onGoogleConnect={onGoogleConnect}
-          onGoogleDisconnect={onGoogleDisconnect}
         />
       )}
 
