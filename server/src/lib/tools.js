@@ -1648,7 +1648,9 @@ const analystTools = pick(
   'get_pixels', 'get_pixel_stats',
   'get_custom_conversions',
   // Shared
-  'get_workflow_context', 'update_workflow_context', 'load_skill'
+  'get_workflow_context', 'update_workflow_context', 'load_skill',
+  // Skill creation
+  'create_skill'
 );
 
 // Executor — all write operations (campaigns, ads, audiences, tracking)
@@ -1689,7 +1691,9 @@ const executorTools = pick(
   // Launch & preview
   'preflight_check', 'get_ad_preview',
   // Shared
-  'get_workflow_context', 'update_workflow_context', 'load_skill'
+  'get_workflow_context', 'update_workflow_context', 'load_skill',
+  // Skill creation
+  'create_skill'
 );
 
 

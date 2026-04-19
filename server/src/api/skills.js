@@ -36,6 +36,7 @@ const parseMd = (content, filename) => {
     icon: meta.icon || 'sparkles',
     type: meta.type || 'workflow',
     preview: meta.preview || '',
+    starterPrompt: meta.starter_prompt || '',
     content: match[2].trim(),
   };
 };
@@ -93,7 +94,7 @@ router.post('/generate', async (req, res) => {
     if (!raw.trim()) return res.status(400).json({ error: 'No text provided' });
 
     const result = await genAI.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-3-flash-preview',
       contents: `You are an expert at creating AI analysis strategies for Facebook ad data. Convert the following text into a structured analysis strategy.\n\nReturn ONLY valid JSON with these fields:\n- name (string, 2-5 words)\n- description (string, one sentence)\n- preview (string, 2-3 lines showing sample output)\n- content (string, full markdown instructions for the AI)\n\nText:\n${raw}`,
       config: { responseMimeType: 'application/json', responseSchema: { type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' }, preview: { type: 'string' }, content: { type: 'string' } }, required: ['name', 'description', 'content'] } },
     });
@@ -329,7 +330,7 @@ if (upload) {
 
       const genAI = new GoogleGenAI({ apiKey });
       const result = await genAI.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-3-flash-preview',
         contents: `You are an expert at creating AI analysis strategies for Facebook ad managers. The user has uploaded a document. Convert its content into a useful, reusable skill for an AI ad assistant.\n\nReturn ONLY valid JSON:\n- name (string, 2-5 words)\n- description (string, one sentence)\n- preview (string, 2-3 lines showing sample output)\n- content (string, full markdown instructions for the AI)\n\nDocument (from "${originalname}"):\n${text}`,
         config: {
           responseMimeType: 'application/json',

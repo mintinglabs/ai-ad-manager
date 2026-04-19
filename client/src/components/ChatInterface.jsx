@@ -220,13 +220,15 @@ export const parseMarkdownTable = (text) => {
 
   while (i < lines.length) {
     const trimmed = lines[i].trim();
-    const blockTag = trimmed.startsWith('```') ? trimmed.slice(3).trim().toLowerCase() : '';
+    const backtickMatch = trimmed.match(/^(`{2,3})(.*)/);
+    const blockTag = backtickMatch ? backtickMatch[2].trim().toLowerCase() : '';
+    const openFence = backtickMatch ? backtickMatch[1] : '```';
     const blockMatch = blockTag && (RICH_BLOCKS.find(b => b === blockTag) || BLOCK_ALIASES[blockTag]);
     if (blockMatch) {
       if (textBuf.length) { segments.push({ type: 'text', content: textBuf.join('\n') }); textBuf = []; }
       i++;
       let jsonBuf = '';
-      while (i < lines.length && lines[i].trim() !== '```') { jsonBuf += lines[i] + '\n'; i++; }
+      while (i < lines.length && !lines[i].trim().startsWith(openFence.slice(0,2))) { jsonBuf += lines[i] + '\n'; i++; }
       if (i < lines.length) i++;
       try {
         const data = JSON.parse(jsonBuf.trim());
@@ -2335,7 +2337,7 @@ const SlashPicker = ({ skills, filter, onSelect, selectedIndex }) => {
   );
   if (filtered.length === 0) return null;
   return (
-    <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-xl shadow-xl shadow-slate-200/50 max-h-64 overflow-y-auto z-50">
+    <div className="absolute bottom-full left-0 right-0 mb-2 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-xl shadow-xl shadow-slate-200/50 max-h-64 overflow-y-auto z-50">
       <div className="px-3 py-2 border-b border-slate-100">
         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Skills — type to filter</p>
       </div>
@@ -2373,7 +2375,7 @@ const SKILL_ICONS = {
   audience_strategist: Target,
 };
 
-const SkillsDropdown = ({ skills, activeSkill, activeSkillIds, onToggleSkill, onManageSkills, onClose, enabledSkillIds = [], dropUp = true }) => {
+const SkillsDropdown = ({ skills, activeSkill, activeSkillIds, onToggleSkill, onSlashSelect, onManageSkills, onClose, enabledSkillIds = [], dropUp = true }) => {
   const ref = useRef(null);
   const [skillSearch, setSkillSearch] = useState('');
 
@@ -2417,7 +2419,7 @@ const SkillsDropdown = ({ skills, activeSkill, activeSkillIds, onToggleSkill, on
           const isActive = activeSkillIds instanceof Set ? activeSkillIds.has(skill.id) : activeSkill?.id === skill.id;
           const isOfficial = skill.isDefault;
           return (
-            <button key={skill.id} onClick={() => { onToggleSkill(skill.id); }}
+            <button key={skill.id} onClick={() => { if (onSlashSelect) { onSlashSelect(skill); onClose(); } else { onToggleSkill(skill.id); } }}
               className={`w-full flex items-start gap-2.5 px-3 py-2.5 rounded-xl text-left transition-colors ${isActive ? 'bg-indigo-50' : 'hover:bg-slate-50'}`}>
               <Sparkles size={14} className={`mt-0.5 shrink-0 ${isActive ? 'text-indigo-500' : 'text-slate-400'}`} />
               <div className="flex-1 min-w-0">
@@ -2801,7 +2803,6 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
   const showSlash = input.startsWith('/');
   const slashFilter = showSlash ? input.slice(1).trim() : '';
   const filteredSkills = showSlash ? skills.filter(s =>
-    enabledSkillIds.includes(s.id) && // only show enabled skills from dashboard
     !slashSkills.find(ss => ss.id === s.id) && // hide already-selected
     (!slashFilter || s.name.toLowerCase().includes(slashFilter.toLowerCase()) || s.id.includes(slashFilter.toLowerCase()))
   ) : [];
@@ -2942,7 +2943,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
 
             {/* Skills dropdown */}
             {skillsOpen && (
-              <SkillsDropdown skills={skills} activeSkill={activeSkill} activeSkillIds={activeSkillIds} onToggleSkill={onToggleSkill} onManageSkills={onManageSkills} onClose={() => { setSkillsOpen(false); setPlusMenuOpen(false); }} enabledSkillIds={enabledSkillIds} dropUp={!isEmptyState} />
+              <SkillsDropdown skills={skills} activeSkill={activeSkill} activeSkillIds={activeSkillIds} onToggleSkill={onToggleSkill} onSlashSelect={onSlashSelect} onManageSkills={onManageSkills} onClose={() => { setSkillsOpen(false); setPlusMenuOpen(false); }} enabledSkillIds={enabledSkillIds} dropUp={!isEmptyState} />
             )}
 
             <AccountConnector token={token} onLogin={onLogin} onLogout={onLogout} isLoginLoading={isLoginLoading} loginError={loginError} selectedAccount={selectedAccount} selectedBusiness={selectedBusiness} onSelectAccount={onSelectAccount} dropUp={!isEmptyState} />
@@ -2976,7 +2977,7 @@ const ChatInput = ({ input, setInput, onKeyDown, onSend, onStop, onFilesAdded, a
           </div>
         </div>
       </div>
-      {/* Slash command dropdown — below the input box */}
+      {/* Slash command dropdown — above the input box */}
       {showSlash && filteredSkills.length > 0 && (
         <SlashPicker skills={filteredSkills} filter={slashFilter} onSelect={onSlashSelect} selectedIndex={slashIndex} />
       )}
@@ -3245,7 +3246,7 @@ export const ChatInterface = ({ messages, isTyping, thinkingText, activityLog = 
 
   const handleSlashSelect = useCallback((skill) => {
     setSlashSkills(prev => prev.find(s => s.id === skill.id) ? prev : [...prev, skill]);
-    setInput('');
+    setInput(skill.starterPrompt || '');
   }, []);
 
   const handleRemoveSlashSkill = useCallback((skillId) => {

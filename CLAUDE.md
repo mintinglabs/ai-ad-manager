@@ -17,9 +17,9 @@ client/src/
 
 server/
   src/api/       — Express routers (chat, campaigns, adsets, ads, creatives, assets, audiences, brandLibrary, skills, reports)
-  src/lib/       — instructions.js (AI system prompt), supabase.js, tools.js (Meta API tool definitions)
+  src/lib/       — instructions.js (AI system prompt), supabase.js, tools.js (Meta API tool definitions), pdfExtract.js (PDF text extraction via pdfjs-dist)
   skills/system/ — Always-on AI context (campaigns, analytics-engine, audiences, brand-memory)
-  skills/official/ — Toggleable skills (skill-creator)
+  skills/official/ — Toggleable skills (skill-creator). Frontmatter supports: name, description, preview, starter_prompt
   skills/custom/ — User-created skills (stored in Supabase, cached on disk)
   sql/           — Database schema files
 
@@ -41,8 +41,11 @@ api/index.mjs   — Vercel serverless entry point (re-exports Express app)
 - `onPrefillChat(message, pillName)` — navigate to chat with prefilled prompt + action pill
 - `onSendToChat(message)` — send message from module to active chat
 - System skills = always-on background context injected into every AI message
-- Official skills = toggleable by user in Skills Library
-- Custom skills = user-created via Skill Creator or AI generation
+- Official skills = toggleable by user in Skills Library. Support `starter_prompt` frontmatter field — auto-fills chat input when skill is selected via `/` or `+` menu
+- Custom skills = user-created via Skill Creator, AI generation, or file upload (PDF/DOC/XLS → server extracts text → Gemini generates skill)
+- Skill file upload: `POST /api/skills/upload-doc` (multer + pdfjs-dist). Chat doc upload: `POST /api/chat/parse-doc`
+- PDF parsing: always use `pdfExtract.js` (pdfjs-dist). Do NOT use pdf-parse v2 — it changed API and is broken in ESM
+- Slash `/` picker shows ALL skills (not just enabled). Selecting skill adds it as a one-off chip (same as `+` menu)
 - **Audiences module:** Two-panel layout — left card list + right 8 create cards (no modal). Creation goes to AI chat, not forms.
 - **Brand Memory:** 4-folder layout (Website Crawl, Page Crawl, Documents, Saved from Chat) with AI Summary banner on top. Items grouped by source metadata. Header has Refresh + "Ask AI Agent" button. Brand-memory system skill guides setup flow.
 - **Reports → Optimizations:** Reports has insights-only AI Summary (no action buttons). Subtle "See recommendations →" link to Optimizations.
@@ -61,5 +64,8 @@ Insights — Brand Memory, Reports, Optimizations
 ## Server Notes
 - ESM codebase (`"type": "module"` in package.json)
 - CJS packages in ESM: use `createRequire(import.meta.url)` pattern
-- Lazy-load optional deps (multer, pdf-parse) with try/catch for Vercel compatibility
+- Lazy-load optional deps (multer) with try/catch for Vercel compatibility
+- PDF extraction: use `import { extractPdfText } from '../lib/pdfExtract.js'` — wraps pdfjs-dist legacy build
+- Excel extraction: lazy `createRequire(import.meta.url)('xlsx')` inside route handler
 - Meta API calls use user's FB access token from `Authorization: Bearer <token>` header
+- Local dev: run server from `server/` directory (`cd server && node src/index.js`) so `.env` loads correctly

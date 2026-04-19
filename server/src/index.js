@@ -75,6 +75,13 @@ app.use('/api/catalogs', requireToken, catalogsRouter);
 app.use('/api/previews', requireToken, previewsRouter);
 app.use('/api/chat', optionalToken, chatRouter);
 app.use('/api/skills', skillsRouter); // Skills API handles its own auth via resolveUser middleware
+
+// One-time cleanup: remove accidentally created custom skill_creator rows (official skill lives in filesystem)
+import('./lib/supabase.js').then(({ supabase }) => {
+  if (supabase) supabase.from('custom_skills').delete().eq('id', 'skill_creator').then(({ error }) => {
+    if (!error) console.log('[startup] Cleaned up accidental skill_creator custom skill (if any)');
+  });
+}).catch(() => {});
 app.use('/api/brand-library', brandLibraryRouter); // Brand Library handles its own auth
 app.use('/api/creative-sets', creativeSetsRouter); // Creative Sets handles its own auth
 

@@ -5,6 +5,7 @@ layer: operational
 depends_on: []
 leads_to: []
 preview: "Step 1: What should this skill do?\nStep 2: Define the workflow steps\nStep 3: Generate & save the skill"
+starter_prompt: "Help me create a skill together using /skill-creator. First ask me what the skill should do."
 ---
 
 # Skill Creator

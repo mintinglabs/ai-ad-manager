@@ -203,7 +203,7 @@ router.post('/crawl-url', async (req, res) => {
     // AI extract brand info
     const genAI = new GoogleGenAI({ apiKey });
     const result = await genAI.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-3-flash-preview',
       contents: `Analyze this website content and extract brand information. Return JSON with:\n- name (brand name)\n- description (one-line brand summary)\n- content (detailed markdown with sections: Brand Voice, Key Messages, Tone of Voice, Taglines, Target Audience)\n- metadata (object with: colors array of hex codes found, source_url)\n\nWebsite content:\n${pageText}`,
       config: {
         responseMimeType: 'application/json',
@@ -257,7 +257,7 @@ router.post('/crawl-social', async (req, res) => {
 
     const genAI = new GoogleGenAI({ apiKey });
     const result = await genAI.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-3-flash-preview',
       contents: `Analyze this Facebook page and its posts to extract brand patterns. Return JSON with:\n- name (brand name)\n- description (one-line brand summary)\n- content (detailed markdown with: Brand Voice Analysis, Content Themes, Messaging Patterns, Tone & Style, Recommended Guidelines)\n- metadata (object with: source_url as the page URL)\n\nPage data:\n${context}`,
       config: {
         responseMimeType: 'application/json',

@@ -328,7 +328,7 @@ const SkillCard = ({ skill, isActive, onToggle, onMenuAction, onView }) => {
           )}
           {!isOfficial && skill.isPersonal && (
             <span className="text-[10px] text-orange-600 font-medium flex items-center gap-1 bg-orange-50 px-2 py-0.5 rounded-full">
-              {skill.icon === 'sparkles' ? <><MessageSquare size={9} /> From Chat</> : 'Custom'}
+              Custom
             </span>
           )}
           {skill.updatedAt && (
@@ -404,9 +404,7 @@ const AddDropdown = ({ open, onClose, onSelect }) => {
 
   const options = [
     { id: 'build', icon: <Sparkles size={16} className="text-indigo-500" />, label: 'Build with AI Agent', desc: 'Build great skills through conversation' },
-    { id: 'upload', icon: <Upload size={16} className="text-emerald-500" />, label: 'Upload a skill', desc: 'Upload .zip, .skill, or folder' },
-    { id: 'official', icon: <Check size={16} className="text-slate-300" />, label: 'Add from official', desc: 'Pre-built skills maintained by team', soon: true },
-    { id: 'github', icon: <GitBranch size={16} className="text-slate-300" />, label: 'Import from GitHub', desc: 'Paste a repository link to get started', soon: true },
+    { id: 'upload', icon: <Upload size={16} className="text-emerald-500" />, label: 'Upload a skill', desc: 'Upload a .skill or .md file' },
   ];
 
   return (
@@ -484,7 +482,6 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
   const [filterOpen, setFilterOpen] = useState(false);
   const [addDropdownOpen, setAddDropdownOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [showGitHubImport, setShowGitHubImport] = useState(false);
   const [viewingSkill, setViewingSkill] = useState(null);
   const activeToggles = skillToggles || {};
   const setActiveToggles = (updater) => {
@@ -533,12 +530,6 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
       case 'upload':
         fileInputRef.current?.click();
         break;
-      case 'official':
-        // TODO: Add official templates later
-        break;
-      case 'github':
-        setShowGitHubImport(true);
-        break;
     }
   };
 
@@ -549,29 +540,7 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
     if (!file) return;
     setUploadError(null);
 
-    const docTypes = /\.(pdf|doc|docx|xls|xlsx|csv)$/i;
-    if (docTypes.test(file.name)) {
-      // Route rich documents through server AI extraction
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        const token = localStorage.getItem('fb_access_token') || '';
-        const resp = await fetch('/api/skills/upload-doc', {
-          method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          body: formData,
-        });
-        const data = await resp.json();
-        if (!resp.ok) { setUploadError(data.error || 'Upload failed'); e.target.value = ''; return; }
-        await onCreate({ name: data.name, description: data.description, content: data.content, preview: data.preview, type: 'strategy' });
-      } catch (err) {
-        setUploadError(err.message || 'Upload failed');
-      }
-      e.target.value = '';
-      return;
-    }
-
-    // Plain text / markdown / .skill files — read in browser
+    // Read skill/markdown/text files in browser
     try {
       const text = await file.text();
       if (!text.trim()) { setUploadError('File is empty'); e.target.value = ''; return; }
@@ -584,23 +553,20 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
         });
         if (meta.name && match[2].trim()) {
           await onCreate({ name: meta.name, description: meta.description || '', content: match[2].trim(), type: 'strategy' });
+          if (onRefresh) await onRefresh();
           e.target.value = '';
           return;
         }
       }
       await onCreate({ name: file.name.replace(/\.(skill|md|zip|txt)$/, ''), description: '', content: text, type: 'strategy' });
+      if (onRefresh) await onRefresh();
     } catch (err) {
       setUploadError(err.response?.data?.error || err.message || 'Upload failed');
     }
     e.target.value = '';
   };
 
-  const handleGitHubImport = async (url) => {
-    console.log('Import from GitHub:', url);
-    setShowGitHubImport(false);
-  };
-
-  const handleDelete = async () => {
+const handleDelete = async () => {
     if (!deleteTarget) return;
     try { await onDelete(deleteTarget.id); } catch (err) { console.error('Delete failed:', err); }
     setDeleteTarget(null);
@@ -629,7 +595,7 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
   return (
     <div className="w-full h-full bg-gradient-to-br from-orange-50/60 via-white to-amber-50/40 flex flex-col">
       {/* Hidden file input */}
-      <input ref={fileInputRef} type="file" accept=".skill,.md,.zip,.txt,.pdf,.doc,.docx,.xls,.xlsx,.csv" onChange={handleFileUpload} className="hidden" />
+      <input ref={fileInputRef} type="file" accept=".skill,.md,.txt" onChange={handleFileUpload} className="hidden" />
 
       {/* Upload error */}
       {uploadError && (
@@ -694,15 +660,6 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
           </div>
         </div>
 
-          {/* GitHub import bar */}
-        {showGitHubImport && (
-          <div className="mt-3">
-            <GitHubImportBar
-              onClose={() => setShowGitHubImport(false)}
-              onImport={handleGitHubImport}
-            />
-          </div>
-        )}
       </div>
 
       {/* Skill Cards Grid */}
