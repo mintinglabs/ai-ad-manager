@@ -546,12 +546,34 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
-    console.log('[SkillUpload] file selected:', file?.name, file?.size);
     if (!file) return;
     setUploadError(null);
+
+    const docTypes = /\.(pdf|doc|docx|xls|xlsx|csv)$/i;
+    if (docTypes.test(file.name)) {
+      // Route rich documents through server AI extraction
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const token = localStorage.getItem('fb_access_token') || '';
+        const resp = await fetch('/api/skills/upload-doc', {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        });
+        const data = await resp.json();
+        if (!resp.ok) { setUploadError(data.error || 'Upload failed'); e.target.value = ''; return; }
+        await onCreate({ name: data.name, description: data.description, content: data.content, preview: data.preview, type: 'strategy' });
+      } catch (err) {
+        setUploadError(err.message || 'Upload failed');
+      }
+      e.target.value = '';
+      return;
+    }
+
+    // Plain text / markdown / .skill files — read in browser
     try {
       const text = await file.text();
-      console.log('[SkillUpload] file content length:', text.length, 'first 100 chars:', text.slice(0, 100));
       if (!text.trim()) { setUploadError('File is empty'); e.target.value = ''; return; }
       const match = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
       if (match) {
@@ -561,19 +583,13 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
           if (key && rest.length) meta[key.trim()] = rest.join(':').trim();
         });
         if (meta.name && match[2].trim()) {
-          console.log('[SkillUpload] Creating with frontmatter:', meta.name);
-          const result = await onCreate({ name: meta.name, description: meta.description || '', content: match[2].trim(), type: 'strategy' });
-          console.log('[SkillUpload] Created:', result);
+          await onCreate({ name: meta.name, description: meta.description || '', content: match[2].trim(), type: 'strategy' });
           e.target.value = '';
           return;
         }
       }
-      // No frontmatter — use filename as name, full content as body
-      console.log('[SkillUpload] Creating without frontmatter:', file.name);
-      const result = await onCreate({ name: file.name.replace(/\.(skill|md|zip|txt)$/, ''), description: '', content: text, type: 'strategy' });
-      console.log('[SkillUpload] Created:', result);
+      await onCreate({ name: file.name.replace(/\.(skill|md|zip|txt)$/, ''), description: '', content: text, type: 'strategy' });
     } catch (err) {
-      console.error('Failed to import skill file:', err);
       setUploadError(err.response?.data?.error || err.message || 'Upload failed');
     }
     e.target.value = '';
@@ -613,7 +629,7 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
   return (
     <div className="w-full h-full bg-gradient-to-br from-orange-50/60 via-white to-amber-50/40 flex flex-col">
       {/* Hidden file input */}
-      <input ref={fileInputRef} type="file" accept=".skill,.md,.zip,.txt" onChange={handleFileUpload} className="hidden" />
+      <input ref={fileInputRef} type="file" accept=".skill,.md,.zip,.txt,.pdf,.doc,.docx,.xls,.xlsx,.csv" onChange={handleFileUpload} className="hidden" />
 
       {/* Upload error */}
       {uploadError && (

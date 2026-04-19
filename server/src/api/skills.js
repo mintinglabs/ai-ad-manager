@@ -11,6 +11,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILLS_DIR = path.resolve(__dirname, '../../skills');
 const OFFICIAL_DIR = path.join(SKILLS_DIR, 'official');
 
+// Lazy-load multer and pdf-parse
+let upload, pdfParse;
+try {
+  const { default: multer } = await import('multer');
+  upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+} catch { upload = null; }
+try {
+  const { createRequire } = await import('module');
+  const req = createRequire(import.meta.url);
+  pdfParse = req('pdf-parse');
+} catch { pdfParse = null; }
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const parseMd = (content, filename) => {
@@ -278,5 +290,70 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// POST /api/skills/upload-doc — extract text from PDF/DOC/XLS then generate skill via AI
+if (upload) {
+  router.post('/upload-doc', upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+      const { originalname, mimetype, buffer } = req.file;
+      let text = '';
+
+      if (mimetype === 'application/pdf' && pdfParse) {
+        const data = await pdfParse(buffer);
+        text = data.text || '';
+      } else if (
+        mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        mimetype === 'application/vnd.ms-excel'
+      ) {
+        // Excel: lazy-load xlsx
+        try {
+          const { createRequire } = await import('module');
+          const req2 = createRequire(import.meta.url);
+          const XLSX = req2('xlsx');
+          const wb = XLSX.read(buffer, { type: 'buffer' });
+          const lines = [];
+          wb.SheetNames.forEach(name => {
+            const sheet = wb.Sheets[name];
+            lines.push(`## Sheet: ${name}`);
+            lines.push(XLSX.utils.sheet_to_csv(sheet));
+          });
+          text = lines.join('\n');
+        } catch {
+          text = buffer.toString('utf-8');
+        }
+      } else {
+        text = buffer.toString('utf-8');
+      }
+
+      text = text.replace(/\s+/g, ' ').trim().slice(0, 12000);
+      if (!text) return res.status(400).json({ error: 'Could not extract text from file' });
+
+      const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
+      if (!apiKey) return res.status(500).json({ error: 'AI generation not configured' });
+
+      const genAI = new GoogleGenAI({ apiKey });
+      const result = await genAI.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: `You are an expert at creating AI analysis strategies for Facebook ad managers. The user has uploaded a document. Convert its content into a useful, reusable skill for an AI ad assistant.\n\nReturn ONLY valid JSON:\n- name (string, 2-5 words)\n- description (string, one sentence)\n- preview (string, 2-3 lines showing sample output)\n- content (string, full markdown instructions for the AI)\n\nDocument (from "${originalname}"):\n${text}`,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'object',
+            properties: { name: { type: 'string' }, description: { type: 'string' }, preview: { type: 'string' }, content: { type: 'string' } },
+            required: ['name', 'description', 'content'],
+          },
+        },
+      });
+
+      const parsed = JSON.parse(result.text);
+      if (!parsed?.name || !parsed?.content) return res.status(500).json({ error: 'AI returned invalid structure' });
+      res.json({ name: parsed.name, description: parsed.description || '', preview: parsed.preview || '', content: parsed.content });
+    } catch (err) {
+      console.error('[skills/upload-doc] error:', err.message);
+      res.status(500).json({ error: 'Failed to process file: ' + err.message });
+    }
+  });
+}
 
 export default router;
