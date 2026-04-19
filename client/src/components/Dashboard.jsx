@@ -267,22 +267,15 @@ export const Dashboard = ({
   isLoginLoading,
   loginError,
   userName = '',
+  googleCustomerId = '',
+  onGoogleConnect,
+  onGoogleDisconnect,
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [chatLanguage, setChatLanguage] = useState('en');
   const [activeView, setActiveView] = useState({ type: 'chat' });
   const [canvasData, setCanvasData] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [googleCustomerId, setGoogleCustomerId] = useState(() => localStorage.getItem('aam_google_customer_id') || '');
-
-  const handleGoogleConnect = (id) => {
-    setGoogleCustomerId(id);
-    localStorage.setItem('aam_google_customer_id', id);
-  };
-  const handleGoogleDisconnect = () => {
-    setGoogleCustomerId('');
-    localStorage.removeItem('aam_google_customer_id');
-  };
 
   const {
     skills, activeSkill, activeSkills, activeSkillId, activeSkillIds, toggleSkill,
@@ -594,6 +587,8 @@ export const Dashboard = ({
               selectedAccount={selectedAccount}
               selectedBusiness={selectedBusiness}
               onSelectAccount={handleAccountSelect}
+              googleCustomerId={googleCustomerId}
+              onOpenSettings={() => setShowSettings(true)}
             />
           ) : activeView.type === 'creativeLibrary' ? (
             <CreativeLibrary
@@ -668,6 +663,8 @@ export const Dashboard = ({
               selectedBusiness={selectedBusiness}
               onSelectAccount={handleAccountSelect}
               onNavigateToOptimizations={() => setActiveView({ type: 'optimizations' })}
+              googleCustomerId={googleCustomerId}
+              onOpenSettings={() => setShowSettings(true)}
             />
           ) : activeView.type === 'brandLibrary' ? (
             <BrandLibrary
@@ -714,6 +711,8 @@ export const Dashboard = ({
               onSendToChat={handleAudienceToChat}
               onPrefillChat={handlePrefillChat}
               activeSkills={activeSkills}
+              googleCustomerId={googleCustomerId}
+              onOpenSettings={() => setShowSettings(true)}
             />
           ) : activeView.type === 'audiences' ? (
             <AudienceManager
@@ -727,6 +726,8 @@ export const Dashboard = ({
               selectedAccount={selectedAccount}
               selectedBusiness={selectedBusiness}
               onSelectAccount={handleAccountSelect}
+              googleCustomerId={googleCustomerId}
+              onOpenSettings={() => setShowSettings(true)}
             />
           ) : activeView.type === 'saved' && currentSavedItem ? (
             <SavedItemView
@@ -800,8 +801,8 @@ export const Dashboard = ({
           token={token}
           userName={userName}
           googleCustomerId={googleCustomerId}
-          onGoogleConnect={handleGoogleConnect}
-          onGoogleDisconnect={handleGoogleDisconnect}
+          onGoogleConnect={onGoogleConnect}
+          onGoogleDisconnect={onGoogleDisconnect}
         />
       )}
 

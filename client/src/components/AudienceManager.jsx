@@ -1722,7 +1722,66 @@ const AccountSelector = ({ token, onLogin, onLogout, selectedAccount, selectedBu
   );
 };
 
-export const AudienceManager = ({ adAccountId, onSendToChat, onPrefillChat, onBack, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount }) => {
+// ── Google Audiences Panel ──
+const GoogleAudiencesPanel = ({ googleCustomerId, onOpenSettings }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!googleCustomerId) return;
+    setLoading(true);
+    fetch(`/api/google/audiences?accountId=${googleCustomerId}`)
+      .then(r => r.json())
+      .then(d => { if (d.error) throw new Error(d.error); setData(d); })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [googleCustomerId]);
+
+  if (!googleCustomerId) return (
+    <div className="flex-1 flex flex-col items-center justify-center py-24 gap-4">
+      <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-xl font-bold text-red-500">G</div>
+      <p className="text-sm font-semibold text-slate-700">Connect Google Ads</p>
+      <p className="text-xs text-slate-400">Go to Settings → Account to connect your Google Ads account.</p>
+      <button onClick={onOpenSettings} className="text-xs font-medium px-4 py-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors">Open Settings</button>
+    </div>
+  );
+
+  if (loading) return <div className="flex-1 flex items-center justify-center py-20"><RefreshCw size={20} className="animate-spin text-slate-400" /><span className="ml-2 text-sm text-slate-400">Loading audiences…</span></div>;
+  if (error) return <div className="flex-1 flex items-center justify-center py-20 text-sm text-red-500">{error}</div>;
+
+  const allItems = [...(data?.audiences || []), ...(data?.userLists || [])];
+  return (
+    <div className="flex-1 overflow-auto px-6 py-4">
+      <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table className="w-full min-w-[600px]">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50/80">
+              {['Name', 'Type', 'Status', 'Size (Search)', 'Size (Display)'].map(h => (
+                <th key={h} className="text-left py-2.5 px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {allItems.length === 0 ? (
+              <tr><td colSpan={5} className="py-12 text-center text-sm text-slate-400">No audiences found</td></tr>
+            ) : allItems.map((a, i) => (
+              <tr key={a.id || i} className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
+                <td className="py-2.5 px-3 text-[13px] font-medium text-slate-800 max-w-[240px] truncate">{a.name}</td>
+                <td className="py-2.5 px-3 text-[12px] text-slate-500">{a.type}</td>
+                <td className="py-2.5 px-3 text-[12px] text-slate-500">{a.status || a.membershipStatus || '—'}</td>
+                <td className="py-2.5 px-3 text-[13px] text-slate-600">{a.sizeForSearch != null ? a.sizeForSearch.toLocaleString() : '—'}</td>
+                <td className="py-2.5 px-3 text-[13px] text-slate-600">{a.sizeForDisplay != null ? a.sizeForDisplay.toLocaleString() : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+export const AudienceManager = ({ adAccountId, onSendToChat, onPrefillChat, onBack, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, googleCustomerId, onOpenSettings }) => {
   const [audiences, setAudiences] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -1938,10 +1997,9 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onPrefillChat, onBa
             className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${platform === 'meta' ? 'border-orange-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-300'}`}>
             <MetaIcon /> Meta Ads
           </button>
-          <button onClick={() => setPlatform('google')} disabled
-            className="flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 border-transparent text-slate-500 cursor-not-allowed">
+          <button onClick={() => setPlatform('google')}
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${platform === 'google' ? 'border-orange-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-300'}`}>
             <GoogleIcon /> Google Ads
-            <span className="text-[9px] bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded-full font-semibold">Soon</span>
           </button>
           <button onClick={() => setPlatform('tiktok')} disabled
             className="flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 border-transparent text-slate-500 cursor-not-allowed">
@@ -2061,8 +2119,13 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onPrefillChat, onBa
         </div>
       )}
 
+      {/* Google Audiences Panel */}
+      {platform === 'google' && (
+        <GoogleAudiencesPanel googleCustomerId={googleCustomerId} onOpenSettings={onOpenSettings} />
+      )}
+
       {/* Two-panel content */}
-      <div className="flex-1 flex min-h-0">
+      {platform === 'meta' && <div className="flex-1 flex min-h-0">
         {/* ── Left panel: Audience card list ── */}
         <div className="w-[340px] shrink-0 border-r border-slate-200 flex flex-col bg-white">
           {!adAccountId ? (
@@ -2257,7 +2320,7 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onPrefillChat, onBa
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Confirm Dialog */}
       {confirmAction && (

@@ -483,8 +483,73 @@ const AskAIPopup = ({ onSubmit, onClose, selectedIds, level }) => {
   );
 };
 
+// ── Google Campaigns Panel ──
+const GoogleCampaignsPanel = ({ googleCustomerId, onOpenSettings }) => {
+  const [campaigns, setCampaigns] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!googleCustomerId) return;
+    setLoading(true);
+    setError(null);
+    fetch(`/api/google/campaigns?accountId=${googleCustomerId}&dateRange=LAST_30_DAYS`)
+      .then(r => r.json())
+      .then(data => { if (data.error) throw new Error(data.error); setCampaigns(data.campaigns || []); })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [googleCustomerId]);
+
+  if (!googleCustomerId) return (
+    <div className="flex-1 flex flex-col items-center justify-center py-24 gap-4">
+      <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-xl font-bold text-red-500">G</div>
+      <p className="text-sm font-semibold text-slate-700">Connect Google Ads</p>
+      <p className="text-xs text-slate-400">Go to Settings → Account to connect your Google Ads account.</p>
+      <button onClick={onOpenSettings} className="text-xs font-medium px-4 py-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors">Open Settings</button>
+    </div>
+  );
+
+  if (loading) return <div className="flex-1 flex items-center justify-center py-20"><Loader2 size={24} className="animate-spin text-slate-400" /><span className="ml-2 text-sm text-slate-400">Loading campaigns…</span></div>;
+  if (error) return <div className="flex-1 flex items-center justify-center py-20 text-sm text-red-500">{error}</div>;
+
+  return (
+    <div className="flex-1 overflow-auto px-6 py-4">
+      <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table className="w-full min-w-[700px]">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50/80">
+              {['Campaign', 'Status', 'Budget/day', 'Clicks', 'Spend', 'ROAS', 'Conversions'].map(h => (
+                <th key={h} className="text-left py-2.5 px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {campaigns.length === 0 ? (
+              <tr><td colSpan={7} className="py-12 text-center text-sm text-slate-400">No campaigns found</td></tr>
+            ) : campaigns.map(c => (
+              <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
+                <td className="py-2.5 px-3 text-[13px] font-medium text-slate-800 max-w-[240px] truncate">{c.name}</td>
+                <td className="py-2.5 px-3">
+                  <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${c.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                    <span className={`w-1 h-1 rounded-full ${c.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-400'}`} />{c.status}
+                  </span>
+                </td>
+                <td className="py-2.5 px-3 text-[13px] text-slate-600">{c.dailyBudget ? `$${c.dailyBudget.toFixed(2)}` : '—'}</td>
+                <td className="py-2.5 px-3 text-[13px] text-slate-600">{c.clicks?.toLocaleString() ?? '—'}</td>
+                <td className="py-2.5 px-3 text-[13px] text-slate-600">{c.spend != null ? `$${c.spend.toFixed(2)}` : '—'}</td>
+                <td className="py-2.5 px-3 text-[13px] text-slate-600">{c.roas != null ? c.roas.toFixed(2) : '—'}</td>
+                <td className="py-2.5 px-3 text-[13px] text-slate-600">{c.conversions ?? '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 // ── Main Component ──
-export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillChat, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount }) => {
+export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillChat, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, googleCustomerId, onOpenSettings }) => {
   const [platform, setPlatform] = useState('meta');
   const [showAskAI, setShowAskAI] = useState(false);
   const [search, setSearch] = useState('');
@@ -1015,8 +1080,9 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillCh
             className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${platform === 'meta' ? 'border-orange-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-300'}`}>
             <MetaIcon /> Meta Ads
           </button>
-          <button disabled className="flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 border-transparent text-slate-500 cursor-not-allowed">
-            <GoogleIcon /> Google Ads <span className="text-[9px] bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded-full font-semibold">Soon</span>
+          <button onClick={() => setPlatform('google')}
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${platform === 'google' ? 'border-orange-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-300'}`}>
+            <GoogleIcon /> Google Ads
           </button>
           <button disabled className="flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 border-transparent text-slate-500 cursor-not-allowed">
             <TikTokIcon /> TikTok Ads <span className="text-[9px] bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded-full font-semibold">Soon</span>
@@ -1182,8 +1248,13 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillCh
         <div className="mx-6 mt-3 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{error}</div>
       )}
 
+      {/* Google Ads Panel */}
+      {platform === 'google' && (
+        <GoogleCampaignsPanel googleCustomerId={googleCustomerId} onOpenSettings={onOpenSettings} />
+      )}
+
       {/* Content */}
-      <div className="flex-1 overflow-auto px-6 py-4">
+      {platform === 'meta' && <div className="flex-1 overflow-auto px-6 py-4">
         {!token || !adAccountId ? (
           <div className="flex flex-col items-center justify-center py-20">
             <p className="text-sm font-semibold text-slate-700 mb-1">{!token ? 'Connect an ad platform' : 'Select an ad account'}</p>
@@ -1401,7 +1472,7 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillCh
             </div>
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Ask AI Agent popup */}
       {showAskAI && (

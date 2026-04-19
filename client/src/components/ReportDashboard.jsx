@@ -132,8 +132,77 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
+// ── Google Reports Panel ──
+const GOOGLE_DATE_MAP = { last_7d: 'LAST_7_DAYS', last_14d: 'LAST_14_DAYS', last_30d: 'LAST_30_DAYS', this_month: 'THIS_MONTH', last_month: 'LAST_MONTH' };
+
+const GoogleReportsPanel = ({ googleCustomerId, onOpenSettings }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [datePreset, setDatePreset] = useState('last_30d');
+
+  useEffect(() => {
+    if (!googleCustomerId) return;
+    setLoading(true);
+    const range = GOOGLE_DATE_MAP[datePreset] || 'LAST_30_DAYS';
+    fetch(`/api/google/reports?accountId=${googleCustomerId}&dateRange=${range}`)
+      .then(r => r.json())
+      .then(d => { if (d.error) throw new Error(d.error); setData(d); })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [googleCustomerId, datePreset]);
+
+  if (!googleCustomerId) return (
+    <div className="flex-1 flex flex-col items-center justify-center py-24 gap-4">
+      <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-xl font-bold text-red-500">G</div>
+      <p className="text-sm font-semibold text-slate-700">Connect Google Ads</p>
+      <p className="text-xs text-slate-400">Go to Settings → Account to connect your Google Ads account.</p>
+      <button onClick={onOpenSettings} className="text-xs font-medium px-4 py-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors">Open Settings</button>
+    </div>
+  );
+
+  if (loading) return <div className="flex-1 flex items-center justify-center py-20"><Loader2 size={24} className="animate-spin text-slate-400" /></div>;
+  if (error) return <div className="flex-1 flex items-center justify-center py-20 text-sm text-red-500">{error}</div>;
+  if (!data) return null;
+
+  const { metrics, account } = data;
+  const kpis = [
+    { label: 'Spend', value: `$${(metrics?.spend || 0).toFixed(2)}` },
+    { label: 'Clicks', value: (metrics?.clicks || 0).toLocaleString() },
+    { label: 'Impressions', value: (metrics?.impressions || 0).toLocaleString() },
+    { label: 'Conversions', value: (metrics?.conversions || 0).toFixed(1) },
+    { label: 'ROAS', value: (metrics?.roas || 0).toFixed(2) },
+    { label: 'CPA', value: metrics?.cpa ? `$${metrics.cpa.toFixed(2)}` : '—' },
+    { label: 'CTR', value: metrics?.avgCtr ? `${(metrics.avgCtr * 100).toFixed(2)}%` : '—' },
+    { label: 'Avg CPC', value: metrics?.avgCpc ? `$${metrics.avgCpc.toFixed(2)}` : '—' },
+  ];
+
+  return (
+    <div className="flex-1 overflow-auto px-6 py-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-sm font-semibold text-slate-700">{account?.name || `Account ${googleCustomerId}`}</p>
+          <p className="text-xs text-slate-400">Optimization Score: {account?.optimizationScore ? `${(account.optimizationScore * 100).toFixed(0)}%` : '—'}</p>
+        </div>
+        <select value={datePreset} onChange={e => setDatePreset(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-600">
+          {DATE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+        </select>
+      </div>
+      <div className="grid grid-cols-4 gap-3">
+        {kpis.map(k => (
+          <div key={k.label} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">{k.label}</p>
+            <p className="text-2xl font-bold text-slate-800">{k.value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // ── Main Report Dashboard ──
-export const ReportDashboard = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onNavigateToOptimizations }) => {
+export const ReportDashboard = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onNavigateToOptimizations, googleCustomerId, onOpenSettings }) => {
+  const [platform, setPlatform] = useState('meta');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [datePreset, setDatePreset] = useState('last_7d');
@@ -298,6 +367,16 @@ export const ReportDashboard = ({ adAccountId, token, onLogin, onLogout, selecte
         </div>
       </div>
 
+      {/* Platform tabs */}
+      <div className="flex items-center gap-0 px-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700">
+        {[{ id: 'meta', label: 'Meta Ads' }, { id: 'google', label: 'Google Ads' }].map(p => (
+          <button key={p.id} onClick={() => setPlatform(p.id)}
+            className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${platform === p.id ? 'border-orange-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-300'}`}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+
       {/* Tabs + Date + Filters */}
       <div className="px-6 py-2.5 flex items-center gap-4 bg-white/90 backdrop-blur-md border-b border-slate-200/60 shrink-0">
         {/* Tabs */}
@@ -331,10 +410,15 @@ export const ReportDashboard = ({ adAccountId, token, onLogin, onLogout, selecte
         </div>
       </div>
 
-      {error && <div className="mx-6 mt-3 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{error}</div>}
+      {error && platform === 'meta' && <div className="mx-6 mt-3 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{error}</div>}
+
+      {/* Google Reports Panel */}
+      {platform === 'google' && (
+        <GoogleReportsPanel googleCustomerId={googleCustomerId} onOpenSettings={onOpenSettings} />
+      )}
 
       {/* Content */}
-      <div className="flex-1 overflow-auto px-6 py-5">
+      {platform === 'meta' && <div className="flex-1 overflow-auto px-6 py-5">
         {!token || !adAccountId ? (
           <div className="flex flex-col items-center justify-center py-20">
             <p className="text-sm font-semibold text-slate-700 mb-1">{!token ? 'Connect an ad platform' : 'Select an ad account'}</p>
@@ -581,7 +665,7 @@ export const ReportDashboard = ({ adAccountId, token, onLogin, onLogout, selecte
             )}
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 };
