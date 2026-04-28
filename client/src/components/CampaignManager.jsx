@@ -1096,7 +1096,7 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillCh
           </div>
         </div>
 
-        <PlatformTabs platform={platform} onChange={setPlatform} enabled={['meta', 'google']} variant="dark" />
+        <PlatformTabs platform={platform} onChange={setPlatform} enabled={['meta']} variant="dark" />
       </div>
 
       {/* Level tabs (Campaigns | Ad Sets | Ads) + Breadcrumb — Meta-only */}

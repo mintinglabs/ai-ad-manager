@@ -30,6 +30,9 @@ export const useSupabaseAuth = () => {
       options: {
         redirectTo: window.location.origin,
         scopes: 'openid email profile',
+        queryParams: {
+          prompt: 'select_account',
+        },
       },
     });
   }, []);

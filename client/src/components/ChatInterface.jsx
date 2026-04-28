@@ -2607,27 +2607,16 @@ const AccountConnector = ({ token, onLogin, onLogout, isLoginLoading, loginError
 
   const isConnected = !!token && !!selectedAccount;
   const isLoggedIn = !!token;
-  const googleActive = googleConnected && googleCustomerId;
-  const googleAcc = googleActive ? googleAccounts.find(a => a.id === googleCustomerId) : null;
-  const googleName = googleAcc?.name || (googleActive ? `Account ${googleCustomerId}` : null);
 
-  // Multi-platform button state
-  const bothConnected = isConnected && googleActive;
-  const sameName = bothConnected && googleName && selectedAccount.name === googleName;
+  // Meta-only button content (Google + TikTok are Coming Soon)
   let buttonContent;
-  if (bothConnected) {
-    buttonContent = sameName
-      ? <><img src="/meta-icon.svg" alt="Meta" className="w-3 h-3" /><GoogleIcon /><span className="truncate max-w-[140px]">{selectedAccount.name}</span></>
-      : <><img src="/meta-icon.svg" alt="Meta" className="w-3 h-3" /><span className="truncate max-w-[90px]">{selectedAccount.name}</span><span className="text-slate-300">·</span><GoogleIcon /><span className="truncate max-w-[90px]">{googleName}</span></>;
-  } else if (isConnected) {
+  if (isConnected) {
     buttonContent = <><img src="/meta-icon.svg" alt="Meta" className="w-3 h-3" /><span className="truncate max-w-[160px]">{selectedAccount.name}</span></>;
-  } else if (googleActive) {
-    buttonContent = <><GoogleIcon /><span className="truncate max-w-[160px]">{googleName}</span></>;
   } else {
     buttonContent = <><Link2 size={12} /><span>{isLoggedIn ? 'Select Account' : 'Connect'}</span></>;
   }
 
-  const buttonStyle = (bothConnected || isConnected || googleActive)
+  const buttonStyle = isConnected
     ? 'border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
     : isLoggedIn ? 'border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100'
     : 'border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50';
@@ -2680,32 +2669,13 @@ const AccountConnector = ({ token, onLogin, onLogout, isLoginLoading, loginError
                     <p className="text-[11px] text-red-500 font-medium">{loginError}</p>
                   </div>
                 )}
-                {/* Google Ads */}
-                <button onClick={handleGoogleClick}
-                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-slate-50 transition-colors">
+                {/* Google Ads — Coming Soon */}
+                <div className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left opacity-50 cursor-default">
                   <GoogleIcon />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-medium text-slate-700 truncate">Google Ads</p>
-                    {googleConnected && googleCustomerId && (
-                      <p className="text-[10px] text-slate-400 truncate">{googleAccounts.find(a => a.id === googleCustomerId)?.name || `Account ${googleCustomerId}`}</p>
-                    )}
-                    {googleConnected && !googleCustomerId && (
-                      <p className="text-[10px] text-amber-600 truncate">Click to select account</p>
-                    )}
-                  </div>
-                  {googleConnected ? (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onGoogleDisconnect?.(); setOpen(false); }}
-                      className="relative w-8 h-[18px] rounded-full bg-emerald-500 hover:bg-red-500 transition-colors group shrink-0"
-                      title="Disconnect"
-                    >
-                      <span className="absolute top-[2px] right-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-all group-hover:right-[14px]" />
-                    </button>
-                  ) : (
-                    <span className="text-[10px] font-medium text-blue-600 shrink-0">Connect</span>
-                  )}
-                </button>
-                {/* TikTok Ads */}
+                  <span className="text-[12px] font-medium text-slate-400 flex-1">Google Ads</span>
+                  <span className="text-[9px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded-full font-semibold">Soon</span>
+                </div>
+                {/* TikTok Ads — Coming Soon */}
                 <div className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left opacity-50 cursor-default">
                   <TikTokIcon />
                   <span className="text-[12px] font-medium text-slate-400 flex-1">TikTok Ads</span>

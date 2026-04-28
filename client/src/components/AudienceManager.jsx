@@ -2008,7 +2008,7 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onPrefillChat, onBa
           </div>
         </div>
 
-        <PlatformTabs platform={platform} onChange={setPlatform} enabled={['meta', 'google']} variant="dark" />
+        <PlatformTabs platform={platform} onChange={setPlatform} enabled={['meta']} variant="dark" />
       </div>
 
       {/* Filter bar — 3 dimensions: Type, Availability, Status + search (Meta-only) */}
