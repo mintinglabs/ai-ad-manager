@@ -1,8 +1,125 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Zap, Plus, MessageSquare, Trash2, ChevronDown, ChevronLeft, ChevronRight, LogOut, FileText, Lightbulb, FolderOpen, Building2, Check, Globe, GripVertical, FolderPlus, X, Users, Sparkles, MoreVertical, Pin, Pencil, PenLine, Menu, BarChart3, Image, Calendar, TrendingUp, ClipboardList, Settings, Palette, LayoutGrid, ListTodo, BookMarked, Layers, Diamond } from 'lucide-react';
+import { Zap, Plus, MessageSquare, Trash2, ChevronDown, ChevronLeft, ChevronRight, LogOut, FileText, Lightbulb, FolderOpen, Building2, Check, Globe, GripVertical, FolderPlus, X, Users, Sparkles, MoreVertical, Pin, Pencil, PenLine, Menu, BarChart3, Image, Calendar, TrendingUp, ClipboardList, Settings, Palette, LayoutGrid, ListTodo, BookMarked, Layers, Diamond, User, Plug } from 'lucide-react';
 import { groupSessionsByDate } from '../hooks/useChatSessions.js';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
 import { useBusinesses } from '../hooks/useBusinesses.js';
+
+// Sidebar bottom: app-level user menu. Two visual modes:
+//   - collapsed=true  → just a 36×36 avatar that opens a flyout menu
+//   - collapsed=false → full pill (avatar + name + email) that opens the
+//     same dropdown above it.
+// Both render an Account Settings / Connected Platforms / Log out menu.
+// When the user isn't app-authed yet (Supabase Google), they instead see
+// a "Start Now" CTA that fires onAppSignIn.
+const SidebarUserMenu = ({
+  collapsed = false,
+  isAppAuthed,
+  onAppSignIn,
+  onAppSignOut,
+  userName = '',
+  userEmail = '',
+  userAvatarUrl = '',
+  onOpenAccountSettings,
+  onOpenConnectedPlatforms,
+  showUserMenu,
+  setShowUserMenu,
+}) => {
+  const initial = (userName || 'A').charAt(0).toUpperCase();
+  const Avatar = ({ size = 'md' }) => {
+    const cls = size === 'sm' ? 'w-7 h-7 text-[12px]' : size === 'lg' ? 'w-9 h-9 text-sm' : 'w-8 h-8 text-[13px]';
+    return (
+      <div className={`${cls} rounded-full overflow-hidden shrink-0`}>
+        {userAvatarUrl ? (
+          <img src={userAvatarUrl} alt={userName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center">
+            <span className="text-white font-bold">{initial}</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  if (!isAppAuthed) {
+    if (collapsed) {
+      return (
+        <button onClick={onAppSignIn}
+          className="group relative w-full h-[36px] rounded-xl flex items-center justify-center bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/30 hover:shadow-lg hover:shadow-orange-500/40 transition-all">
+          <Sparkles size={14} />
+          <span className="absolute left-full ml-2 px-2.5 py-1 text-[11px] font-medium text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[60] shadow-lg">Start Now</span>
+        </button>
+      );
+    }
+    return (
+      <button onClick={onAppSignIn}
+        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/30 hover:shadow-lg hover:shadow-orange-500/40 transition-all">
+        <Sparkles size={13} />
+        Start Now
+      </button>
+    );
+  }
+
+  // Authed — avatar / pill that opens dropdown
+  return (
+    <div className="relative">
+      {collapsed ? (
+        <button onClick={() => setShowUserMenu(v => !v)}
+          className="group relative w-full h-[36px] rounded-xl flex items-center justify-center hover:bg-slate-100 transition-colors"
+          aria-label="Account menu">
+          <Avatar size="sm" />
+          <span className="absolute left-full ml-2 px-2.5 py-1 text-[11px] font-medium text-white bg-slate-800 rounded-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[60] shadow-lg">{userName || 'Account'}</span>
+        </button>
+      ) : (
+        <button onClick={() => setShowUserMenu(v => !v)}
+          className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-slate-100 transition-colors text-left">
+          <Avatar />
+          <div className="flex-1 min-w-0">
+            <p className="text-[12px] font-semibold text-slate-700 truncate">{userName || 'User'}</p>
+            <p className="text-[10px] text-slate-400 truncate">{userEmail || ''}</p>
+          </div>
+          <ChevronRight size={12} className={`text-slate-400 transition-transform ${showUserMenu ? '-rotate-90' : 'rotate-[270deg]'}`} />
+        </button>
+      )}
+
+      {showUserMenu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
+          <div className={`absolute z-50 w-60 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden animate-[fadeSlideUp_0.15s_ease-out] ${collapsed ? 'left-full ml-2 bottom-0' : 'left-0 right-0 bottom-full mb-2'}`}>
+            <div className="px-3 py-2.5 border-b border-slate-100 flex items-center gap-2.5">
+              <Avatar size="lg" />
+              <div className="min-w-0">
+                <p className="text-[12px] font-semibold text-slate-800 truncate">{userName || 'User'}</p>
+                <p className="text-[10px] text-slate-400 truncate">{userEmail || ''}</p>
+              </div>
+            </div>
+            <div className="py-1">
+              <button
+                onClick={() => { setShowUserMenu(false); onOpenAccountSettings?.(); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-slate-700 hover:bg-slate-50 transition-colors">
+                <User size={13} className="text-slate-400" />
+                Account Settings
+              </button>
+              <button
+                onClick={() => { setShowUserMenu(false); onOpenConnectedPlatforms?.(); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-slate-700 hover:bg-slate-50 transition-colors">
+                <Plug size={13} className="text-slate-400" />
+                Connected Platforms
+              </button>
+            </div>
+            <div className="border-t border-slate-100 py-1">
+              <button
+                onClick={() => { setShowUserMenu(false); onAppSignOut?.(); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-red-600 hover:bg-red-50 transition-colors">
+                <LogOut size={13} />
+                Log out
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 const DATE_GROUP_ORDER = ['Today', 'Yesterday', 'Previous 7 Days', 'Previous 30 Days', 'Older'];
 
@@ -234,7 +351,18 @@ export const Sidebar = ({
   onOpenReports,
   token,
   onLogin,
+  // App-level user identity (Supabase Google sign-in). Anonymous → "Start Now",
+  // authed → avatar dropdown that opens Settings or signs out.
+  isAppAuthed = true,
+  onAppSignIn,
+  onAppSignOut,
+  appUserName = '',
+  appUserEmail = '',
+  appUserAvatarUrl = '',
+  onOpenAccountSettings,
+  onOpenConnectedPlatforms,
 }) => {
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [openFolders, setOpenFolders] = useState({});
   const [hoveredSession, setHoveredSession] = useState(null);
   const [contextMenu, setContextMenu] = useState(null); // { sessionId, x, y }
@@ -422,6 +550,21 @@ export const Sidebar = ({
           )}
         </div>
         <div className="flex-1" />
+        {/* Collapsed sidebar — user avatar at bottom */}
+        <div className="pb-3 px-1.5">
+          <SidebarUserMenu collapsed
+            isAppAuthed={isAppAuthed}
+            onAppSignIn={onAppSignIn}
+            onAppSignOut={onAppSignOut}
+            userName={appUserName}
+            userEmail={appUserEmail}
+            userAvatarUrl={appUserAvatarUrl}
+            onOpenAccountSettings={onOpenAccountSettings}
+            onOpenConnectedPlatforms={onOpenConnectedPlatforms}
+            showUserMenu={showUserMenu}
+            setShowUserMenu={setShowUserMenu}
+          />
+        </div>
       </div>
 
       {/* Expanded content — fades in/out */}
@@ -574,6 +717,23 @@ export const Sidebar = ({
         </div>
       </div>
       )}
+
+      {/* Expanded sidebar — user pill always pinned to bottom (outside the
+          scrollable All Tasks list so it never moves). */}
+      <div className="px-3 pb-3 pt-2 shrink-0 border-t border-slate-100 bg-white/60 backdrop-blur-sm">
+        <SidebarUserMenu
+          isAppAuthed={isAppAuthed}
+          onAppSignIn={onAppSignIn}
+          onAppSignOut={onAppSignOut}
+          userName={appUserName}
+          userEmail={appUserEmail}
+          userAvatarUrl={appUserAvatarUrl}
+          onOpenAccountSettings={onOpenAccountSettings}
+          onOpenConnectedPlatforms={onOpenConnectedPlatforms}
+          showUserMenu={showUserMenu}
+          setShowUserMenu={setShowUserMenu}
+        />
+      </div>
 
       {/* Context Menu for chat sessions */}
       {contextMenu && (
