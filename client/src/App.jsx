@@ -85,6 +85,10 @@ export default function App() {
   // doesn't briefly render in a logged-out state on localhost).
   if (!devSessionReady || !bootChecked || !supaAuth.bootChecked) return null;
 
+  // OfflineBanner is mounted alongside the dashboard so a WiFi drop is
+  // visibly acknowledged. The actual chat-context preservation happens
+  // server-side (see server/src/api/chat.js sse helper).
+
   // Prefer Google identity (from Supabase) for the displayed user info.
   // Supabase sometimes puts the Google fields in user_metadata, sometimes
   // in identities[].identity_data — check both. Empty strings when no
@@ -127,10 +131,31 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+      <OfflineBanner />
       <Routes>
         <Route path="/c/:sessionId" element={dashboardEl} />
         <Route path="*" element={dashboardEl} />
       </Routes>
     </ErrorBoundary>
+  );
+}
+
+function OfflineBanner() {
+  const [isOnline, setIsOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
+  useEffect(() => {
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
+  if (isOnline) return null;
+  return (
+    <div className="fixed top-0 inset-x-0 z-[100] bg-amber-500 text-white text-center text-[12px] font-medium px-4 py-1.5 shadow-md">
+      You're offline — your conversation will resume automatically once you're back online.
+    </div>
   );
 }
