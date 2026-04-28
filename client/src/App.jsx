@@ -19,13 +19,16 @@ class ErrorBoundary extends Component {
 }
 import { useAuth } from './hooks/useAuth.js';
 import { useGoogleAuth } from './hooks/useGoogleAuth.js';
+import { useSupabaseAuth } from './hooks/useSupabaseAuth.js';
 import { LoginPage } from './components/LoginPage.jsx';
 import { Dashboard } from './components/Dashboard.jsx';
+import { AppLoginGate } from './components/AppLoginGate.jsx';
 
 // Local dev bypass — skip login and go straight to dashboard
 const DEV_BYPASS = import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS === 'true';
 
 export default function App() {
+  const supaAuth = useSupabaseAuth();
   const { longLivedToken, isAuthenticated, user, bootChecked, isLoading, error, login, logout, markAuthed } = useAuth();
   const [userName, setUserName] = useState(() => localStorage.getItem('aam_user_first_name') || '');
   const [selectedBusiness, setSelectedBusiness] = useState(() => {
@@ -81,7 +84,24 @@ export default function App() {
 
   // Block rendering until dev session attempt completes (so the dashboard
   // doesn't briefly render in a logged-out state on localhost).
-  if (!devSessionReady || !bootChecked) return null;
+  if (!devSessionReady || !bootChecked || !supaAuth.bootChecked) return null;
+
+  // App login gate — Google sign-in via Supabase. Until the user signs in,
+  // the entire dashboard is hidden behind a landing page + login modal.
+  // FB connection (Meta access) is now a separate concern handled inside
+  // the dashboard via the existing "Connect" flow.
+  if (!supaAuth.user) {
+    return <AppLoginGate onSignIn={supaAuth.signInWithGoogle} />;
+  }
+
+  // Prefer Google identity (from Supabase) for the displayed user info.
+  // Supabase sometimes puts the Google fields in user_metadata, sometimes
+  // in identities[].identity_data — check both.
+  const googleMeta = supaAuth.user.user_metadata || {};
+  const googleIdentity = supaAuth.user.identities?.find(i => i.provider === 'google')?.identity_data || {};
+  const displayName = googleMeta.full_name || googleMeta.name || googleIdentity.full_name || googleIdentity.name || userName || (supaAuth.user.email?.split('@')[0] ?? '');
+  const displayEmail = supaAuth.user.email || googleIdentity.email || '';
+  const displayAvatarUrl = googleMeta.avatar_url || googleMeta.picture || googleIdentity.avatar_url || googleIdentity.picture || '';
 
   // Always show Dashboard — soft wall prompts login when needed.
   // Routes: `/` = blank new chat, `/c/:sessionId` = specific session.
@@ -94,7 +114,10 @@ export default function App() {
       adAccountId={selectedAccount?.id || null}
       selectedAccount={selectedAccount}
       selectedBusiness={selectedBusiness}
-      userName={userName}
+      userName={displayName}
+      userEmail={displayEmail}
+      userAvatarUrl={displayAvatarUrl}
+      onAppSignOut={supaAuth.signOut}
       onSwitchAccount={(account) => { setSelectedAccount(account); localStorage.setItem('aam_selected_account', JSON.stringify(account)); }}
       onSwitchBusiness={(business) => { setSelectedAccount(null); setSelectedBusiness(business || null); localStorage.removeItem('aam_selected_account'); localStorage.setItem('aam_selected_business', JSON.stringify(business || null)); }}
       onLogout={() => { logout(); setSelectedBusiness(null); setSelectedAccount(null); localStorage.removeItem('aam_selected_account'); localStorage.removeItem('aam_selected_business'); }}

@@ -27,7 +27,7 @@ const CARD_CATEGORIES = [];
 const QUICK_CHIPS = [];
 
 // ── Settings View — left sidebar + right panel like Claude settings ──
-const SettingsView = ({ onClose, onLogout, token, userName, googleConnected, googleCustomerId }) => {
+const SettingsView = ({ onClose, onLogout, onAppSignOut, token, userName, userEmail = '', userAvatarUrl = '', googleConnected, googleCustomerId }) => {
   const [activeTab, setActiveTab] = useState('account');
   const [showTeamHelp, setShowTeamHelp] = useState(false);
 
@@ -88,13 +88,26 @@ const SettingsView = ({ onClose, onLogout, token, userName, googleConnected, goo
             <div className="bg-white rounded-xl border border-slate-200 p-5 mb-5">
               <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-4">Profile</h3>
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
-                  <span className="text-white text-xl font-bold">{(userName || 'A').charAt(0).toUpperCase()}</span>
+                {userAvatarUrl ? (
+                  <img src={userAvatarUrl} alt={userName} className="w-14 h-14 rounded-full object-cover shadow-sm" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center shadow-sm">
+                    <span className="text-white text-xl font-bold">{(userName || 'A').charAt(0).toUpperCase()}</span>
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-semibold text-slate-800 truncate">{userName || 'User'}</p>
+                  <p className="text-[12px] text-slate-400 truncate">{userEmail || '—'}</p>
                 </div>
-                <div className="flex-1">
-                  <p className="text-[14px] font-semibold text-slate-800">{userName || 'User'}</p>
-                  <p className="text-[12px] text-slate-400">andy.wong@presslogic.com</p>
-                </div>
+                {onAppSignOut && (
+                  <button
+                    onClick={onAppSignOut}
+                    className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-full bg-slate-50 text-slate-600 border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors shrink-0"
+                  >
+                    <LogOut size={12} />
+                    Sign out
+                  </button>
+                )}
               </div>
             </div>
 
@@ -243,9 +256,12 @@ export const Dashboard = ({
   onSwitchBusiness,
   onLogout,
   onLogin,
+  onAppSignOut,
   isLoginLoading,
   loginError,
   userName = '',
+  userEmail = '',
+  userAvatarUrl = '',
   googleConnected = false,
   googleCustomerId = '',
   googleLoginCustomerId = '',
@@ -916,8 +932,11 @@ export const Dashboard = ({
         <SettingsView
           onClose={() => setShowSettings(false)}
           onLogout={onLogout}
+          onAppSignOut={onAppSignOut}
           token={token}
           userName={userName}
+          userEmail={userEmail}
+          userAvatarUrl={userAvatarUrl}
           googleConnected={googleConnected}
           googleCustomerId={googleCustomerId}
         />
