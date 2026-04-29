@@ -3,6 +3,7 @@ import { Search, RefreshCw, ChevronRight, ChevronDown, Image as ImageIcon, Loade
 import { PlatformAccountSelector } from './PlatformAccountSelector.jsx';
 import { PlatformTabs } from './PlatformTabs.jsx';
 import api from '../services/api.js';
+import { useRequireAuth } from '../lib/authGate.jsx';
 
 // ── Platform Icons ──
 const MetaIcon = () => <img src="/meta-icon.svg" alt="Meta" className="w-4 h-4 shrink-0" />;
@@ -843,8 +844,13 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillCh
     }).finally(() => setBreakdownLoading(false));
   }, [breakdown, adAccountId, datePreset, currentData]);
 
+  // Auth gate — wraps all 4 write paths below (toggle, budget, bulk
+  // status, bulk delete). Anonymous clicks are diverted to the LoginModal
+  // before any PATCH/DELETE goes out.
+  const requireAuth = useRequireAuth();
+
   // ── API calls for status toggle ──
-  const toggleActive = useCallback(async (id, val) => {
+  const toggleActive = useCallback(requireAuth(async (id, val) => {
     const status = val ? 'ACTIVE' : 'PAUSED';
     setUpdatingIds(prev => new Set(prev).add(id));
     try {
@@ -863,10 +869,10 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillCh
     } finally {
       setUpdatingIds(prev => { const n = new Set(prev); n.delete(id); return n; });
     }
-  }, [activeTab]);
+  }), [activeTab, requireAuth]);
 
   // ── API call for budget save ──
-  const handleSaveBudget = useCallback(async (id, value) => {
+  const handleSaveBudget = useCallback(requireAuth(async (id, value) => {
     setEditingBudget(null);
     const cents = Math.round(Number(value) * 100);
     if (!cents || cents <= 0) return;
@@ -885,10 +891,10 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillCh
     } finally {
       setUpdatingIds(prev => { const n = new Set(prev); n.delete(id); return n; });
     }
-  }, [activeTab]);
+  }), [activeTab, requireAuth]);
 
   // ── Bulk operations ──
-  const bulkUpdateStatus = useCallback(async (status) => {
+  const bulkUpdateStatus = useCallback(requireAuth(async (status) => {
     const ids = [...selectedIds];
     setUpdatingIds(new Set(ids));
     try {
@@ -911,9 +917,9 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillCh
     } finally {
       setUpdatingIds(new Set());
     }
-  }, [selectedIds, activeTab]);
+  }), [selectedIds, activeTab, requireAuth]);
 
-  const bulkDelete = useCallback(async () => {
+  const bulkDelete = useCallback(requireAuth(async () => {
     if (!confirm(`Delete ${selectedIds.size} items? This cannot be undone.`)) return;
     const ids = [...selectedIds];
     try {
@@ -931,7 +937,7 @@ export const CampaignManager = ({ adAccountId, onBack, onSendToChat, onPrefillCh
     } catch (err) {
       console.error('Bulk delete failed:', err);
     }
-  }, [selectedIds, activeTab]);
+  }), [selectedIds, activeTab, requireAuth]);
 
   // ── Selection ──
   const toggleSelect = useCallback((id) => {

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { ArrowLeft, Upload, X, FileText, Sparkles, Save, History, RotateCcw, Eye, Zap } from 'lucide-react';
 import { uploadToGcs } from '../hooks/useGcsUpload.js';
+import { useRequireAuth } from '../lib/authGate.jsx';
 import { MarkdownEditor } from './MarkdownEditor.jsx';
 
 // Pretty timestamp — "5 min ago", "2 hr ago", "3 days ago", or full date.
@@ -77,7 +78,8 @@ export const StrategistConfig = ({
     }
   };
 
-  const handleRestore = async (version) => {
+  const requireAuthForRestore = useRequireAuth();
+  const handleRestore = requireAuthForRestore(async (version) => {
     if (!revertSkill) return;
     if (!window.confirm(`Restore v${version}? Your current content will be saved as a new revision first, so this is undoable.`)) return;
     setReverting(version);
@@ -97,9 +99,13 @@ export const StrategistConfig = ({
     } finally {
       setReverting(null);
     }
-  };
+  });
 
-  const handleSave = async () => {
+  // Auth gate for save — uploads (uploadToGcs) flow through this same
+  // handler indirectly via gcsPromise.catch, so a single gate at handleSave
+  // covers both "Save" button and the file upload happy path.
+  const requireAuth = useRequireAuth();
+  const handleSave = requireAuth(async () => {
     setSaving(true);
     try {
       await onUpdate(strategist.id, { name, description, content: instructions, icon: strategist.icon });
@@ -112,7 +118,7 @@ export const StrategistConfig = ({
     } finally {
       setSaving(false);
     }
-  };
+  });
 
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files || []);

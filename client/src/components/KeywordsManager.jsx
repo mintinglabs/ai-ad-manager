@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api.js';
 import { useGoogleKeywords } from '../hooks/useGoogleKeywords.js';
+import { useRequireAuth } from '../lib/authGate.jsx';
 import { PlatformAccountSelector } from './PlatformAccountSelector.jsx';
 
 // Date-range options align with what the backend accepts (parseDateRange).
@@ -267,6 +268,12 @@ export const KeywordsManager = ({
   const [campaignsError, setCampaignsError] = useState(null);
   const [modal, setModal] = useState(null); // { mode, prefill?, defaultMatchType? } | null
 
+  // All three write paths (positive / negative-campaign / negative-adGroup)
+  // pass through setModal({ mode }) before the user can submit. Gating the
+  // modal-open call prevents an anon click from even seeing the form.
+  const requireAuth = useRequireAuth();
+  const openModal = requireAuth((modalProps) => setModal(modalProps));
+
   const {
     keywords, negativeKeywords, searchTerms, adGroups,
     loading, error,
@@ -380,7 +387,7 @@ export const KeywordsManager = ({
         <Tab active={tab === 'searchTerms'} onClick={() => setTab('searchTerms')} count={searchTerms.length || null}>Search Terms</Tab>
         <div className="flex-1" />
         {tab === 'keywords' && (
-          <button onClick={() => setModal({ mode: 'positive' })} disabled={!campaignId || !adGroups.length}
+          <button onClick={() => openModal({ mode: 'positive' })} disabled={!campaignId || !adGroups.length}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 shadow-sm shadow-orange-500/20 disabled:opacity-40 transition-all">
             <Plus size={12} /> Add Keywords
           </button>
@@ -397,7 +404,7 @@ export const KeywordsManager = ({
                 Ad Group
               </button>
             </div>
-            <button onClick={() => setModal({ mode: negativeLevel === 'campaign' ? 'negative-camp' : 'negative-adgrp' })}
+            <button onClick={() => openModal({ mode: negativeLevel === 'campaign' ? 'negative-camp' : 'negative-adgrp' })}
               disabled={!campaignId || (negativeLevel === 'adGroup' && !adGroups.length)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-40 transition-colors">
               <Ban size={12} /> Add Negative
@@ -424,7 +431,7 @@ export const KeywordsManager = ({
             <KpiStrip keywords={filteredKeywords} />
             <KeywordsTable
               keywords={filteredKeywords}
-              onAddNegative={(text) => setModal({ mode: 'negative-camp', prefill: text })}
+              onAddNegative={(text) => openModal({ mode: 'negative-camp', prefill: text })}
               onAskAI={(text) => onSendToChat?.(`Analyze the performance of this keyword and suggest improvements: "${text}"`)} />
           </>
         ) : tab === 'negatives' ? (
@@ -434,7 +441,7 @@ export const KeywordsManager = ({
           loading ? <LoadingRow label="Loading search terms…" /> :
           <SearchTermsTable
             items={filteredSearchTerms}
-            onBlock={(text) => setModal({ mode: 'negative-camp', prefill: text, defaultMatchType: 'PHRASE' })}
+            onBlock={(text) => openModal({ mode: 'negative-camp', prefill: text, defaultMatchType: 'PHRASE' })}
             onAskAI={(text) => onSendToChat?.(`Should I add "${text}" as a negative keyword? Look at its performance and recommend.`)} />
         )}
         {campaignsError && <p className="text-[11px] text-rose-500 mt-2">Campaign list error: {campaignsError}</p>}

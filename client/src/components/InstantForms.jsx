@@ -4,6 +4,7 @@ import { PlatformAccountSelector } from './PlatformAccountSelector.jsx';
 import { PlatformTabs } from './PlatformTabs.jsx';
 import { AskAIButton, AskAIPopup } from './AskAIPopup.jsx';
 import api from '../services/api.js';
+import { useRequireAuth } from '../lib/authGate.jsx';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 const fmtDateTime = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
@@ -97,7 +98,8 @@ const CreateFormModal = ({ pageId, onClose, onCreated }) => {
     setCustomQuestions(prev => prev.filter(q => q.key !== key));
   };
 
-  const handleCreate = async () => {
+  const requireAuth = useRequireAuth();
+  const handleCreate = requireAuth(async () => {
     if (!name.trim() || !privacyUrl.trim()) {
       setError('Form name and privacy policy URL are required');
       return;
@@ -127,7 +129,7 @@ const CreateFormModal = ({ pageId, onClose, onCreated }) => {
     } finally {
       setSaving(false);
     }
-  };
+  });
 
   return (
     <>
@@ -749,7 +751,10 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
   useEffect(() => { fetchPages(); }, [fetchPages]);
   useEffect(() => { setForms([]); setSelectedForm(null); fetchForms(); }, [fetchForms]);
 
-  const handleArchive = useCallback(async () => {
+  // Auth gate for the archive write path. Form creation is gated inside
+  // CreateFormModal; this is the second mutation entry on the page.
+  const requireAuth = useRequireAuth();
+  const handleArchive = useCallback(requireAuth(async () => {
     if (!archiveTarget) return;
     setArchiving(true);
     try {
@@ -761,7 +766,7 @@ export const InstantForms = ({ adAccountId, token, onLogin, onLogout, selectedAc
     } finally {
       setArchiving(false);
     }
-  }, [archiveTarget, selectedPage]);
+  }), [archiveTarget, selectedPage, requireAuth]);
 
   const filtered = useMemo(() => {
     let list = forms;

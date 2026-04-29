@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Search, Plus, Filter, MoreHorizontal, Sparkles, ChevronLeft, Upload, GitBranch, Trash2, Download, X, Check, Clock, Play, PenLine, RefreshCw, FileText, FolderOpen, ChevronRight, Copy, Maximize2, Minimize2, MessageSquare } from 'lucide-react';
+import { useRequireAuth } from '../lib/authGate.jsx';
 
 // ── Simple Markdown Renderer ──────────────────────────────────────────────
 const renderMarkdown = (md) => {
@@ -537,7 +538,11 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
     }
   };
 
-  const handleAddSelect = (type) => {
+  // Auth gate — Skills Library writes are: build-with-AI, upload skill
+  // file, delete skill. All three pass through the wrapped handlers below.
+  const requireAuth = useRequireAuth();
+
+  const handleAddSelect = requireAuth((type) => {
     switch (type) {
       case 'build':
         if (onBuildWithAI) onBuildWithAI();
@@ -546,11 +551,11 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
         fileInputRef.current?.click();
         break;
     }
-  };
+  });
 
   const [uploadError, setUploadError] = useState(null);
 
-  const handleFileUpload = async (e) => {
+  const handleFileUpload = requireAuth(async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
     setUploadError(null);
@@ -595,13 +600,13 @@ export const SkillsLibrary = ({ skills, onCreate, onDelete, onBack, onBuildWithA
     if (onRefresh) await onRefresh();
     if (errors.length) setUploadError(errors.join('; '));
     e.target.value = '';
-  };
+  });
 
-const handleDelete = async () => {
+const handleDelete = requireAuth(async () => {
     if (!deleteTarget) return;
     try { await onDelete(deleteTarget.id); } catch (err) { console.error('Delete failed:', err); }
     setDeleteTarget(null);
-  };
+  });
 
   // Show all skills: official + personal
   const filtered = skills

@@ -26,6 +26,7 @@ import { useBrandLibrary } from '../hooks/useBrandLibrary.js';
 import { useBusinesses } from '../hooks/useBusinesses.js';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
 import { LoginModal } from './LoginModal.jsx';
+import { AuthGateProvider } from '../lib/authGate.jsx';
 
 // Brand icons — real logos for the connections panel.
 const MetaBrandIcon = ({ className = 'w-6 h-6' }) => (
@@ -734,6 +735,9 @@ export const Dashboard = ({
   const quickChips = QUICK_CHIPS;
 
   return (
+    // AuthGateProvider lets every module use useRequireAuth() to gate
+    // their action handlers on isAppAuthed without prop-drilling.
+    <AuthGateProvider isAppAuthed={isAppAuthed} requestSignIn={requestSignIn}>
     <div className="flex h-full overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
 
       {/* Login modal — opened by Start Now or any soft-paywall gate */}
@@ -1143,5 +1147,6 @@ export const Dashboard = ({
         </div>
       )}
     </div>
+    </AuthGateProvider>
   );
 };

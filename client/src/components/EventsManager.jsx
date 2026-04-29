@@ -4,6 +4,7 @@ import { PlatformAccountSelector } from './PlatformAccountSelector.jsx';
 import { PlatformTabs } from './PlatformTabs.jsx';
 import { AskAIButton, AskAIPopup } from './AskAIPopup.jsx';
 import api from '../services/api.js';
+import { useRequireAuth } from '../lib/authGate.jsx';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 const fmtNumber = (n) => n != null ? Number(n).toLocaleString() : '—';
@@ -344,7 +345,9 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
     setExpandedPixel(prev => prev === pixelId ? null : pixelId);
   }, []);
 
-  const handleDeleteConversion = useCallback(async () => {
+  // Auth gate — only mutation in this module is delete-conversion.
+  const requireAuth = useRequireAuth();
+  const handleDeleteConversion = useCallback(requireAuth(async () => {
     if (!deleteConfirm) return;
     try {
       await api.delete(`/conversions/${deleteConfirm}`);
@@ -353,7 +356,7 @@ export const EventsManager = ({ adAccountId, token, onLogin, onLogout, selectedA
     } catch (err) {
       console.error('Delete failed:', err);
     }
-  }, [deleteConfirm]);
+  }), [deleteConfirm, requireAuth]);
 
   const handleRefresh = useCallback(() => {
     setPixelEvents({});

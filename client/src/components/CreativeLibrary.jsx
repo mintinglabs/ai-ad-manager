@@ -4,6 +4,7 @@ import { PlatformAccountSelector } from './PlatformAccountSelector.jsx';
 import { PlatformTabs } from './PlatformTabs.jsx';
 import { AskAIButton, AskAIPopup } from './AskAIPopup.jsx';
 import { useCreativeSets } from '../hooks/useCreativeSets.js';
+import { useRequireAuth } from '../lib/authGate.jsx';
 import api from '../services/api.js';
 
 // ── Helpers ──
@@ -290,6 +291,11 @@ const BrowseForSetModal = ({ adAccountId, existingIds, onClose, onAdd }) => {
 export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAccount, selectedBusiness, onSelectAccount, onBack, onSendToChat, onPrefillChat, googleConnected, googleCustomerId, onGoogleConnect, onGoogleDisconnect, onSelectGoogleAccount }) => {
   const [platform, setPlatform] = useState('meta');
   const [showAskAI, setShowAskAI] = useState(false);
+  // Auth gate — every action button below must pass requireAuth() before
+  // hitting the backend. Anonymous users see the LoginModal instead.
+  // Gated entry-point wrappers (openCreateSet / openFolderUpload) live
+  // further down, AFTER the state + ref declarations they reference.
+  const requireAuth = useRequireAuth();
   // Creative Sets
   const { sets, loading: setsLoading, fetchSets, createSet, updateSet, deleteSet, addItems: addSetItems, removeItem: removeSetItem } = useCreativeSets(adAccountId);
   const [selectedSet, setSelectedSet] = useState(null);
@@ -298,6 +304,10 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
   const [addToSetOpen, setAddToSetOpen] = useState(false);
   const [setUploading, setSetUploading] = useState(false);
   const setFileRef = useRef(null);
+  // Gated entry-point wrappers — reused by multiple JSX call sites that
+  // open the New Folder modal or trigger the per-folder upload picker.
+  const openCreateSet    = requireAuth(() => setShowCreateSet(true));
+  const openFolderUpload = requireAuth(() => setFileRef.current?.click());
   // Folder features
   const [renamingFolderId, setRenamingFolderId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
@@ -414,10 +424,12 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
   }, [allAssets, selectedIds]);
 
   // Step 1: user clicks delete → set target. Step 2: confirm dialog → execute.
-  const handleDelete = useCallback((asset) => {
+  // requireAuth runs *before* we even open the confirm dialog so anon users
+  // see the LoginModal instead of the destructive prompt.
+  const handleDelete = useCallback(requireAuth((asset) => {
     setDeleteTarget(asset);
     setDeleteError(null);
-  }, []);
+  }), [requireAuth]);
 
   const confirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
@@ -442,11 +454,11 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
     }
   }, [deleteTarget, adAccountId]);
 
-  const handleBulkDelete = useCallback(() => {
+  const handleBulkDelete = useCallback(requireAuth(() => {
     // Set a special bulk target
     setDeleteTarget({ _bulk: true, count: selectedIds.size });
     setDeleteError(null);
-  }, [selectedIds]);
+  }), [selectedIds, requireAuth]);
 
   const confirmBulkDelete = useCallback(async () => {
     setDeleting(true);
@@ -512,7 +524,7 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
     clearFolderSelection();
   };
 
-  const handleMoveToFolder = async (targetSetId) => {
+  const handleMoveToFolder = requireAuth(async (targetSetId) => {
     if (!selectedSet || folderSelectedItems.size === 0) return;
     const currentSet = sets.find(s => s.id === selectedSet.id) || selectedSet;
     const currentItems = currentSet.items || [];
@@ -526,7 +538,7 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
     }
     clearFolderSelection();
     setShowMoveToFolder(false);
-  };
+  });
 
   // ── Drag and drop ──
   const handleDragStart = (fromSetId, itemIndex, item) => {
@@ -537,7 +549,7 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
     setDragOverFolderId(folderId);
   };
   const handleDragLeave = () => setDragOverFolderId(null);
-  const handleDrop = async (e, targetSetId) => {
+  const handleDrop = requireAuth(async (e, targetSetId) => {
     e.preventDefault();
     setDragOverFolderId(null);
     if (!dragItem || dragItem.fromSetId === targetSetId) { setDragItem(null); return; }
@@ -545,7 +557,7 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
     await addSetItems(targetSetId, [dragItem.item]);
     await removeSetItem(dragItem.fromSetId, dragItem.itemIndex);
     setDragItem(null);
-  };
+  });
 
   const imageCount = images.length;
   const videoCount = videos.length;
@@ -637,8 +649,11 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
         </div>
       )}
 
-      {/* Hidden file input for folder uploads */}
-      <input ref={setFileRef} type="file" accept="image/*,video/*" multiple onChange={async (e) => {
+      {/* Hidden file input for folder uploads. The trigger button is
+          gated via openFolderUpload, so anon users can't reach this
+          handler — but we wrap it again as defence-in-depth in case the
+          input is invoked through some other path (drag-drop, deep link). */}
+      <input ref={setFileRef} type="file" accept="image/*,video/*" multiple onChange={requireAuth(async (e) => {
         if (!selectedSet || !adAccountId) return;
         const files = Array.from(e.target.files || []);
         setSetUploading(true);
@@ -660,7 +675,7 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
           }
         } catch (err) { console.error('Upload failed:', err); }
         finally { setSetUploading(false); e.target.value = ''; }
-      }} className="hidden" />
+      })} className="hidden" />
 
       {/* Error */}
       {error && (
@@ -673,7 +688,7 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
         {/* ── Left: Folder sidebar ── */}
         <div className="w-[240px] shrink-0 border-r border-slate-200 flex flex-col bg-white">
           <div className="p-3 border-b border-slate-100">
-            <button onClick={() => setShowCreateSet(true)}
+            <button onClick={openCreateSet}
               className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors">
               <Plus size={12} /> New Folder
             </button>
@@ -804,7 +819,7 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-medium text-slate-600 border border-slate-200 hover:border-slate-300 transition-colors">
                       <Search size={10} /> Browse
                     </button>
-                    <button onClick={() => setFileRef.current?.click()} disabled={setUploading}
+                    <button onClick={openFolderUpload} disabled={setUploading}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-medium text-white bg-slate-900 hover:bg-slate-800 transition-colors disabled:opacity-50">
                       {setUploading ? <Loader2 size={10} className="animate-spin" /> : <Upload size={10} />} Upload
                     </button>
@@ -898,7 +913,7 @@ export const CreativeLibrary = ({ adAccountId, token, onLogin, onLogout, selecte
                   <p className="text-[12px] font-medium text-slate-500 mb-1">This folder is empty</p>
                   <p className="text-[10px] text-slate-400 mb-3">Upload creatives or browse existing assets</p>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setFileRef.current?.click()}
+                    <button onClick={openFolderUpload}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors">
                       <Upload size={10} /> Upload Files
                     </button>

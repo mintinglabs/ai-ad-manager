@@ -3,6 +3,7 @@ import { Search, RefreshCw, Plus, Loader2, Trash2, X, Play, Pause, ChevronDown, 
 import { PlatformAccountSelector } from './PlatformAccountSelector.jsx';
 import { PlatformTabs } from './PlatformTabs.jsx';
 import api from '../services/api.js';
+import { useRequireAuth } from '../lib/authGate.jsx';
 
 // ── Helpers ──
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
@@ -648,7 +649,11 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
 
   useEffect(() => { fetchRules(); }, [fetchRules]);
 
-  const handleSave = useCallback(async (ruleData) => {
+  // Auth gate — anonymous clicks bounce to LoginModal before any rule
+  // create / toggle / delete leaves the browser.
+  const requireAuth = useRequireAuth();
+
+  const handleSave = useCallback(requireAuth(async (ruleData) => {
     if (ruleData.id) {
       const { data } = await api.patch(`/rules/${ruleData.id}`, ruleData);
       setRules(prev => prev.map(r => r.id === ruleData.id ? { ...r, ...data } : r));
@@ -656,22 +661,22 @@ export const AutomationRules = ({ adAccountId, token, onLogin, onLogout, selecte
       const { data } = await api.post('/rules', { adAccountId, ...ruleData });
       setRules(prev => [...prev, data]);
     }
-  }, [adAccountId]);
+  }), [adAccountId, requireAuth]);
 
-  const handleToggle = useCallback(async (id, isActive) => {
+  const handleToggle = useCallback(requireAuth(async (id, isActive) => {
     setUpdatingIds(prev => new Set(prev).add(id));
     try {
       await api.patch(`/rules/${id}`, { status: isActive ? 'DISABLED' : 'ENABLED' });
       setRules(prev => prev.map(r => r.id === id ? { ...r, status: isActive ? 'DISABLED' : 'ENABLED' } : r));
     } catch (err) { console.error('Toggle failed:', err); }
     finally { setUpdatingIds(prev => { const n = new Set(prev); n.delete(id); return n; }); }
-  }, []);
+  }), [requireAuth]);
 
-  const handleDelete = useCallback(async (id) => {
+  const handleDelete = useCallback(requireAuth(async (id) => {
     if (!confirm('Delete this rule? This cannot be undone.')) return;
     try { await api.delete(`/rules/${id}`); setRules(prev => prev.filter(r => r.id !== id)); }
     catch (err) { console.error('Delete failed:', err); }
-  }, []);
+  }), [requireAuth]);
 
   // Filter out third-party webhook rules (PING_ENDPOINT) — not user-created
   const userRules = rules.filter(r => r.execution_spec?.execution_type !== 'PING_ENDPOINT');

@@ -4,6 +4,7 @@ import { PlatformAccountSelector } from './PlatformAccountSelector.jsx';
 import { PlatformTabs } from './PlatformTabs.jsx';
 import { AskAIButton, AskAIPopup } from './AskAIPopup.jsx';
 import { useBrandLibrary } from '../hooks/useBrandLibrary.js';
+import { useRequireAuth } from '../lib/authGate.jsx';
 import api from '../services/api.js';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
@@ -504,16 +505,28 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
   // Type counts for filter pills
   const typeCounts = items.reduce((acc, i) => { acc[i.type] = (acc[i.type] || 0) + 1; return acc; }, {});
 
-  const handleAddSelect = (type) => {
+  // Auth gate — every action that writes to the server must pass this
+  // wrapper. If the user isn't signed in (Supabase) we trigger the
+  // LoginModal instead of letting the request leave the browser.
+  const requireAuth = useRequireAuth();
+
+  const handleAddSelect = requireAuth((type) => {
     switch (type) {
       case 'write': setShowWrite(true); break;
       case 'upload': fileRef.current?.click(); break;
       case 'crawl-url': setShowCrawlUrl(true); break;
       case 'crawl-social': setShowCrawlSocial(true); break;
     }
-  };
+  });
 
-  const handleFileUpload = async (e) => {
+  // Three gated entrypoints used by the empty-state cards. They bypass
+  // handleAddSelect (because they render their own buttons) so they need
+  // their own gate.
+  const openCrawlUrl    = requireAuth(() => setShowCrawlUrl(true));
+  const openCrawlSocial = requireAuth(() => setShowCrawlSocial(true));
+  const openUpload      = requireAuth(() => fileRef.current?.click());
+
+  const handleFileUpload = requireAuth(async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
@@ -535,13 +548,13 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
       console.error('Upload failed:', err);
     }
     e.target.value = '';
-  };
+  });
 
-  const handleDelete = async (id) => {
+  const handleDelete = requireAuth(async (id) => {
     if (!confirm('Delete this brand item?')) return;
     await deleteItem(id);
     if (selectedItem?.id === id) setSelectedItem(null);
-  };
+  });
 
   return (
     <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-orange-50/60 via-white to-amber-50/40">
@@ -673,14 +686,14 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
                         <p className="text-[10px] text-slate-400">{folderItems.length} item{folderItems.length !== 1 ? 's' : ''}</p>
                       </div>
                     </div>
-                    <button onClick={() => setShowCrawlUrl(true)}
+                    <button onClick={openCrawlUrl}
                       className="text-[10px] font-semibold text-orange-500 hover:text-orange-600 transition-colors">
                       + Add URL
                     </button>
                   </div>
                   <div className="max-h-[240px] overflow-auto">
                     {folderItems.length === 0 ? (
-                      <button onClick={() => setShowCrawlUrl(true)} className="w-full px-4 py-6 text-center hover:bg-slate-50 transition-colors">
+                      <button onClick={openCrawlUrl} className="w-full px-4 py-6 text-center hover:bg-slate-50 transition-colors">
                         <p className="text-[11px] text-slate-400">No websites crawled yet</p>
                         <p className="text-[10px] text-orange-500 font-medium mt-1">Crawl a URL to extract brand info</p>
                       </button>
@@ -721,14 +734,14 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
                         <p className="text-[10px] text-slate-400">{folderItems.length} item{folderItems.length !== 1 ? 's' : ''}</p>
                       </div>
                     </div>
-                    <button onClick={() => setShowCrawlSocial(true)}
+                    <button onClick={openCrawlSocial}
                       className="text-[10px] font-semibold text-orange-500 hover:text-orange-600 transition-colors">
                       + Add Page
                     </button>
                   </div>
                   <div className="max-h-[240px] overflow-auto">
                     {folderItems.length === 0 ? (
-                      <button onClick={() => setShowCrawlSocial(true)} className="w-full px-4 py-6 text-center hover:bg-slate-50 transition-colors">
+                      <button onClick={openCrawlSocial} className="w-full px-4 py-6 text-center hover:bg-slate-50 transition-colors">
                         <p className="text-[11px] text-slate-400">No pages crawled yet</p>
                         <p className="text-[10px] text-orange-500 font-medium mt-1">Analyze your FB or IG page</p>
                       </button>
@@ -769,14 +782,14 @@ export const BrandLibrary = ({ adAccountId, token, onLogin, onLogout, selectedAc
                         <p className="text-[10px] text-slate-400">{folderItems.length} item{folderItems.length !== 1 ? 's' : ''}</p>
                       </div>
                     </div>
-                    <button onClick={() => fileRef.current?.click()}
+                    <button onClick={openUpload}
                       className="text-[10px] font-semibold text-orange-500 hover:text-orange-600 transition-colors">
                       + Upload
                     </button>
                   </div>
                   <div className="max-h-[240px] overflow-auto">
                     {folderItems.length === 0 ? (
-                      <button onClick={() => fileRef.current?.click()} className="w-full px-4 py-6 text-center hover:bg-slate-50 transition-colors">
+                      <button onClick={openUpload} className="w-full px-4 py-6 text-center hover:bg-slate-50 transition-colors">
                         <p className="text-[11px] text-slate-400">No documents uploaded yet</p>
                         <p className="text-[10px] text-orange-500 font-medium mt-1">Upload PDF, TXT, or brand docs</p>
                       </button>

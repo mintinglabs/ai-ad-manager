@@ -3,6 +3,7 @@ import { Users, Plus, RefreshCw, Trash2, Copy, Target, Globe, Hash, X, AlertTria
 import api from '../services/api.js';
 import { useBusinesses } from '../hooks/useBusinesses.js';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
+import { useRequireAuth } from '../lib/authGate.jsx';
 import { PlatformAccountSelector } from './PlatformAccountSelector.jsx';
 import { PlatformTabs } from './PlatformTabs.jsx';
 
@@ -450,7 +451,8 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
       .finally(() => setTosChecking(false));
   }, [adAccountId, tosAccepted, tab]);
 
-  const acceptTos = async () => {
+  const requireAuth = useRequireAuth();
+  const acceptTos = requireAuth(async () => {
     try {
       await api.post('/meta/tos/custom-audience', { adAccountId });
       setTosAccepted(true);
@@ -460,7 +462,7 @@ const CreateAudienceModal = ({ onClose, onCreateViaChat, adAccountId, defaultTab
       // Fallback — open Meta Ads Manager TOS page
       window.open('https://www.facebook.com/ads/manage/customaudiences/tos/', '_blank');
     }
-  };
+  });
 
   // Match type: ANY or ALL
   const [matchType, setMatchType] = useState('any');
@@ -1816,16 +1818,23 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onPrefillChat, onBa
   const [expandedAudienceId, setExpandedAudienceId] = useState(null);
   const [platform, setPlatform] = useState('meta'); // 'meta' | 'google' | 'tiktok'
 
+  // Auth gate — see lib/authGate.jsx. Wraps any action handler so a click
+  // by an anonymous visitor opens the LoginModal instead of progressing.
+  // Most write-paths in this module ultimately fire onSendToChat, which is
+  // already gated in Dashboard.handleSend, but gating at the entry buttons
+  // avoids the confusing UX of a confirmation dialog popping up first.
+  const requireAuthAM = useRequireAuth();
+
   const getAudienceSummary = (audName) => {
     try {
       const stored = JSON.parse(localStorage.getItem('audience_summaries') || '{}');
       return stored[audName]?.bullets || null;
     } catch (_) { return null; }
   };
-  const handleCreateViaChat = useCallback((prompt) => {
+  const handleCreateViaChat = useCallback(requireAuthAM((prompt) => {
     if (onPrefillChat) onPrefillChat(prompt, 'Audience');
     else if (onSendToChat) onSendToChat(prompt);
-  }, [onPrefillChat, onSendToChat]);
+  }), [onPrefillChat, onSendToChat, requireAuthAM]);
 
   const fetchAudiences = useCallback(async () => {
     if (!adAccountId) return;
@@ -1940,9 +1949,9 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onPrefillChat, onBa
 
   const [confirmAction, setConfirmAction] = useState(null);
 
-  const handleUse = (aud) => onSendToChat(`Create an ad set targeting custom audience "${aud.name}" (ID: ${aud.id})`);
+  const handleUse = requireAuthAM((aud) => onSendToChat(`Create an ad set targeting custom audience "${aud.name}" (ID: ${aud.id})`));
 
-  const handleCreateLookalike = (aud) => {
+  const handleCreateLookalike = requireAuthAM((aud) => {
     setConfirmAction({
       title: 'Create Lookalike Audience?',
       message: `This will create a 1% lookalike audience from "${aud.name}".`,
@@ -1953,9 +1962,9 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onPrefillChat, onBa
         setConfirmAction(null);
       },
     });
-  };
+  });
 
-  const handleDelete = (aud) => {
+  const handleDelete = requireAuthAM((aud) => {
     setConfirmAction({
       title: 'Delete Audience?',
       message: `This will permanently delete "${aud.name}". This cannot be undone.`,
@@ -1967,7 +1976,7 @@ export const AudienceManager = ({ adAccountId, onSendToChat, onPrefillChat, onBa
         setConfirmAction(null);
       },
     });
-  };
+  });
 
   return (
     <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-orange-50/60 via-white to-amber-50/40">
