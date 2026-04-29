@@ -163,9 +163,27 @@ function toolCallLabel(name, args) {
   return (map[name] || (() => name.replace(/_/g, ' ')))();
 }
 
-// Helper: send an SSE event
+// Helper: send an SSE event.
+//
+// Critical: swallow write errors silently when the client has already
+// disconnected (WiFi drop, tab close, etc). Without this, an EPIPE /
+// ECONNRESET on `res.write` propagates up through the for-await loop
+// in the chat handler, kills the runner mid-stream, and the in-flight
+// events (including the user's message and any partial agent response)
+// never reach Supabase via appendEvent. The next chat turn then loads a
+// session with NO record of the previous turn → AI has no memory.
+//
+// By guarding the write, the runner runs to completion in the
+// background, every event persists, and the user can resume the
+// conversation as soon as their network is back.
 const sse = (res, obj) => {
-  res.write(`data: ${JSON.stringify(obj)}\n\n`);
+  if (res.writableEnded || res.destroyed) return;
+  try {
+    res.write(`data: ${JSON.stringify(obj)}\n\n`);
+  } catch {
+    // Client disconnected — keep the event loop running so persistence
+    // finishes; we just stop trying to write to the dead socket.
+  }
 };
 
 // POST /api/chat
@@ -273,6 +291,15 @@ router.post('/', async (req, res) => {
 
     // Register SSE emitter for this session so adAgent.js tools can emit tool_result events
     activeSessions.set(adkSessionId, (data) => sse(res, data));
+
+    // Log if the client drops mid-stream so we can confirm in production
+    // logs that the runner was kept running in the background and events
+    // were still persisted (the actual fix lives in `sse`).
+    req.on('close', () => {
+      if (!res.writableEnded) {
+        console.log(`[chat] client disconnected mid-stream session=${adkSessionId?.slice(0, 8)} — runner continues, events still persist`);
+      }
+    });
 
     // Run the agent and stream events (with retry on transient errors)
     const MAX_RETRIES = 2;

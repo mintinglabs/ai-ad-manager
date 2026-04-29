@@ -259,9 +259,21 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
     } catch (err) {
       if (err.name === 'AbortError') return;
       console.error('Chat error:', err);
+      // Distinguish network errors from real backend errors. fetch throws
+      // TypeError on network failure, and `navigator.onLine` flips to false
+      // on system-level disconnect. The server-side fix (chat.js sse guard)
+      // means the runner keeps going + persists events, so when the user
+      // reconnects the conversation has full context.
+      const isNetworkError =
+        !navigator.onLine ||
+        err.name === 'TypeError' ||
+        /network|failed to fetch|networkerror/i.test(err.message || '');
+      const text = isNetworkError
+        ? "Connection lost. Your message was saved — once you're back online, just continue and I'll still have the context."
+        : `Sorry, something went wrong: ${err.message}`;
       setMessages((prev) => [
         ...prev,
-        { id: agentMsgId, role: 'agent', text: `Sorry, something went wrong: ${err.message}`, timestamp: Date.now() },
+        { id: agentMsgId, role: 'agent', text, timestamp: Date.now() },
       ]);
     } finally {
       setIsTyping(false);

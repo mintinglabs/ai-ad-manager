@@ -390,7 +390,7 @@ export const ReportDashboard = ({ adAccountId, token, onLogin, onLogout, selecte
       </div>
 
       <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700">
-        <PlatformTabs platform={platform} onChange={setPlatform} enabled={['meta', 'google']} variant="dark" />
+        <PlatformTabs platform={platform} onChange={setPlatform} enabled={['meta']} variant="dark" />
       </div>
 
       {/* Tabs + Date + Filters */}

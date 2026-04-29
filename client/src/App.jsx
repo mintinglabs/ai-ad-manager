@@ -19,6 +19,7 @@ class ErrorBoundary extends Component {
 }
 import { useAuth } from './hooks/useAuth.js';
 import { useGoogleAuth } from './hooks/useGoogleAuth.js';
+import { useSupabaseAuth } from './hooks/useSupabaseAuth.js';
 import { LoginPage } from './components/LoginPage.jsx';
 import { Dashboard } from './components/Dashboard.jsx';
 
@@ -26,6 +27,7 @@ import { Dashboard } from './components/Dashboard.jsx';
 const DEV_BYPASS = import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS === 'true';
 
 export default function App() {
+  const supaAuth = useSupabaseAuth();
   const { longLivedToken, isAuthenticated, user, bootChecked, isLoading, error, login, logout, markAuthed } = useAuth();
   const [userName, setUserName] = useState(() => localStorage.getItem('aam_user_first_name') || '');
   const [selectedBusiness, setSelectedBusiness] = useState(() => {
@@ -46,7 +48,15 @@ export default function App() {
   }, [user, userName]);
 
   useEffect(() => {
-    if (!import.meta.env.DEV) return;
+    if (!import.meta.env.DEV) { setDevSessionReady(true); return; }
+    // Wait for Supabase to finish bootstrapping. We only seed the dev
+    // META_DEMO_TOKEN session AFTER the user is signed into the app via
+    // Supabase Google — otherwise an anonymous visitor (or a user who
+    // just signed out) keeps inheriting the agency's Meta access via
+    // the HttpOnly cookie, which is the wrong default.
+    if (!supaAuth.bootChecked) return;
+    if (!supaAuth.user) { setDevSessionReady(true); return; }
+
     const seedDemo = async () => {
       try {
         const r = await fetch('/api/auth/demo-session', { method: 'POST', credentials: 'include' });
@@ -77,24 +87,70 @@ export default function App() {
     window.addEventListener('fb_token_error', handleTokenError);
     return () => window.removeEventListener('fb_token_error', handleTokenError);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [supaAuth.bootChecked, supaAuth.user]);
 
   // Block rendering until dev session attempt completes (so the dashboard
   // doesn't briefly render in a logged-out state on localhost).
-  if (!devSessionReady || !bootChecked) return null;
+  if (!devSessionReady || !bootChecked || !supaAuth.bootChecked) return null;
 
-  // Always show Dashboard — soft wall prompts login when needed.
-  // Routes: `/` = blank new chat, `/c/:sessionId` = specific session.
-  // Non-chat views (campaigns / audiences / reports / …) stay as internal
-  // `activeView` state inside Dashboard — matches ChatGPT, avoids touching
-  // every module for this pass.
+  // Composite sign-out: clears Meta cookie session + Supabase + local
+  // selected business/account so logging out actually drops all data
+  // access, not just the Supabase identity.
+  const handleAppSignOut = async () => {
+    try { await logout(); } catch {}
+    try { await supaAuth.signOut(); } catch {}
+    setSelectedBusiness(null);
+    setSelectedAccount(null);
+    setUserName('');
+    localStorage.removeItem('aam_user_first_name');
+    localStorage.removeItem('aam_selected_account');
+    localStorage.removeItem('aam_selected_business');
+  };
+
+  // OfflineBanner is mounted alongside the dashboard so a WiFi drop is
+  // visibly acknowledged. The actual chat-context preservation happens
+  // server-side (see server/src/api/chat.js sse helper).
+
+  // Prefer Google identity (from Supabase) for the displayed user info.
+  // Supabase sometimes puts the Google fields in user_metadata, sometimes
+  // in identities[].identity_data — check both.
+  //
+  // When the user is NOT signed in via Supabase (anonymous preview, post-
+  // logout), show empty strings rather than falling back to the cached
+  // FB demo userName / aam_user_first_name in localStorage. Otherwise the
+  // chat hero keeps greeting "Hello, Andy" after sign-out.
+  const googleMeta = supaAuth.user?.user_metadata || {};
+  const googleIdentity = supaAuth.user?.identities?.find(i => i.provider === 'google')?.identity_data || {};
+  const displayName = supaAuth.user
+    ? (googleMeta.full_name || googleMeta.name || googleIdentity.full_name || googleIdentity.name || (supaAuth.user.email?.split('@')[0] ?? ''))
+    : '';
+  const displayEmail = supaAuth.user ? (supaAuth.user.email || googleIdentity.email || '') : '';
+  const displayAvatarUrl = supaAuth.user
+    ? (googleMeta.avatar_url || googleMeta.picture || googleIdentity.avatar_url || googleIdentity.picture || '')
+    : '';
+
+  // Soft paywall: always render Dashboard so anonymous visitors can preview
+  // the UI. Mutating actions (chat send, etc.) trigger the Supabase Google
+  // sign-in popup via onAppSignIn.
+  //
+  // When the visitor isn't signed in, we mask Meta workspace state — the
+  // KEEPP pill / account chip etc. would otherwise leak across logout
+  // because selectedAccount/Business hydrate from localStorage.
+  const isAuthed = !!supaAuth.user;
+  const visibleAccount = isAuthed ? selectedAccount : null;
+  const visibleBusiness = isAuthed ? selectedBusiness : null;
   const dashboardEl = (
     <Dashboard
-      token={longLivedToken}
-      adAccountId={selectedAccount?.id || null}
-      selectedAccount={selectedAccount}
-      selectedBusiness={selectedBusiness}
-      userName={userName}
+      token={isAuthed ? longLivedToken : null}
+      adAccountId={visibleAccount?.id || null}
+      selectedAccount={visibleAccount}
+      selectedBusiness={visibleBusiness}
+      userName={displayName}
+      userEmail={displayEmail}
+      userAvatarUrl={displayAvatarUrl}
+      isAppAuthed={!!supaAuth.user}
+      onAppSignIn={supaAuth.signInWithGoogle}
+      onAppSignOut={handleAppSignOut}
       onSwitchAccount={(account) => { setSelectedAccount(account); localStorage.setItem('aam_selected_account', JSON.stringify(account)); }}
       onSwitchBusiness={(business) => { setSelectedAccount(null); setSelectedBusiness(business || null); localStorage.removeItem('aam_selected_account'); localStorage.setItem('aam_selected_business', JSON.stringify(business || null)); }}
       onLogout={() => { logout(); setSelectedBusiness(null); setSelectedAccount(null); localStorage.removeItem('aam_selected_account'); localStorage.removeItem('aam_selected_business'); }}
@@ -112,10 +168,31 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+      <OfflineBanner />
       <Routes>
         <Route path="/c/:sessionId" element={dashboardEl} />
         <Route path="*" element={dashboardEl} />
       </Routes>
     </ErrorBoundary>
+  );
+}
+
+function OfflineBanner() {
+  const [isOnline, setIsOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
+  useEffect(() => {
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
+  if (isOnline) return null;
+  return (
+    <div className="fixed top-0 inset-x-0 z-[100] bg-amber-500 text-white text-center text-[12px] font-medium px-4 py-1.5 shadow-md">
+      You're offline — your conversation will resume automatically once you're back online.
+    </div>
   );
 }

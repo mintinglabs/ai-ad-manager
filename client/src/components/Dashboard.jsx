@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { Menu, Zap, Settings, Sparkles, Users, User, LogOut, ChevronRight, X } from 'lucide-react';
+import { Menu, Zap, Settings, User, LogOut, Building2, ChevronRight, Plug, X } from 'lucide-react';
 import { useChatSessions } from '../hooks/useChatSessions.js';
 import { useSkills } from '../hooks/useSkills.js';
 import { ChatInterface } from './ChatInterface.jsx';
@@ -23,26 +23,137 @@ import { ReportDashboard } from './ReportDashboard.jsx';
 import { ProjectDetail } from './ProjectDetail.jsx';
 import { useProjects } from '../hooks/useProjects.js';
 import { useBrandLibrary } from '../hooks/useBrandLibrary.js';
+import { useBusinesses } from '../hooks/useBusinesses.js';
+import { useAdAccounts } from '../hooks/useAdAccounts.js';
+import { LoginModal } from './LoginModal.jsx';
+
+// Brand icons — real logos for the connections panel.
+const MetaBrandIcon = ({ className = 'w-6 h-6' }) => (
+  <img src="/meta-icon.svg" alt="Meta" className={`${className} object-contain`} />
+);
+const GoogleBrandIcon = ({ className = 'w-6 h-6' }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none">
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+  </svg>
+);
+const TikTokBrandIcon = ({ className = 'w-6 h-6' }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 0010.86 4.46V13a8.28 8.28 0 005.58 2.17V11.7a4.84 4.84 0 01-3.77-1.81V6.69h3.77z" />
+  </svg>
+);
 
 const CARD_CATEGORIES = [];
 const QUICK_CHIPS = [];
 
+// Read-only roster of resources the user has access to via their FB token.
+// Groups ad accounts under their owning business (the global
+// /meta/adaccounts endpoint already returns business_id + business_name on
+// each account, so this is a single API call).
+const MetaRoster = ({ businesses }) => {
+  const { adAccounts, isLoading } = useAdAccounts();
+
+  // Group accounts by business_id; preserve the businesses[] order so the
+  // user sees a stable hierarchy. Accounts whose business isn't in the list
+  // (e.g. "Other") collect into an "Other" bucket at the bottom.
+  const groups = (() => {
+    const byBiz = new Map();
+    businesses.forEach(b => byBiz.set(b.id, { biz: b, accounts: [] }));
+    const other = { biz: { id: '__other', name: 'Other' }, accounts: [] };
+    adAccounts.forEach(acc => {
+      const target = byBiz.get(acc.business_id) || other;
+      target.accounts.push(acc);
+    });
+    const result = Array.from(byBiz.values()).filter(g => g.accounts.length > 0);
+    if (other.accounts.length) result.push(other);
+    return result;
+  })();
+
+  const emptyBusinesses = businesses.filter(b => !groups.some(g => g.biz.id === b.id));
+
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-2">
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+          Business Portfolios
+        </p>
+        {!isLoading && (
+          <p className="text-[10px] text-slate-400">
+            {businesses.length} {businesses.length === 1 ? 'portfolio' : 'portfolios'} · {adAccounts.length} ad {adAccounts.length === 1 ? 'account' : 'accounts'}
+          </p>
+        )}
+      </div>
+      {isLoading ? (
+        <p className="text-[11px] text-slate-400 py-2">Loading…</p>
+      ) : (
+        <div className="rounded-lg border border-slate-200 max-h-80 overflow-y-auto">
+          {groups.map(({ biz, accounts }, i) => (
+            <div key={biz.id} className={i > 0 ? 'border-t border-slate-100' : ''}>
+              <div className="flex items-center gap-2 px-3 py-2 bg-slate-50/70">
+                <Building2 size={13} className="text-blue-500 shrink-0" />
+                <span className="text-[12px] font-semibold text-slate-800 truncate flex-1">{biz.name}</span>
+                <span className="text-[10px] text-slate-400 tabular-nums shrink-0">{accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}</span>
+              </div>
+              <div className="px-3 py-1.5 space-y-0.5">
+                {accounts.map(acc => (
+                  <div key={acc.id} className="flex items-center gap-2 pl-5 pr-1 py-1 min-w-0">
+                    <div className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
+                    <span className="text-[12px] text-slate-700 truncate flex-1">{acc.name}</span>
+                    <span className="text-[10px] text-slate-400 tabular-nums shrink-0">{acc.account_id || acc.id}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          {emptyBusinesses.length > 0 && (
+            <div className="border-t border-slate-100 px-3 py-2 bg-slate-50/40">
+              <p className="text-[10px] text-slate-400">
+                {emptyBusinesses.length} {emptyBusinesses.length === 1 ? 'portfolio' : 'portfolios'} with no ad accounts: {emptyBusinesses.map(b => b.name).join(', ')}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Settings View — left sidebar + right panel like Claude settings ──
-const SettingsView = ({ onClose, onLogout, token, userName, googleConnected, googleCustomerId }) => {
-  const [activeTab, setActiveTab] = useState('account');
-  const [showTeamHelp, setShowTeamHelp] = useState(false);
+// Two tabs:
+//   - Account: profile + sign out
+//   - Connected Platforms: permission/config view (no active picker —
+//     daily ad-account switching is handled by chat bar / header).
+const SettingsView = ({
+  onClose, onLogout, onLogin, onAppSignOut,
+  isAppAuthed = true, onAppSignIn,
+  token, userName, userEmail = '', userAvatarUrl = '',
+  isLoginLoading = false, loginError = null,
+  initialTab = 'account',
+}) => {
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const [showRoster, setShowRoster] = useState(false);
+  const [pendingDisconnect, setPendingDisconnect] = useState(null); // platform id or null
+  const { businesses, isLoading: bizLoading } = useBusinesses();
+
+  const handleMetaToggle = () => {
+    // Gate: connecting Meta requires the app-level Google sign-in first.
+    // Otherwise an anonymous visitor could grant FB access without ever
+    // creating a Supabase user — confusing data state.
+    if (!isAppAuthed) { onAppSignIn?.(); return; }
+    if (token) setPendingDisconnect('meta');
+    else onLogin?.();
+  };
+  const confirmDisconnect = () => {
+    if (pendingDisconnect === 'meta') onLogout?.();
+    setPendingDisconnect(null);
+  };
 
   const navItems = [
     { id: 'account', label: 'Account', icon: User },
-    { id: 'team', label: 'Team', icon: Users },
+    { id: 'connections', label: 'Connected Platforms', icon: Plug },
   ];
-
-
-  const roleColors = {
-    Admin: 'bg-orange-50 text-orange-600 border-orange-200',
-    Editor: 'bg-blue-50 text-blue-600 border-blue-200',
-    Viewer: 'bg-slate-50 text-slate-500 border-slate-200',
-  };
 
   return (
     <>
@@ -83,143 +194,112 @@ const SettingsView = ({ onClose, onLogout, token, userName, googleConnected, goo
         {activeTab === 'account' && (
           <div className="p-8 max-w-2xl">
             <h2 className="text-[16px] font-bold text-slate-800 mb-1">Account</h2>
-            <p className="text-[12px] text-slate-400 mb-6">Manage your profile and connected platforms</p>
+            <p className="text-[12px] text-slate-400 mb-6">Your profile and sign-in info</p>
 
-            {/* Profile */}
-            <div className="bg-white rounded-xl border border-slate-200 p-5 mb-5">
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
               <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-4">Profile</h3>
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
-                  <span className="text-white text-xl font-bold">{(userName || 'A').charAt(0).toUpperCase()}</span>
-                </div>
-                <div className="flex-1">
-                  <p className="text-[14px] font-semibold text-slate-800">{userName || 'User'}</p>
-                  <p className="text-[12px] text-slate-400">andy.wong@presslogic.com</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Connected Platforms */}
-            <div className="bg-white rounded-xl border border-slate-200 p-5 mb-5">
-              <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-4">Connected Platforms</h3>
-              <div className="flex items-center justify-between py-3 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center">
-                    <span className="text-white text-[11px] font-bold">f</span>
+                {userAvatarUrl ? (
+                  <img src={userAvatarUrl} alt={userName} className="w-14 h-14 rounded-full object-cover shadow-sm" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center shadow-sm">
+                    <span className="text-white text-xl font-bold">{(userName || 'A').charAt(0).toUpperCase()}</span>
                   </div>
-                  <div>
-                    <p className="text-[13px] font-medium text-slate-700">Meta (Facebook & Instagram)</p>
-                    <p className="text-[11px] text-slate-400">Ad accounts, campaigns, audiences, creatives</p>
-                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-semibold text-slate-800 truncate">{userName || 'User'}</p>
+                  <p className="text-[12px] text-slate-400 truncate">{userEmail || '—'}</p>
                 </div>
-                {token ? (
-                  <button onClick={onLogout} className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 hover:bg-red-50 hover:text-red-500 transition-colors group">
-                    <span className={`w-1.5 h-1.5 rounded-full bg-emerald-500 group-hover:bg-red-500 transition-colors`} />
-                    <span className="group-hover:hidden">Connected</span>
-                    <span className="hidden group-hover:inline">Disconnect</span>
+                {onAppSignOut && (
+                  <button
+                    onClick={onAppSignOut}
+                    className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-full bg-slate-50 text-slate-600 border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors shrink-0"
+                  >
+                    <LogOut size={12} />
+                    Sign out
                   </button>
-                ) : (
-                  <span className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300" /> Not connected
-                  </span>
                 )}
-              </div>
-              <div className="flex items-center justify-between py-3 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-red-500 flex items-center justify-center">
-                    <span className="text-white text-[11px] font-bold">G</span>
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-medium text-slate-700">Google Ads</p>
-                    <p className="text-[11px] text-slate-400">
-                      {googleConnected && googleCustomerId ? `Account: ${googleCustomerId}` : googleConnected ? 'Connected — pick an account from the chat bar' : 'Manage from the account picker in the chat bar'}
-                    </p>
-                  </div>
-                </div>
-                {googleConnected ? (
-                  <span className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Connected
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300" /> Not connected
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center justify-between py-3 opacity-40">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-black flex items-center justify-center">
-                    <span className="text-white text-[11px] font-bold">T</span>
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-medium text-slate-700">TikTok Ads</p>
-                    <p className="text-[11px] text-slate-400">In-feed, TopView, Spark Ads</p>
-                  </div>
-                </div>
-                <span className="text-[11px] text-slate-300 font-medium">Coming Soon</span>
               </div>
             </div>
-
           </div>
         )}
 
-        {activeTab === 'team' && (
+        {activeTab === 'connections' && (
           <div className="p-8 max-w-2xl">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <h2 className="text-[16px] font-bold text-slate-800">Team</h2>
-                <button onClick={() => setShowTeamHelp(v => !v)}
-                  className="w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:border-slate-400 transition-colors text-[10px] font-bold">
-                  ?
-                </button>
-              </div>
-            </div>
+            <h2 className="text-[16px] font-bold text-slate-800 mb-1">Connected Platforms</h2>
+            <p className="text-[12px] text-slate-400 mb-3">Platforms granting this app access to your data</p>
 
-            {/* Help panel — collapsed by default */}
-            {showTeamHelp && (
-              <div className="bg-blue-50/50 rounded-xl border border-blue-200/60 p-4 mb-5 animate-[fadeSlideUp_0.2s_ease-out]">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">How Access Works</h3>
-                  <button onClick={() => setShowTeamHelp(false)} className="text-blue-400 hover:text-blue-600"><X size={14} /></button>
-                </div>
-                <p className="text-[11px] text-slate-600 mb-3">Everyone logs in with their own Facebook account. Their Meta Business role auto-maps to an app role. Admin can override.</p>
-                <div className="bg-white rounded-lg border border-blue-100 overflow-hidden">
-                  <table className="w-full text-[10px]">
-                    <thead><tr className="bg-blue-50/50">
-                      <th className="text-left px-3 py-1.5 font-semibold text-slate-500">Meta Role</th>
-                      <th className="text-left px-3 py-1.5 font-semibold text-slate-500">→ App Role</th>
-                      <th className="text-left px-3 py-1.5 font-semibold text-slate-500">Can do</th>
-                    </tr></thead>
-                    <tbody>
-                      <tr className="border-t border-blue-50"><td className="px-3 py-1.5">First user (you)</td><td className="px-3 py-1.5"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${roleColors.Admin}`}>Admin</span></td><td className="px-3 py-1.5 text-slate-400">Everything + manage team</td></tr>
-                      <tr className="border-t border-blue-50"><td className="px-3 py-1.5">Admin / Advertiser</td><td className="px-3 py-1.5"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${roleColors.Editor}`}>Editor</span></td><td className="px-3 py-1.5 text-slate-400">Create, edit, publish</td></tr>
-                      <tr className="border-t border-blue-50"><td className="px-3 py-1.5">Analyst</td><td className="px-3 py-1.5"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${roleColors.Viewer}`}>Viewer</span></td><td className="px-3 py-1.5 text-slate-400">View only</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-                <p className="text-[10px] text-slate-400 mt-2">Admin can override any role, and restrict access to specific ad accounts, pages, or modules.</p>
-              </div>
-            )}
-
-            {/* Members list */}
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-              {/* You (admin) */}
-              <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center shadow-sm shrink-0">
-                  <span className="text-white text-sm font-bold">{(userName || 'A').charAt(0).toUpperCase()}</span>
+            {/* Meta */}
+            <div className="bg-white rounded-xl border border-slate-200 p-5 mb-3">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0">
+                  <MetaBrandIcon className="w-6 h-6" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-medium text-slate-700">{userName || 'User'}</p>
-                  <p className="text-[10px] text-slate-400">All accounts · All pages · All modules</p>
+                  <p className="text-[13px] font-semibold text-slate-800 mb-0.5">Meta Ads</p>
+                  <p className="text-[11px] text-slate-500">
+                    {token
+                      ? (businesses.length > 0
+                          ? `Full access · ${businesses.length} business ${businesses.length === 1 ? 'portfolio' : 'portfolios'}`
+                          : (bizLoading ? 'Loading…' : 'Connected, but no business portfolios found'))
+                      : 'Ad accounts, campaigns, audiences, creatives'}
+                  </p>
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${roleColors.Admin}`}>Admin</span>
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <span className={`text-[11px] font-medium ${token ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    {isLoginLoading ? 'Connecting…' : (token ? 'Connected' : 'Off')}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleMetaToggle}
+                    disabled={isLoginLoading}
+                    role="switch"
+                    aria-checked={!!token}
+                    title={token ? 'Click to disconnect' : 'Click to connect'}
+                    className={`relative w-10 h-5 rounded-full transition-colors disabled:opacity-50 disabled:cursor-wait ${token ? 'bg-emerald-500' : 'bg-slate-300 hover:bg-slate-400'}`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${token ? 'left-[22px]' : 'left-0.5'}`} />
+                  </button>
+                </div>
               </div>
-              {/* Empty state */}
-              <div className="px-5 py-10 text-center">
-                <Users size={28} className="text-slate-200 mx-auto mb-3" />
-                <p className="text-[13px] font-medium text-slate-500 mb-1">No team members yet</p>
-                <p className="text-[11px] text-slate-400 max-w-xs mx-auto">When teammates log in with their own Facebook account, they'll auto-appear here. You can then adjust their role and access.</p>
+
+              {loginError && !token && (
+                <p className="text-[11px] text-red-500 mt-2">{loginError}</p>
+              )}
+
+              {token && (
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <button onClick={() => setShowRoster(v => !v)}
+                    className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 hover:text-slate-700 transition-colors">
+                    <ChevronRight size={12} className={`transition-transform ${showRoster ? 'rotate-90' : ''}`} />
+                    {showRoster ? 'Hide' : 'Show'} accessible resources
+                  </button>
+                  {showRoster && (
+                    <div className="mt-3">
+                      <MetaRoster businesses={businesses} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Coming Soon — compact rows. Stays scannable as more
+                connectors land (LinkedIn, Pinterest, Twitter, …). When a
+                platform goes live, promote it to a full card like Meta. */}
+            <div className="rounded-xl border border-slate-200 bg-white divide-y divide-slate-100">
+              <div className="flex items-center gap-3 px-4 py-2.5 opacity-70">
+                <div className="w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center shrink-0">
+                  <GoogleBrandIcon className="w-4 h-4" />
+                </div>
+                <p className="text-[12px] font-medium text-slate-700 flex-1">Google Ads</p>
+                <span className="text-[10px] text-slate-400 font-medium">Coming Soon</span>
+              </div>
+              <div className="flex items-center gap-3 px-4 py-2.5 opacity-70">
+                <div className="w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center shrink-0 text-slate-900">
+                  <TikTokBrandIcon className="w-4 h-4" />
+                </div>
+                <p className="text-[12px] font-medium text-slate-700 flex-1">TikTok Ads</p>
+                <span className="text-[10px] text-slate-400 font-medium">Coming Soon</span>
               </div>
             </div>
           </div>
@@ -228,6 +308,40 @@ const SettingsView = ({ onClose, onLogout, token, userName, googleConnected, goo
       </div>
         </div>
       </div>
+
+      {/* Disconnect confirmation modal */}
+      {pendingDisconnect && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 animate-[fadeIn_0.15s_ease-out]"
+          onClick={() => setPendingDisconnect(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-[fadeSlideUp_0.2s_ease-out]"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-[15px] font-bold text-slate-900 mb-1">
+              Disconnect {pendingDisconnect === 'meta' ? 'Meta Ads' : pendingDisconnect}?
+            </h3>
+            <p className="text-[12px] text-slate-500 mb-5">
+              This will revoke this app's access to your business portfolios and ad accounts. You can reconnect anytime.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setPendingDisconnect(null)}
+                className="px-4 py-2 text-[12px] font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDisconnect}
+                className="px-4 py-2 text-[12px] font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Disconnect
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
@@ -244,9 +358,14 @@ export const Dashboard = ({
   onSwitchBusiness,
   onLogout,
   onLogin,
+  isAppAuthed = true,
+  onAppSignIn,
+  onAppSignOut,
   isLoginLoading,
   loginError,
   userName = '',
+  userEmail = '',
+  userAvatarUrl = '',
   googleConnected = false,
   googleCustomerId = '',
   googleLoginCustomerId = '',
@@ -258,6 +377,18 @@ export const Dashboard = ({
   const [chatLanguage, setChatLanguage] = useState('en');
   const [canvasData, setCanvasData] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState('account');
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  // Open the login modal instead of triggering OAuth directly. Used by
+  // every soft-paywall gate (chat send, Connect platform, …) so the user
+  // sees a consistent welcome surface before leaving for Google's popup.
+  const requestSignIn = useCallback(() => setShowLoginModal(true), []);
+
+  const openSettings = (tab = 'account') => {
+    setSettingsInitialTab(tab);
+    setShowSettings(true);
+  };
 
   // ── Routing — URL is source of truth for the entire main view ─────────────
   // Mapping:
@@ -348,7 +479,8 @@ export const Dashboard = ({
 
   const handleOpenBrandLibrary = useCallback(() => {
     navigate('/brand-memory');
-  }, [navigate]);
+    if (!isAppAuthed) requestSignIn();
+  }, [isAppAuthed, requestSignIn, navigate]);
 
 
   const handleOpenProject = useCallback((projectId) => {
@@ -369,14 +501,26 @@ export const Dashboard = ({
     localStorage.setItem('aam_language', lang);
   }, []);
 
-  // Handle account switching — reset chat
+  // Handle account switching — reset chat. Soft paywall: an anonymous
+  // visitor clicking the picker should be bounced to Supabase sign-in
+  // first, otherwise they'd be flipping the agency-wide demo workspace
+  // even though they have no app account.
   const handleAccountSelect = useCallback((business, account, { stayOnPage } = {}) => {
+    if (!isAppAuthed) { requestSignIn(); return; }
     onSwitchBusiness(business);
     onSwitchAccount(account);
     if (!stayOnPage) goToChat();
-  }, [onSwitchBusiness, onSwitchAccount, goToChat]);
+  }, [isAppAuthed, requestSignIn, onSwitchBusiness, onSwitchAccount, goToChat]);
 
   const handleSend = useCallback((text, attachments, slashIds, rawDisplayText) => {
+    // Soft paywall: anonymous visitors are bounced to Google sign-in
+    // before any message hits the backend. Once they're authed they can
+    // re-submit; we don't auto-replay since the popup itself can take a
+    // moment.
+    if (!isAppAuthed) {
+      requestSignIn();
+      return;
+    }
     // Already on a chat path by definition (send only fires from ChatInterface)
     // Inject skill context: slash commands take priority, then active skill
     let skillCtx = null;
@@ -400,20 +544,31 @@ export const Dashboard = ({
     if (!urlSessionId && activeSessionId) {
       navigate(`/c/${activeSessionId}`, { replace: true });
     }
-  }, [sendMessage, getSkillContext, getSkillContextById, activeSkills, getBrandContext, urlSessionId, activeSessionId, navigate]);
+  }, [isAppAuthed, requestSignIn, sendMessage, getSkillContext, getSkillContextById, activeSkills, getBrandContext, urlSessionId, activeSessionId, navigate]);
 
   const handleSwitchSession = useCallback((sessionId) => {
+    // Anonymous users see no sessions in the sidebar (Sidebar hides the
+    // list when !isAppAuthed), but guard here too in case some other
+    // path triggers a switch.
+    if (!isAppAuthed) { requestSignIn(); return; }
     // Navigate first; the URL-sync effect below calls switchSession().
     // If the user clicks the session they're already on, this is a no-op.
     if (sessionId !== urlSessionId) navigate(`/c/${sessionId}`);
-  }, [navigate, urlSessionId]);
+  }, [isAppAuthed, requestSignIn, navigate, urlSessionId]);
 
   const handleNewChat = useCallback(() => {
+    // Anonymous: navigate to the chat empty state (preview) and surface
+    // the LoginModal on top — same pattern as the Meta modules.
+    if (!isAppAuthed) {
+      if (location.pathname !== '/') navigate('/');
+      requestSignIn();
+      return;
+    }
     // Navigate home; URL-sync effect spins up a fresh chat if the current
     // session is already persisted. If already on `/`, force a new chat.
     if (location.pathname !== '/') navigate('/');
     else createNewChat();
-  }, [navigate, location.pathname, createNewChat]);
+  }, [isAppAuthed, requestSignIn, navigate, location.pathname, createNewChat]);
 
   // ── URL → hook state sync ────────────────────────────────────────────────
   // Keeps the chat engine aligned with whatever the URL says. The opposite
@@ -448,21 +603,27 @@ export const Dashboard = ({
     }
   }, [deleteSavedItem, activeView, goToChat]);
 
-  const handleOpenAudiences      = useCallback(() => navigate('/audiences'),      [navigate]);
-  const handleOpenCampaigns      = useCallback(() => navigate('/campaigns'),      [navigate]);
-  const handleOpenKeywords       = useCallback(() => navigate('/keywords'),       [navigate]);
-  const handleOpenSkillsLibrary  = useCallback(() => navigate('/skills'),         [navigate]);
-  const handleOpenCreativeLibrary= useCallback(() => navigate('/creative-hub'),   [navigate]);
-  const handleOpenAutomationRules= useCallback(() => navigate('/automations'),    [navigate]);
-  const handleOpenInstantForms   = useCallback(() => navigate('/lead-forms'),     [navigate]);
-  const handleOpenEventsManager  = useCallback(() => navigate('/events'),         [navigate]);
-  const handleOpenOptimizations  = useCallback(() => navigate('/optimizations'),  [navigate]);
-  const handleOpenAdLibrary      = useCallback(() => navigate('/ad-gallery'),     [navigate]);
-  const handleOpenReports        = useCallback(() => navigate('/reports'),        [navigate]);
-
-  const handleOpenSettings = useCallback(() => {
-    setShowSettings(true);
-  }, []);
+  // Meta-data-backed modules: anonymous visitors are still allowed to
+  // navigate in (so they can see the module's empty interface for a
+  // sense of what the product offers) but the LoginModal opens
+  // automatically on top, blurring the preview underneath. Once they
+  // sign in, the modal closes and the module hydrates normally.
+  const gatedNav = useCallback((path) => {
+    navigate(path);
+    if (!isAppAuthed) requestSignIn();
+  }, [isAppAuthed, requestSignIn, navigate]);
+  const handleOpenAudiences      = useCallback(() => gatedNav('/audiences'),      [gatedNav]);
+  const handleOpenCampaigns      = useCallback(() => gatedNav('/campaigns'),      [gatedNav]);
+  // Keywords (Google Ads) goes through the same paywall gate.
+  const handleOpenKeywords       = useCallback(() => gatedNav('/keywords'),       [gatedNav]);
+  const handleOpenSkillsLibrary  = useCallback(() => gatedNav('/skills'),         [gatedNav]);
+  const handleOpenCreativeLibrary= useCallback(() => gatedNav('/creative-hub'),   [gatedNav]);
+  const handleOpenAutomationRules= useCallback(() => gatedNav('/automations'),    [gatedNav]);
+  const handleOpenInstantForms   = useCallback(() => gatedNav('/lead-forms'),     [gatedNav]);
+  const handleOpenEventsManager  = useCallback(() => gatedNav('/events'),         [gatedNav]);
+  const handleOpenOptimizations  = useCallback(() => gatedNav('/optimizations'),  [gatedNav]);
+  const handleOpenAdLibrary      = useCallback(() => gatedNav('/ad-gallery'),     [gatedNav]);
+  const handleOpenReports        = useCallback(() => gatedNav('/reports'),        [gatedNav]);
 
   const [pendingInput, setPendingInput] = useState(null);
   const [pendingSlashSkill, setPendingSlashSkill] = useState(null);
@@ -513,9 +674,10 @@ export const Dashboard = ({
   }, [createNewChat, navigate]);
 
   const handleAudienceToChat = useCallback((prompt) => {
+    if (!isAppAuthed) { requestSignIn(); return; }
     goToChat();
     sendMessage(prompt);
-  }, [sendMessage, goToChat]);
+  }, [isAppAuthed, requestSignIn, sendMessage, goToChat]);
 
   const handlePrefillChat = useCallback((text, pill) => {
     const newId = createNewChat();
@@ -574,6 +736,14 @@ export const Dashboard = ({
   return (
     <div className="flex h-full overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
 
+      {/* Login modal — opened by Start Now or any soft-paywall gate */}
+      {showLoginModal && (
+        <LoginModal
+          onClose={() => setShowLoginModal(false)}
+          onGoogleSignIn={onAppSignIn}
+        />
+      )}
+
       {/* Sidebar */}
       <Sidebar
         open={sidebarOpen}
@@ -620,9 +790,16 @@ export const Dashboard = ({
         onOpenBrandLibrary={handleOpenBrandLibrary}
         onOpenSkillsLibrary={handleOpenSkillsLibrary}
         onOpenReports={handleOpenReports}
-        onOpenSettings={handleOpenSettings}
         token={token}
         onLogin={onLogin}
+        isAppAuthed={isAppAuthed}
+        onAppSignIn={requestSignIn}
+        onAppSignOut={onAppSignOut}
+        appUserName={userName}
+        appUserEmail={userEmail}
+        appUserAvatarUrl={userAvatarUrl}
+        onOpenAccountSettings={() => openSettings('account')}
+        onOpenConnectedPlatforms={() => openSettings('connections')}
       />
 
       {/* Main Content */}
@@ -944,11 +1121,18 @@ export const Dashboard = ({
       {showSettings && (
         <SettingsView
           onClose={() => setShowSettings(false)}
+          initialTab={settingsInitialTab}
+          onLogin={onLogin}
           onLogout={onLogout}
+          isAppAuthed={isAppAuthed}
+          onAppSignIn={requestSignIn}
+          onAppSignOut={onAppSignOut}
           token={token}
           userName={userName}
-          googleConnected={googleConnected}
-          googleCustomerId={googleCustomerId}
+          userEmail={userEmail}
+          userAvatarUrl={userAvatarUrl}
+          isLoginLoading={isLoginLoading}
+          loginError={loginError}
         />
       )}
 
