@@ -91,13 +91,21 @@ export default function App() {
 
   // Prefer Google identity (from Supabase) for the displayed user info.
   // Supabase sometimes puts the Google fields in user_metadata, sometimes
-  // in identities[].identity_data — check both. Empty strings when no
-  // Supabase user yet (anonymous preview mode).
+  // in identities[].identity_data — check both.
+  //
+  // When the user is NOT signed in via Supabase (anonymous preview, post-
+  // logout), show empty strings rather than falling back to the cached
+  // FB demo userName / aam_user_first_name in localStorage. Otherwise the
+  // chat hero keeps greeting "Hello, Andy" after sign-out.
   const googleMeta = supaAuth.user?.user_metadata || {};
   const googleIdentity = supaAuth.user?.identities?.find(i => i.provider === 'google')?.identity_data || {};
-  const displayName = googleMeta.full_name || googleMeta.name || googleIdentity.full_name || googleIdentity.name || userName || (supaAuth.user?.email?.split('@')[0] ?? '');
-  const displayEmail = supaAuth.user?.email || googleIdentity.email || '';
-  const displayAvatarUrl = googleMeta.avatar_url || googleMeta.picture || googleIdentity.avatar_url || googleIdentity.picture || '';
+  const displayName = supaAuth.user
+    ? (googleMeta.full_name || googleMeta.name || googleIdentity.full_name || googleIdentity.name || (supaAuth.user.email?.split('@')[0] ?? ''))
+    : '';
+  const displayEmail = supaAuth.user ? (supaAuth.user.email || googleIdentity.email || '') : '';
+  const displayAvatarUrl = supaAuth.user
+    ? (googleMeta.avatar_url || googleMeta.picture || googleIdentity.avatar_url || googleIdentity.picture || '')
+    : '';
 
   // Soft paywall: always render Dashboard so anonymous visitors can preview
   // the UI. Mutating actions (chat send, etc.) trigger the Supabase Google

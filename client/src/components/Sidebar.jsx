@@ -71,27 +71,37 @@ const SidebarUserMenu = ({
         </button>
       ) : (
         <button onClick={() => setShowUserMenu(v => !v)}
-          className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-slate-100 transition-colors text-left">
-          <Avatar />
-          <div className="flex-1 min-w-0">
-            <p className="text-[12px] font-semibold text-slate-700 truncate">{userName || 'User'}</p>
-            <p className="text-[10px] text-slate-400 truncate">{userEmail || ''}</p>
-          </div>
-          <ChevronRight size={12} className={`text-slate-400 transition-transform ${showUserMenu ? '-rotate-90' : 'rotate-[270deg]'}`} />
+          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-slate-100 transition-colors text-left">
+          <Avatar size="sm" />
+          {/* Single-line pill: name only. Email lives in the dropdown
+              header so we don't waste vertical space at the bottom of the
+              sidebar (this slot will eventually share the row with a
+              credits pill once that ships). */}
+          <span className="flex-1 min-w-0 text-[12px] font-semibold text-slate-700 truncate">{userName || 'User'}</span>
+          <ChevronRight size={12} className={`text-slate-400 transition-transform shrink-0 ${showUserMenu ? '-rotate-90' : 'rotate-[270deg]'}`} />
         </button>
       )}
 
       {showUserMenu && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
-          <div className={`absolute z-50 w-60 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden animate-[fadeSlideUp_0.15s_ease-out] ${collapsed ? 'left-full ml-2 bottom-0' : 'left-0 right-0 bottom-full mb-2'}`}>
-            <div className="px-3 py-2.5 border-b border-slate-100 flex items-center gap-2.5">
-              <Avatar size="lg" />
-              <div className="min-w-0">
-                <p className="text-[12px] font-semibold text-slate-800 truncate">{userName || 'User'}</p>
-                <p className="text-[10px] text-slate-400 truncate">{userEmail || ''}</p>
+          {/* Width: collapsed mode keeps a fixed 15rem flyout (since the
+              avatar trigger is tiny); expanded mode stretches to match
+              the pill so the dropdown lines up exactly with its trigger. */}
+          <div className={`absolute z-50 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden animate-[fadeSlideUp_0.15s_ease-out] ${collapsed ? 'w-60 left-full ml-2 bottom-0' : 'left-0 right-0 bottom-full mb-2'}`}>
+            {/* Collapsed mode: pill is just an avatar, so the dropdown
+                header tells the user whose menu they opened. Expanded
+                mode already shows name + email in the pill, so we skip
+                the header to avoid the duplicate identity card. */}
+            {collapsed && (
+              <div className="px-3 py-2.5 border-b border-slate-100 flex items-center gap-2.5">
+                <Avatar size="lg" />
+                <div className="min-w-0">
+                  <p className="text-[12px] font-semibold text-slate-800 truncate">{userName || 'User'}</p>
+                  <p className="text-[10px] text-slate-400 truncate">{userEmail || ''}</p>
+                </div>
               </div>
-            </div>
+            )}
             <div className="py-1">
               <button
                 onClick={() => { setShowUserMenu(false); onOpenAccountSettings?.(); }}
