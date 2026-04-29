@@ -5,7 +5,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import * as meta from '../services/metaClient.js';
-import { activeSessions } from './sessionBus.js';
+import { getEmitter } from './sessionBus.js';
 import { supabase } from './supabase.js';
 import { isWriteTool, logAudit } from './auditLog.js';
 import { isDryRun, assessRisk, buildConfirmationRequiredResponse, buildDryRunResponse, stripConfirm, createPendingConfirmation, verifyConfirmation } from './safeMode.js';
@@ -165,7 +165,7 @@ const safe = (toolName, fn) => async (args, c) => {
     const serialised = typeof result === 'string' ? { result } : { result: JSON.stringify(result) };
 
     const sessionId = c.session?.id;
-    const sseFn = sessionId ? activeSessions.get(sessionId) : null;
+    const sseFn = sessionId ? getEmitter(sessionId) : null;
     if (sseFn) {
       const summary = buildResultSummary(toolName, serialised);
       if (summary) sseFn({ type: 'tool_result', name: toolName, summary });
@@ -565,7 +565,7 @@ function getPageVideos({ page_id }, c) {
   if (!page_id) return { error: 'page_id is required.' };
   // Use universal endpoint to merge IG + Page + Ad videos
   return meta.getUniversalVideos(token, { adAccountId, pageId: page_id }).then(result => {
-    const sseFn = c.session?.id ? activeSessions.get(c.session.id) : null;
+    const sseFn = c.session?.id ? getEmitter(c.session.id) : null;
     if (sseFn && result.videos?.length) {
       sseFn({
         type: 'tool_result', name: 'get_page_videos',
@@ -685,7 +685,7 @@ async function analyzePerformance(_, c) {
 
   // SSE emitter for progress events — bypasses LLM, goes directly to client
   const sessionId = c.session?.id;
-  const sseFn = sessionId ? activeSessions.get(sessionId) : null;
+  const sseFn = sessionId ? getEmitter(sessionId) : null;
   const emitProgress = (msg) => {
     if (sseFn) sseFn({ type: 'tool_result', name: 'analyze_performance', summary: msg });
   };
@@ -1018,7 +1018,7 @@ function getIgMedia({ ig_account_id, page_id }, c) {
   const { token, adAccountId } = ctx(c);
   // Use universal endpoint to merge IG + Page + Ad videos
   return meta.getUniversalVideos(token, { adAccountId, pageId: page_id, igAccountId: ig_account_id }).then(result => {
-    const sseFn = c.session?.id ? activeSessions.get(c.session.id) : null;
+    const sseFn = c.session?.id ? getEmitter(c.session.id) : null;
     if (sseFn && result.videos?.length) {
       sseFn({
         type: 'tool_result', name: 'get_ig_media',

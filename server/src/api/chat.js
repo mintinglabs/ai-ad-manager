@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { runner, sessionService } from '../services/adAgent.js';
-import { activeSessions } from '../lib/sessionBus.js';
+import { getOrCreateBus, getBus } from '../lib/sessionBus.js';
 import { extractPdfText } from '../lib/pdfExtract.js';
 import { createBlockFilter } from '../lib/streamFilter.js';
 
@@ -220,41 +220,21 @@ router.post('/', async (req, res) => {
 
     const userId = 'user';
 
-    // ── M1: streaming block-validation filter ─────────────────────────────
-    // Text chunks (both agent output and !demo-bad-json) are fed through
-    // createBlockFilter; rich blocks are buffered until close-fence and
-    // validated. Toggle off via CHAT_BLOCK_VALIDATION=off to reproduce raw
-    // pre-M1 behavior.
-    const filter = BLOCK_VALIDATION_ON
-      ? createBlockFilter({
-          emit: (text) => sse(res, { type: 'text', content: text }),
-          onValidationFail: (result) => {
-            console.warn('[chat] block validation failed', {
-              type: result.type,
-              reason: result.reason,
-              issues: result.issues?.slice(0, 3),
-            });
-          },
-          debugPlaceholder: process.env.CHAT_BLOCK_DEBUG === 'on',
-        })
-      : null;
-    const emitText = (text) => {
-      if (filter) filter.feed(text);
-      else sse(res, { type: 'text', content: text });
-    };
-
-    // DEMO TRIGGER (kept as a diagnostic after M1) — streams a hand-crafted
-    // malformed `metrics` block (trailing comma) + a valid `quickreplies`
-    // block, so you can A/B the schema filter:
-    //   CHAT_BLOCK_VALIDATION=on  (default) → bad metrics dropped, quickreplies renders
-    //   CHAT_BLOCK_VALIDATION=off           → pre-M1 behavior, raw JSON code block
+    // DEMO TRIGGER (kept as a diagnostic after M1). This is the one path
+    // that doesn't get routed through the EventBus — there's no real
+    // session, so reattach-on-refresh isn't meaningful here. We do the
+    // demo's own filter inline and write directly to res.
     if (typeof message === 'string' && message.trim().startsWith('!demo-bad-json')) {
       console.log('[chat] !demo-bad-json trigger hit');
-      emitText("Here's your campaign snapshot:\n\n");
-      emitText("```metrics\n[\n  { \"label\": \"ROAS\", \"value\": \"2.4x\", \"trend\": \"up\" },\n  { \"label\": \"Spend\", \"value\": \"$1,200\", \"trend\": \"up\" },\n  { \"label\": \"CTR\", \"value\": \"1.8%\", \"trend\": \"down\" },\n]\n```\n\n");
-      emitText("Want to dig deeper?\n\n");
-      emitText("```quickreplies\n[\"Top campaigns\", \"Export CSV\", \"Pause underperformers\"]\n```\n");
-      filter?.flush();
+      const demoFilter = BLOCK_VALIDATION_ON
+        ? createBlockFilter({ emit: (text) => sse(res, { type: 'text', content: text }) })
+        : null;
+      const demoEmit = (text) => demoFilter ? demoFilter.feed(text) : sse(res, { type: 'text', content: text });
+      demoEmit("Here's your campaign snapshot:\n\n");
+      demoEmit("```metrics\n[\n  { \"label\": \"ROAS\", \"value\": \"2.4x\", \"trend\": \"up\" },\n  { \"label\": \"Spend\", \"value\": \"$1,200\", \"trend\": \"up\" },\n  { \"label\": \"CTR\", \"value\": \"1.8%\", \"trend\": \"down\" },\n]\n```\n\n");
+      demoEmit("Want to dig deeper?\n\n");
+      demoEmit("```quickreplies\n[\"Top campaigns\", \"Export CSV\", \"Pause underperformers\"]\n```\n");
+      demoFilter?.flush();
       sse(res, { type: 'done', sessionId: clientSessionId || 'demo-session' });
       res.end();
       return;
@@ -274,6 +254,37 @@ router.post('/', async (req, res) => {
     const reused = session.events?.length > 0;
     console.log(`[chat] ${reused ? 'resumed' : 'created'} session ${adkSessionId} (${session.events?.length || 0} prior events)`);
 
+    // ── EventBus wiring ─────────────────────────────────────────────────
+    // All events from here on go through the bus. The original POST
+    // response is just one subscriber; later GET /sessions/:id/stream
+    // requests can subscribe to the same bus and replay the buffer to
+    // catch up on what they missed.
+    const bus = getOrCreateBus(adkSessionId);
+    const unsubscribe = bus.subscribe((data) => sse(res, data));
+    const publish = (data) => bus.publish(data);
+
+    // ── M1: streaming block-validation filter ─────────────────────────────
+    // Text chunks are fed through createBlockFilter; rich blocks are
+    // buffered until close-fence and validated. Same as before, but now
+    // the underlying emit goes via publish() so all subscribers see it.
+    const filter = BLOCK_VALIDATION_ON
+      ? createBlockFilter({
+          emit: (text) => publish({ type: 'text', content: text }),
+          onValidationFail: (result) => {
+            console.warn('[chat] block validation failed', {
+              type: result.type,
+              reason: result.reason,
+              issues: result.issues?.slice(0, 3),
+            });
+          },
+          debugPlaceholder: process.env.CHAT_BLOCK_DEBUG === 'on',
+        })
+      : null;
+    const emitText = (text) => {
+      if (filter) filter.feed(text);
+      else publish({ type: 'text', content: text });
+    };
+
     // Build the user message in Gemini Content format
     // Language instruction
     const LANG_MAP = {
@@ -288,9 +299,6 @@ router.post('/', async (req, res) => {
       role: 'user',
       parts: [{ text: datePrefix + langPrefix + message }],
     };
-
-    // Register SSE emitter for this session so adAgent.js tools can emit tool_result events
-    activeSessions.set(adkSessionId, (data) => sse(res, data));
 
     // Log if the client drops mid-stream so we can confirm in production
     // logs that the runner was kept running in the background and events
@@ -322,9 +330,9 @@ router.post('/', async (req, res) => {
       if (attempt > 0) {
         // Retry path: MALFORMED_FUNCTION_CALL / Gemini 500. We keep the same
         // session id so prior persisted events remain; the retry just runs
-        // another turn on top of the same session.
+        // another turn on top of the same session. The bus is already
+        // attached, no need to re-register.
         console.log(`[chat] retry attempt ${attempt} — reusing session ${adkSessionId}`);
-        activeSessions.set(adkSessionId, (data) => sse(res, data));
       }
 
       console.log(`[chat] running agent... (attempt ${attempt + 1}/${MAX_RETRIES + 1})`);
@@ -384,7 +392,7 @@ router.post('/', async (req, res) => {
                   console.warn(
                     `[chat] transfer cap (${TRANSFER_CAP}) hit on session ${adkSessionId} — aborting turn`
                   );
-                  sse(res, {
+                  publish({
                     type: 'tool_call',
                     name: 'transfer_to_agent',
                     label: `Transfer cap reached (${TRANSFER_CAP}) — aborting turn`,
@@ -401,11 +409,11 @@ router.post('/', async (req, res) => {
               const label = toolCallLabel(name, args);
               const payload = { type: 'tool_call', name, label };
               if (name === 'transfer_to_agent') payload.target = args.agentName || args.agent_name;
-              sse(res, payload);
+              publish(payload);
               console.log(`[chat] tool call: ${name}`);
               if (name === 'update_workflow_context') {
                 const wfData = args.data;
-                if (wfData) sse(res, { type: 'context', data: wfData });
+                if (wfData) publish({ type: 'context', data: wfData });
               }
             }
           }
@@ -427,24 +435,102 @@ router.post('/', async (req, res) => {
       emitText(`I received your message but couldn't generate a response. Please try again. (adAccountId: ${adAccountId || 'none'})`);
     }
 
-    // Flush any residual text / report unclosed blocks before closing SSE.
+    // Flush any residual text / report unclosed blocks before closing.
     filter?.flush();
 
-    activeSessions.delete(adkSessionId);
-    sse(res, { type: 'done', sessionId: adkSessionId });
+    // Mark the bus done — every subscriber (the original POST response +
+    // any GET /stream reattach clients) gets a final 'done' event.
+    // Bus stays in `activeSessions` for the grace period so a refresh
+    // landing right after completion still finds it.
+    bus.markDone();
+    unsubscribe();
     res.end();
   } catch (err) {
     console.error('[chat] error:', err?.message, err?.stack);
-    if (adkSessionId) activeSessions.delete(adkSessionId);
+    // Best-effort: surface the error through whichever channel is
+    // available. If the bus exists, publish so reattach clients also
+    // see it. Otherwise fall back to direct sse / JSON.
+    const bus = adkSessionId ? getBus(adkSessionId) : null;
     if (res.headersSent) {
-      // Send as text so the user sees the actual error instead of a generic fallback
-      sse(res, { type: 'text', content: `Sorry, I ran into an error: ${err.message}` });
-      sse(res, { type: 'done', sessionId: 'error' });
+      if (bus && !bus.done) {
+        bus.publish({ type: 'text', content: `Sorry, I ran into an error: ${err.message}` });
+        bus.markDone();
+      } else {
+        sse(res, { type: 'text', content: `Sorry, I ran into an error: ${err.message}` });
+        sse(res, { type: 'done', sessionId: 'error' });
+      }
       res.end();
     } else {
       res.status(500).json({ error: err.message });
     }
   }
+});
+
+// ── GET /api/chat/sessions/:id/status ───────────────────────────────────
+// Cheap probe the client hits on chat-session load. If a turn is still
+// running (or ended within the grace period) the client opens the
+// /stream endpoint below to reattach. Otherwise it just renders the
+// stored history and waits for user input.
+//
+// Note: sessionId is opaque + per-Supabase-row; treating it as a
+// capability is acceptable for now. If we add multi-tenant trust
+// boundaries later we should join chat_history.fb_user_id to req.user.
+router.get('/sessions/:id/status', (req, res) => {
+  const bus = getBus(req.params.id);
+  if (!bus) return res.json({ active: false });
+  res.json({
+    active: !bus.done,
+    done: bus.done,
+    eventCount: bus.buffer.length,
+    startedAt: bus.startedAt,
+  });
+});
+
+// ── GET /api/chat/sessions/:id/stream ───────────────────────────────────
+// SSE reattach endpoint. Returns 404 if no bus exists for this session
+// (i.e. nothing was running, or the runner finished + grace period
+// expired). Otherwise:
+//   1. Replays the buffered events to bring the new client up to speed
+//      with everything that fired before they reconnected.
+//   2. Subscribes for live events as the runner continues.
+//   3. Closes when the bus emits 'done' (sent automatically on
+//      bus.markDone()) OR when the client disconnects.
+router.get('/sessions/:id/stream', (req, res) => {
+  const bus = getBus(req.params.id);
+  if (!bus) return res.status(404).json({ error: 'no active stream for this session' });
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+
+  // Subscribe first — bus.subscribe replays the buffer synchronously so
+  // the new client immediately sees every event that has fired so far.
+  // After that, future bus.publish calls (from the original chat
+  // handler / agent tools) write here too.
+  const unsubscribe = bus.subscribe((data) => {
+    if (res.writableEnded || res.destroyed) return;
+    try { res.write(`data: ${JSON.stringify(data)}\n\n`); } catch {}
+    // The 'done' event terminates the stream from the server side; the
+    // client will treat it as end-of-turn.
+    if (data?.type === 'done' && !res.writableEnded) {
+      try { res.end(); } catch {}
+    }
+  });
+
+  // If the bus is already done by the time we subscribed, the replay
+  // included a 'done' event, so res.end() was already called inside the
+  // subscriber. Just bail.
+  if (res.writableEnded) {
+    unsubscribe();
+    return;
+  }
+
+  // Tear down on client disconnect so a closed tab doesn't leak the
+  // subscriber slot until grace-period GC.
+  req.on('close', () => { unsubscribe(); });
 });
 
 export default router;

@@ -35,12 +35,19 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
   const [activityLog, setActivityLog] = useState([]);
   const sessionIdRef = useRef(externalSessionId || makeId());
   const abortRef = useRef(null);
+  // Tracks the session id we last attempted to reattach to. Prevents the
+  // load-effect from kicking off duplicate reattaches when the same id
+  // re-renders (e.g. accountName change triggering the externalSessionId
+  // useEffect).
+  const resumedRef = useRef(null);
 
   // Sync when external session ID changes (e.g. account switch triggers new session)
   useEffect(() => {
     if (externalSessionId && externalSessionId !== sessionIdRef.current) {
       if (abortRef.current) abortRef.current.abort();
       sessionIdRef.current = externalSessionId;
+      // Clear the reattach dedup ref so the new id can probe /status.
+      resumedRef.current = null;
       setMessages(initialMessages || []);
       setIsTyping(false);
       setThinkingText('');
@@ -56,6 +63,9 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
   const loadSession = useCallback((newSessionId, newMessages) => {
     if (abortRef.current) abortRef.current.abort();
     sessionIdRef.current = newSessionId;
+    // Clear the dedup ref so the new session id can trigger a fresh
+    // reattach probe. (See resumeStream comments above.)
+    resumedRef.current = null;
     setMessages(newMessages || []);
     setIsTyping(false);
     setThinkingText('');
@@ -63,6 +73,117 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
     setCreationSummary({});
     setActivityLog([]);
   }, [accountName, language]);
+
+  // ── Mid-stream reattach ────────────────────────────────────────────────
+  //
+  // When a chat session loads (page refresh, sidebar swap, deep-link), the
+  // server may still be running a previous turn for that session id. The
+  // EventBus on the backend keeps publishing for grace_period after done,
+  // and buffers everything that already fired. Here we:
+  //   1. Probe /api/chat/sessions/:id/status — is anything live?
+  //   2. If yes, open /stream — replays buffered events (so we catch up
+  //      on tool calls / partial text the user missed) then forwards live
+  //      ones until 'done'.
+  //
+  // The event handler below mirrors sendMessage's inner logic — anything
+  // we can't match goes through the same setMessages / setActivityLog /
+  // setThinkingText paths so the UI looks identical to a fresh stream.
+  const resumeStream = useCallback(async (sessionId) => {
+    if (!sessionId || resumedRef.current === sessionId) return;
+    resumedRef.current = sessionId;
+    try {
+      const statusRes = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}/status`, { credentials: 'include' });
+      if (!statusRes.ok) return;
+      const status = await statusRes.json();
+      if (!status?.active && !(status?.done && status?.eventCount > 0)) return;
+
+      // There IS something to attach to. Wire up loading state.
+      setIsTyping(true);
+      setThinkingText('Reconnecting…');
+
+      const controller = new AbortController();
+      // If user manually stops (or another sendMessage starts), kill this
+      // reattach too. abortRef holds the active stream's controller.
+      abortRef.current = controller;
+
+      const streamRes = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}/stream`, {
+        credentials: 'include',
+        signal: controller.signal,
+      });
+      // 404 = bus already gone (race against grace-period GC). Just bail.
+      if (!streamRes.ok) {
+        setIsTyping(false);
+        setThinkingText('');
+        return;
+      }
+
+      const agentMsgId = makeId();
+      const reader = streamRes.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullText = '';
+      let addedAgent = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (!jsonStr) continue;
+          try {
+            const event = JSON.parse(jsonStr);
+
+            if (event.type === 'text') {
+              fullText += event.content;
+              const msg = { id: agentMsgId, role: 'agent', text: fullText, timestamp: Date.now() };
+              if (!addedAgent) { setMessages(prev => [...prev, msg]); addedAgent = true; setThinkingText(''); }
+              else setMessages(prev => prev.map(m => m.id === agentMsgId ? msg : m));
+            } else if (event.type === 'tool_call') {
+              const entry = { id: `${event.name}-${Date.now()}`, name: event.name, label: event.label || event.name.replace(/_/g, ' '), done: false };
+              setActivityLog(prev => [...prev, entry]);
+              setThinkingText(event.label || `Calling ${event.name.replace(/_/g, ' ')}...`);
+            } else if (event.type === 'tool_result') {
+              setActivityLog(prev => {
+                const updated = [...prev];
+                const idx = updated.map(e => e.name).lastIndexOf(event.name);
+                if (idx !== -1) updated[idx] = { ...updated[idx], done: true, summary: event.summary };
+                return updated;
+              });
+            } else if (event.type === 'done') {
+              break;
+            }
+          } catch (parseErr) {
+            // Mid-chunk decoder boundary leaves a half-line; SSE recovers
+            // on the next read. Anything else is worth logging once.
+            if (parseErr.message !== 'Unexpected end of JSON input') {
+              console.warn('[chat] resume parse error:', parseErr);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      if (err?.name === 'AbortError') return;
+      console.warn('[chat] resume failed:', err.message);
+    } finally {
+      setIsTyping(false);
+      setThinkingText('');
+      abortRef.current = null;
+    }
+  }, []);
+
+  // Auto-trigger reattach whenever the active session changes — covers
+  // page refresh (mount), sidebar session swap, and deep-link entry.
+  useEffect(() => {
+    const id = externalSessionId || sessionIdRef.current;
+    if (!id) return;
+    resumeStream(id);
+    // We deliberately don't clean up here — resumeStream's own AbortError
+    // handling + resumedRef dedup prevents duplicate reattaches.
+  }, [externalSessionId, resumeStream]);
 
   const stopGeneration = useCallback(() => {
     if (abortRef.current) {
@@ -80,6 +201,7 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
     if (abortRef.current) abortRef.current.abort();
     const newId = makeId();
     sessionIdRef.current = newId;
+    resumedRef.current = null; // brand-new session, no reattach needed
     setMessages([]);
     setIsTyping(false);
     setThinkingText('');
