@@ -650,7 +650,10 @@ export const Sidebar = ({
       </div>
 
 
-      {/* All Tasks header — fixed */}
+      {/* All Tasks header is always visible (so the sidebar layout looks
+          stable even when signed out), but the conversation list itself
+          is gated below — anonymous visitors see a "Sign in to view"
+          placeholder instead of another agency's chat history. */}
       <div className="px-2 shrink-0 border-t border-slate-100 pt-2">
         <button onClick={() => setAllTasksOpen(v => !v)} className="w-full flex items-center justify-between px-3 py-1.5">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">All Tasks</p>
@@ -662,7 +665,12 @@ export const Sidebar = ({
       {allTasksOpen && (
       <div className="flex-1 overflow-y-auto min-h-0 px-2 pb-2">
         <div>
-          {sessions.length === 0 ? (
+          {!isAppAuthed ? (
+            <div className="px-3 py-6 text-center">
+              <ListTodo size={20} className="text-slate-200 mx-auto mb-2" />
+              <p className="text-[11px] text-slate-400">Sign in to view your tasks</p>
+            </div>
+          ) : sessions.length === 0 ? (
             <div className="px-3 py-6 text-center">
               <ListTodo size={20} className="text-slate-200 mx-auto mb-2" />
               <p className="text-[11px] text-slate-400">No tasks yet</p>

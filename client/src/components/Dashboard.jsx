@@ -477,7 +477,8 @@ export const Dashboard = ({
 
   const handleOpenBrandLibrary = useCallback(() => {
     navigate('/brand-memory');
-  }, [navigate]);
+    if (!isAppAuthed) requestSignIn();
+  }, [isAppAuthed, requestSignIn, navigate]);
 
 
   const handleOpenProject = useCallback((projectId) => {
@@ -498,12 +499,16 @@ export const Dashboard = ({
     localStorage.setItem('aam_language', lang);
   }, []);
 
-  // Handle account switching — reset chat
+  // Handle account switching — reset chat. Soft paywall: an anonymous
+  // visitor clicking the picker should be bounced to Supabase sign-in
+  // first, otherwise they'd be flipping the agency-wide demo workspace
+  // even though they have no app account.
   const handleAccountSelect = useCallback((business, account, { stayOnPage } = {}) => {
+    if (!isAppAuthed) { requestSignIn(); return; }
     onSwitchBusiness(business);
     onSwitchAccount(account);
     if (!stayOnPage) goToChat();
-  }, [onSwitchBusiness, onSwitchAccount, goToChat]);
+  }, [isAppAuthed, requestSignIn, onSwitchBusiness, onSwitchAccount, goToChat]);
 
   const handleSend = useCallback((text, attachments, slashIds, rawDisplayText) => {
     // Soft paywall: anonymous visitors are bounced to Google sign-in
@@ -540,17 +545,28 @@ export const Dashboard = ({
   }, [isAppAuthed, requestSignIn, sendMessage, getSkillContext, getSkillContextById, activeSkills, getBrandContext, urlSessionId, activeSessionId, navigate]);
 
   const handleSwitchSession = useCallback((sessionId) => {
+    // Anonymous users see no sessions in the sidebar (Sidebar hides the
+    // list when !isAppAuthed), but guard here too in case some other
+    // path triggers a switch.
+    if (!isAppAuthed) { requestSignIn(); return; }
     // Navigate first; the URL-sync effect below calls switchSession().
     // If the user clicks the session they're already on, this is a no-op.
     if (sessionId !== urlSessionId) navigate(`/c/${sessionId}`);
-  }, [navigate, urlSessionId]);
+  }, [isAppAuthed, requestSignIn, navigate, urlSessionId]);
 
   const handleNewChat = useCallback(() => {
+    // Anonymous: navigate to the chat empty state (preview) and surface
+    // the LoginModal on top — same pattern as the Meta modules.
+    if (!isAppAuthed) {
+      if (location.pathname !== '/') navigate('/');
+      requestSignIn();
+      return;
+    }
     // Navigate home; URL-sync effect spins up a fresh chat if the current
     // session is already persisted. If already on `/`, force a new chat.
     if (location.pathname !== '/') navigate('/');
     else createNewChat();
-  }, [navigate, location.pathname, createNewChat]);
+  }, [isAppAuthed, requestSignIn, navigate, location.pathname, createNewChat]);
 
   // ── URL → hook state sync ────────────────────────────────────────────────
   // Keeps the chat engine aligned with whatever the URL says. The opposite
@@ -585,16 +601,25 @@ export const Dashboard = ({
     }
   }, [deleteSavedItem, activeView, goToChat]);
 
-  const handleOpenAudiences      = useCallback(() => navigate('/audiences'),      [navigate]);
-  const handleOpenCampaigns      = useCallback(() => navigate('/campaigns'),      [navigate]);
-  const handleOpenSkillsLibrary  = useCallback(() => navigate('/skills'),         [navigate]);
-  const handleOpenCreativeLibrary= useCallback(() => navigate('/creative-hub'),   [navigate]);
-  const handleOpenAutomationRules= useCallback(() => navigate('/automations'),    [navigate]);
-  const handleOpenInstantForms   = useCallback(() => navigate('/lead-forms'),     [navigate]);
-  const handleOpenEventsManager  = useCallback(() => navigate('/events'),         [navigate]);
-  const handleOpenOptimizations  = useCallback(() => navigate('/optimizations'),  [navigate]);
-  const handleOpenAdLibrary      = useCallback(() => navigate('/ad-gallery'),     [navigate]);
-  const handleOpenReports        = useCallback(() => navigate('/reports'),        [navigate]);
+  // Meta-data-backed modules: anonymous visitors are still allowed to
+  // navigate in (so they can see the module's empty interface for a
+  // sense of what the product offers) but the LoginModal opens
+  // automatically on top, blurring the preview underneath. Once they
+  // sign in, the modal closes and the module hydrates normally.
+  const gatedNav = useCallback((path) => {
+    navigate(path);
+    if (!isAppAuthed) requestSignIn();
+  }, [isAppAuthed, requestSignIn, navigate]);
+  const handleOpenAudiences      = useCallback(() => gatedNav('/audiences'),      [gatedNav]);
+  const handleOpenCampaigns      = useCallback(() => gatedNav('/campaigns'),      [gatedNav]);
+  const handleOpenSkillsLibrary  = useCallback(() => gatedNav('/skills'),         [gatedNav]);
+  const handleOpenCreativeLibrary= useCallback(() => gatedNav('/creative-hub'),   [gatedNav]);
+  const handleOpenAutomationRules= useCallback(() => gatedNav('/automations'),    [gatedNav]);
+  const handleOpenInstantForms   = useCallback(() => gatedNav('/lead-forms'),     [gatedNav]);
+  const handleOpenEventsManager  = useCallback(() => gatedNav('/events'),         [gatedNav]);
+  const handleOpenOptimizations  = useCallback(() => gatedNav('/optimizations'),  [gatedNav]);
+  const handleOpenAdLibrary      = useCallback(() => gatedNav('/ad-gallery'),     [gatedNav]);
+  const handleOpenReports        = useCallback(() => gatedNav('/reports'),        [gatedNav]);
 
   const [pendingInput, setPendingInput] = useState(null);
   const [pendingSlashSkill, setPendingSlashSkill] = useState(null);

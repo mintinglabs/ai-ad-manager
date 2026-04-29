@@ -48,7 +48,15 @@ export default function App() {
   }, [user, userName]);
 
   useEffect(() => {
-    if (!import.meta.env.DEV) return;
+    if (!import.meta.env.DEV) { setDevSessionReady(true); return; }
+    // Wait for Supabase to finish bootstrapping. We only seed the dev
+    // META_DEMO_TOKEN session AFTER the user is signed into the app via
+    // Supabase Google — otherwise an anonymous visitor (or a user who
+    // just signed out) keeps inheriting the agency's Meta access via
+    // the HttpOnly cookie, which is the wrong default.
+    if (!supaAuth.bootChecked) return;
+    if (!supaAuth.user) { setDevSessionReady(true); return; }
+
     const seedDemo = async () => {
       try {
         const r = await fetch('/api/auth/demo-session', { method: 'POST', credentials: 'include' });
@@ -79,11 +87,25 @@ export default function App() {
     window.addEventListener('fb_token_error', handleTokenError);
     return () => window.removeEventListener('fb_token_error', handleTokenError);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [supaAuth.bootChecked, supaAuth.user]);
 
   // Block rendering until dev session attempt completes (so the dashboard
   // doesn't briefly render in a logged-out state on localhost).
   if (!devSessionReady || !bootChecked || !supaAuth.bootChecked) return null;
+
+  // Composite sign-out: clears Meta cookie session + Supabase + local
+  // selected business/account so logging out actually drops all data
+  // access, not just the Supabase identity.
+  const handleAppSignOut = async () => {
+    try { await logout(); } catch {}
+    try { await supaAuth.signOut(); } catch {}
+    setSelectedBusiness(null);
+    setSelectedAccount(null);
+    setUserName('');
+    localStorage.removeItem('aam_user_first_name');
+    localStorage.removeItem('aam_selected_account');
+    localStorage.removeItem('aam_selected_business');
+  };
 
   // OfflineBanner is mounted alongside the dashboard so a WiFi drop is
   // visibly acknowledged. The actual chat-context preservation happens
@@ -110,18 +132,25 @@ export default function App() {
   // Soft paywall: always render Dashboard so anonymous visitors can preview
   // the UI. Mutating actions (chat send, etc.) trigger the Supabase Google
   // sign-in popup via onAppSignIn.
+  //
+  // When the visitor isn't signed in, we mask Meta workspace state — the
+  // KEEPP pill / account chip etc. would otherwise leak across logout
+  // because selectedAccount/Business hydrate from localStorage.
+  const isAuthed = !!supaAuth.user;
+  const visibleAccount = isAuthed ? selectedAccount : null;
+  const visibleBusiness = isAuthed ? selectedBusiness : null;
   const dashboardEl = (
     <Dashboard
-      token={longLivedToken}
-      adAccountId={selectedAccount?.id || null}
-      selectedAccount={selectedAccount}
-      selectedBusiness={selectedBusiness}
+      token={isAuthed ? longLivedToken : null}
+      adAccountId={visibleAccount?.id || null}
+      selectedAccount={visibleAccount}
+      selectedBusiness={visibleBusiness}
       userName={displayName}
       userEmail={displayEmail}
       userAvatarUrl={displayAvatarUrl}
       isAppAuthed={!!supaAuth.user}
       onAppSignIn={supaAuth.signInWithGoogle}
-      onAppSignOut={supaAuth.signOut}
+      onAppSignOut={handleAppSignOut}
       onSwitchAccount={(account) => { setSelectedAccount(account); localStorage.setItem('aam_selected_account', JSON.stringify(account)); }}
       onSwitchBusiness={(business) => { setSelectedAccount(null); setSelectedBusiness(business || null); localStorage.removeItem('aam_selected_account'); localStorage.setItem('aam_selected_business', JSON.stringify(business || null)); }}
       onLogout={() => { logout(); setSelectedBusiness(null); setSelectedAccount(null); localStorage.removeItem('aam_selected_account'); localStorage.removeItem('aam_selected_business'); }}
