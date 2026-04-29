@@ -21,7 +21,7 @@ import conversionsRouter from './api/meta/conversions.js';
 import leadsRouter from './api/meta/leads.js';
 import catalogsRouter from './api/meta/catalogs.js';
 import previewsRouter from './api/meta/previews.js';
-import chatRouter from './api/chat.js';
+import chatRouter, { chatStreamRouter } from './api/chat.js';
 import chatHistoryRouter from './api/chatHistory.js';
 import confirmationsRouter from './api/confirmations.js';
 import skillsRouter from './api/skills.js';
@@ -120,6 +120,12 @@ app.use('/api/catalogs', requireToken, limitDefault, catalogsRouter);
 app.use('/api/previews', requireToken, limitDefault, previewsRouter);
 app.use('/api/chat/history', chatHistoryRouter);  // mount BEFORE /api/chat catch-all
 app.use('/api/confirmations', confirmationsRouter);
+// Mid-stream reattach (status probe + reattach SSE). Mounted BEFORE the
+// rate-limited /api/chat catch-all so a tab refresh doesn't burn the
+// user's per-minute Gemini budget on a single GET. Status returns a
+// tiny JSON; stream forwards events the runner already publishes — both
+// are safe to leave outside limitAi.
+app.use('/api/chat', optionalToken, chatStreamRouter);
 // Chat is the most expensive endpoint — every message is a Gemini call.
 // Stack a per-minute and a per-day limit so neither a runaway loop nor a
 // leak of credentials can run up an unbounded bill overnight.

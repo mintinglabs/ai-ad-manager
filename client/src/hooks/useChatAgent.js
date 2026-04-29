@@ -93,8 +93,16 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
     resumedRef.current = sessionId;
     try {
       const statusRes = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}/status`, { credentials: 'include' });
-      if (!statusRes.ok) return;
+      // Visible diagnostic: in DevTools you can see whether the probe
+      // even reaches the backend (HTTP code) and whether anything was
+      // running at the time of refresh. Removing this would make
+      // "reattach silently doesn't work" much harder to debug.
+      if (!statusRes.ok) {
+        console.log(`[chat] resume probe ${sessionId.slice(0,8)} → HTTP ${statusRes.status} (server not up to date or session unknown)`);
+        return;
+      }
       const status = await statusRes.json();
+      console.log(`[chat] resume probe ${sessionId.slice(0,8)} →`, status);
       if (!status?.active && !(status?.done && status?.eventCount > 0)) return;
 
       // There IS something to attach to. Wire up loading state.

@@ -466,6 +466,14 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Read-only sub-router for status + stream reattach. Exported so
+// index.js can mount it BEFORE the AI-rate-limited /api/chat parent —
+// otherwise these probes/streams would count against the user's Gemini
+// budget (limitAi 30/min, limitAiDaily 300/day), which is wrong: a
+// status probe is a single Supabase read, and a stream reattach just
+// forwards events the runner is already publishing.
+export const chatStreamRouter = Router();
+
 // ── GET /api/chat/sessions/:id/status ───────────────────────────────────
 // Cheap probe the client hits on chat-session load. If a turn is still
 // running (or ended within the grace period) the client opens the
@@ -475,7 +483,7 @@ router.post('/', async (req, res) => {
 // Note: sessionId is opaque + per-Supabase-row; treating it as a
 // capability is acceptable for now. If we add multi-tenant trust
 // boundaries later we should join chat_history.fb_user_id to req.user.
-router.get('/sessions/:id/status', (req, res) => {
+chatStreamRouter.get('/sessions/:id/status', (req, res) => {
   const bus = getBus(req.params.id);
   if (!bus) return res.json({ active: false });
   res.json({
@@ -495,7 +503,7 @@ router.get('/sessions/:id/status', (req, res) => {
 //   2. Subscribes for live events as the runner continues.
 //   3. Closes when the bus emits 'done' (sent automatically on
 //      bus.markDone()) OR when the client disconnects.
-router.get('/sessions/:id/stream', (req, res) => {
+chatStreamRouter.get('/sessions/:id/stream', (req, res) => {
   const bus = getBus(req.params.id);
   if (!bus) return res.status(404).json({ error: 'no active stream for this session' });
 
