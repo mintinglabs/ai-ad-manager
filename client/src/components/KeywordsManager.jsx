@@ -353,7 +353,7 @@ export const KeywordsManager = ({
         <div className="w-12 h-12 rounded-xl bg-rose-100 flex items-center justify-center text-xl font-bold text-rose-500">G</div>
         <p className="text-sm font-semibold text-slate-700">Connect Google Ads</p>
         <p className="text-xs text-slate-400">Sign in with Google to manage keywords.</p>
-        <button onClick={onGoogleConnect} className="text-xs font-medium px-4 py-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors">Connect Google Ads</button>
+        <button onClick={requireAuth(() => onGoogleConnect?.())} className="text-xs font-medium px-4 py-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors">Connect Google Ads</button>
       </div>
     </div>
   );

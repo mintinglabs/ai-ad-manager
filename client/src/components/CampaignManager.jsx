@@ -490,6 +490,9 @@ const GoogleCampaignsPanel = ({ googleConnected, googleCustomerId, googleLoginCu
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Auth gate for the standalone "Connect Google Ads" CTA — same logic
+  // as PlatformAccountSelector but this panel renders its own button.
+  const requireAuth = useRequireAuth();
 
   useEffect(() => {
     if (!googleCustomerId) return;
@@ -508,7 +511,7 @@ const GoogleCampaignsPanel = ({ googleConnected, googleCustomerId, googleLoginCu
       <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-xl font-bold text-red-500">G</div>
       <p className="text-sm font-semibold text-slate-700">Connect Google Ads</p>
       <p className="text-xs text-slate-400">Sign in with Google to manage your Google Ads campaigns.</p>
-      <button onClick={onGoogleConnect} className="text-xs font-medium px-4 py-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors">Connect Google Ads</button>
+      <button onClick={requireAuth(() => onGoogleConnect?.())} className="text-xs font-medium px-4 py-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors">Connect Google Ads</button>
     </div>
   );
   if (!googleCustomerId) return (

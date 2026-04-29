@@ -1731,6 +1731,8 @@ const GoogleAudiencesPanel = ({ googleConnected, googleCustomerId, googleLoginCu
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Gate the standalone "Connect Google Ads" CTA below.
+  const requireAuthPanel = useRequireAuth();
 
   useEffect(() => {
     if (!googleCustomerId) return;
@@ -1748,7 +1750,7 @@ const GoogleAudiencesPanel = ({ googleConnected, googleCustomerId, googleLoginCu
       <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-xl font-bold text-red-500">G</div>
       <p className="text-sm font-semibold text-slate-700">Connect Google Ads</p>
       <p className="text-xs text-slate-400">Sign in with Google to manage audiences.</p>
-      <button onClick={onGoogleConnect} className="text-xs font-medium px-4 py-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors">Connect Google Ads</button>
+      <button onClick={requireAuthPanel(() => onGoogleConnect?.())} className="text-xs font-medium px-4 py-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors">Connect Google Ads</button>
     </div>
   );
   if (!googleCustomerId) return (

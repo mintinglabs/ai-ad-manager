@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Building2, ChevronDown, ChevronLeft, Check, Link2 } from 'lucide-react';
+import { useRequireAuth } from '../lib/authGate.jsx';
 import { useBusinesses } from '../hooks/useBusinesses.js';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
 import { useGoogleAccounts } from '../hooks/useGoogleAccounts.js';
@@ -57,6 +58,15 @@ export const PlatformAccountSelector = ({
   const { businesses, isLoading: bizLoading } = useBusinesses();
   const { adAccounts: metaAccounts, isLoading: metaAccLoading } = useAdAccounts(activeBiz?.id);
   const { accounts: googleAccounts, isLoading: googleLoading } = useGoogleAccounts(googleConnected);
+
+  // Connecting Meta or Google requires the user to be signed in to the
+  // app (Supabase) first — otherwise we'd be granting third-party OAuth
+  // tokens to an anonymous browser session, which is both confusing and
+  // impossible to associate with a user record. requireAuth bounces the
+  // click to the LoginModal in that case.
+  const requireAuth = useRequireAuth();
+  const gatedLoginMeta     = onLoginMeta     ? requireAuth(onLoginMeta)     : undefined;
+  const gatedGoogleConnect = onGoogleConnect ? requireAuth(onGoogleConnect) : undefined;
 
   useEffect(() => {
     const handler = (e) => {
@@ -115,9 +125,10 @@ export const PlatformAccountSelector = ({
   };
 
   const handleButtonClick = () => {
-    // Direct action when no dropdown needed
-    if (isMeta && !token) { onLoginMeta?.(); return; }
-    if (isGoogle && !googleConnected) { onGoogleConnect?.(); return; }
+    // Direct action when no dropdown needed. Both connect paths route
+    // through the gated wrappers so anon users see the LoginModal first.
+    if (isMeta && !token) { gatedLoginMeta?.(); return; }
+    if (isGoogle && !googleConnected) { gatedGoogleConnect?.(); return; }
     const nextOpen = !open;
     if (nextOpen) setPos(computePos());
     setOpen(nextOpen);
@@ -229,7 +240,7 @@ export const PlatformAccountSelector = ({
               <div className="px-3 py-2 border-b border-slate-100">
                 <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Connect Meta</p>
               </div>
-              <button onClick={onLoginMeta} className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-50 text-left">
+              <button onClick={gatedLoginMeta} className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-50 text-left">
                 <MetaIcon />
                 <span className="text-[12px] font-medium text-slate-700 flex-1">Meta Ads Manager</span>
                 <span className="text-[10px] font-medium text-blue-600">Connect</span>
