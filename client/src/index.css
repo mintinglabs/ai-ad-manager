@@ -82,3 +82,46 @@ body {
   0%, 100% { box-shadow: 0 4px 6px -1px rgba(251, 146, 60, 0), 0 0 0 0 rgba(251, 146, 60, 0); }
   50% { box-shadow: 0 4px 12px -1px rgba(251, 146, 60, 0.15), 0 0 0 3px rgba(251, 146, 60, 0.08); }
 }
+
+/* Branded range slider — used by Buy Credits "Custom amount". The default
+   browser track is black/blue which clashes with the orange theme. We
+   strip the native track and draw our own with a gradient driven by the
+   inline `--val` percent supplied per-element. */
+.range-orange {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right,
+    #f97316 0%,
+    #f97316 var(--val, 0%),
+    #e2e8f0 var(--val, 0%),
+    #e2e8f0 100%);
+  outline: none;
+  cursor: pointer;
+}
+.range-orange::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 2px solid #f97316;
+  box-shadow: 0 2px 6px rgba(249, 115, 22, 0.35);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+.range-orange::-webkit-slider-thumb:hover { transform: scale(1.1); }
+.range-orange::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 2px solid #f97316;
+  box-shadow: 0 2px 6px rgba(249, 115, 22, 0.35);
+  cursor: pointer;
+}
+.range-orange::-moz-range-track {
+  background: transparent;
+}

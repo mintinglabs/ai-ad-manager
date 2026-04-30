@@ -1,4 +1,15 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient.js';
+
+// Pulls the current Supabase access token (JWT) so chat fetch calls can
+// authenticate with the server's resolveAppUser middleware. Returns null
+// if Supabase isn't configured or the user isn't signed in (anonymous
+// demo mode — credits will be skipped server-side).
+const getAppToken = async () => {
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data?.session?.access_token || null;
+};
 
 const makeId = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 
@@ -40,6 +51,12 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
   // re-renders (e.g. accountName change triggering the externalSessionId
   // useEffect).
   const resumedRef = useRef(null);
+  // Mirror of `messages` for resumeStream's dedup check. We can't depend
+  // on `messages` in the resumeStream useCallback (it would re-create the
+  // function on every message append, which the auto-trigger effect would
+  // then fire repeatedly on). A ref sidesteps that.
+  const messagesRef = useRef(messages);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
 
   // Sync when external session ID changes (e.g. account switch triggers new session)
   useEffect(() => {
@@ -105,6 +122,31 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
       console.log(`[chat] resume probe ${sessionId.slice(0,8)} →`, status);
       if (!status?.active && !(status?.done && status?.eventCount > 0)) return;
 
+      // Dedup: if the session is already done AND we already have an
+      // agent response after the latest user message, skip the replay.
+      // The events were persisted to chat_messages during the original
+      // turn and reloaded into `messages` from localStorage / server on
+      // mount; replaying buffered events would append the agent reply a
+      // SECOND time, which is what creates the visible duplicate after
+      // refresh.
+      //
+      // Active sessions still always replay — the user needs to see the
+      // in-progress stream, and the eager-save only covers user messages
+      // (agent text isn't persisted until typing finishes).
+      if (status.done) {
+        const msgs = messagesRef.current || [];
+        let lastUserIdx = -1;
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          if (msgs[i].role === 'user') { lastUserIdx = i; break; }
+        }
+        const hasAgentAfterUser = lastUserIdx >= 0 &&
+          msgs.slice(lastUserIdx + 1).some(m => m.role === 'agent' && (m.text || '').length > 0);
+        if (hasAgentAfterUser) {
+          console.log(`[chat] resume skip ${sessionId.slice(0,8)} — already have agent reply, no replay needed`);
+          return;
+        }
+      }
+
       // There IS something to attach to. Wire up loading state.
       setIsTyping(true);
       setThinkingText('Reconnecting…');
@@ -151,9 +193,31 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
               if (!addedAgent) { setMessages(prev => [...prev, msg]); addedAgent = true; setThinkingText(''); }
               else setMessages(prev => prev.map(m => m.id === agentMsgId ? msg : m));
             } else if (event.type === 'tool_call') {
-              const entry = { id: `${event.name}-${Date.now()}`, name: event.name, label: event.label || event.name.replace(/_/g, ' '), done: false };
+              const entry = {
+                id: `${event.name}-${Date.now()}`,
+                name: event.name,
+                label: event.label || event.name.replace(/_/g, ' '),
+                done: false,
+                cost: typeof event.cost === 'number' ? event.cost : null,
+              };
               setActivityLog(prev => [...prev, entry]);
               setThinkingText(event.label || `Calling ${event.name.replace(/_/g, ' ')}...`);
+            } else if (event.type === 'credit_summary') {
+              window.dispatchEvent(new CustomEvent('credits:changed'));
+              const total = event.total ?? 0;
+              if (total > 0) {
+                setActivityLog(prev => [...prev, {
+                  id: `credit-summary-${Date.now()}`,
+                  name: '__credit_summary__',
+                  label: `Used ${total} credit${total === 1 ? '' : 's'} this turn`,
+                  done: true,
+                  isSummary: true,
+                  total,
+                  base: event.base,
+                  tools: event.tools,
+                  partial: event.partial,
+                }]);
+              }
             } else if (event.type === 'tool_result') {
               setActivityLog(prev => {
                 const updated = [...prev];
@@ -239,12 +303,17 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
       // Auth is now carried by the HttpOnly aam_session cookie. We keep
       // sending an Authorization header only if a caller explicitly passed
       // a token down (e.g. legacy embed). Cookie path needs credentials.
+      // Authorization header carries the Supabase JWT (app account
+      // identity) so the server's credit middleware can charge the
+      // right user. The Meta FB token lives in the aam_session cookie
+      // (HttpOnly) and rides via credentials:'include'.
+      const appToken = await getAppToken();
       const response = await fetch('/api/chat', {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` }),
+          ...(appToken && { Authorization: `Bearer ${appToken}` }),
         },
         body: JSON.stringify({
           message: text,  // Full text with skill context goes to the API
@@ -297,7 +366,13 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
                 );
               }
             } else if (event.type === 'tool_call') {
-              const entry = { id: `${event.name}-${Date.now()}`, name: event.name, label: event.label || event.name.replace(/_/g, ' '), done: false };
+              const entry = {
+                id: `${event.name}-${Date.now()}`,
+                name: event.name,
+                label: event.label || event.name.replace(/_/g, ' '),
+                done: false,
+                cost: typeof event.cost === 'number' ? event.cost : null,
+              };
               setActivityLog(prev => [...prev, entry]);
               if (event.name === 'transfer_to_agent') {
                 const labels = {
@@ -311,6 +386,25 @@ export const useChatAgent = ({ token, adAccountId, accountName, language = 'en',
                 setThinkingText(labels[event.target] || 'Continuing...');
               } else {
                 setThinkingText(event.label || `Calling ${event.name.replace(/_/g, ' ')}...`);
+              }
+            } else if (event.type === 'credit_summary') {
+              // End-of-turn settlement done on server. Refresh sidebar pill +
+              // append a synthetic "totals" entry to activity log so the user
+              // can see the breakdown after the agent finishes.
+              window.dispatchEvent(new CustomEvent('credits:changed'));
+              const total = event.total ?? 0;
+              if (total > 0) {
+                setActivityLog(prev => [...prev, {
+                  id: `credit-summary-${Date.now()}`,
+                  name: '__credit_summary__',
+                  label: `Used ${total} credit${total === 1 ? '' : 's'} this turn`,
+                  done: true,
+                  isSummary: true,
+                  total,
+                  base: event.base,
+                  tools: event.tools,
+                  partial: event.partial,
+                }]);
               }
             } else if (event.type === 'tool_result') {
               setActivityLog(prev => {

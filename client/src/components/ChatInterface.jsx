@@ -163,20 +163,46 @@ const ActivityLog = ({ entries }) => {
       </button>
       {expanded && (
         <div className="mt-1 space-y-0.5 pl-4">
-          {entries.map((entry) => (
-            <div key={entry.id} className="flex items-center gap-2 text-[11px] py-0.5">
-              {entry.done
-                ? <CheckCircle2 size={11} className="text-emerald-500 shrink-0" />
-                : <div className="w-2.5 h-2.5 rounded-full border-2 border-blue-400 border-t-transparent animate-spin shrink-0" />
-              }
-              <span className={entry.done ? 'text-slate-400' : 'text-slate-600 font-medium'}>
-                {entry.label}
-              </span>
-              {entry.summary && (
-                <span className="ml-auto text-slate-400 tabular-nums">{entry.summary}</span>
-              )}
-            </div>
-          ))}
+          {entries.map((entry) => {
+            // The synthetic end-of-turn summary row gets a different look:
+            // amber-tinted with a Zap icon so it reads as a totals line,
+            // not just another tool call.
+            if (entry.isSummary) {
+              return (
+                <div key={entry.id} className="flex items-center gap-2 text-[11px] py-0.5 mt-0.5 pt-1 border-t border-slate-100">
+                  <Zap size={11} className="text-amber-500 shrink-0 fill-amber-100" />
+                  <span className="text-slate-500 font-medium">{entry.label}</span>
+                  {entry.partial && (
+                    <span className="ml-auto text-[10px] text-amber-600 font-semibold">capped</span>
+                  )}
+                </div>
+              );
+            }
+            return (
+              <div key={entry.id} className="flex items-center gap-2 text-[11px] py-0.5">
+                {entry.done
+                  ? <CheckCircle2 size={11} className="text-emerald-500 shrink-0" />
+                  : <div className="w-2.5 h-2.5 rounded-full border-2 border-blue-400 border-t-transparent animate-spin shrink-0" />
+                }
+                <span className={entry.done ? 'text-slate-400' : 'text-slate-600 font-medium'}>
+                  {entry.label}
+                </span>
+                {entry.summary && (
+                  <span className="ml-auto text-slate-400 tabular-nums">{entry.summary}</span>
+                )}
+                {/* Per-tool cost chip — only shown when the server sent a
+                    positive cost. Free internal tools (transfer_to_agent,
+                    update_workflow_context) come through with cost=0 and
+                    we suppress the chip to keep the log clean. */}
+                {typeof entry.cost === 'number' && entry.cost > 0 && (
+                  <span className={`${entry.summary ? 'ml-2' : 'ml-auto'} inline-flex items-center gap-0.5 text-[10px] tabular-nums text-amber-600 font-semibold`}>
+                    <Zap size={9} className="fill-amber-200" />
+                    {entry.cost}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

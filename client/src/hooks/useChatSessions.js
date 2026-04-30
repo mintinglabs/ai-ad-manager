@@ -151,6 +151,13 @@ export const useChatSessions = ({ token, adAccountId, accountName, language = 'e
   const [initialMessages, setInitialMessages] = useState(null);
   const [initialSessionId, setInitialSessionId] = useState(() => initialSessionIdOverride || null);
 
+  // Tracks message ids we've already eagerly persisted to server so a refresh
+  // mid-stream can recover them. The auto-save effect below only fires when
+  // typing transitions true→false, which is too late if the user refreshes
+  // while the agent is still streaming — their just-sent user turn would
+  // otherwise vanish (DB empty → welcome page on reload).
+  const eagerPersistedIdsRef = useRef(new Set());
+
   // Initialize on mount — either load the URL-provided session or start fresh.
   useEffect(() => {
     const list = getSessionList();
@@ -223,6 +230,26 @@ export const useChatSessions = ({ token, adAccountId, accountName, language = 'e
     initialMessages,
     externalSessionId: initialSessionId,
   });
+
+  // Eagerly persist user messages the moment they appear so a refresh
+  // mid-stream can rehydrate them from the server (auto-save below only
+  // fires after typing stops, which doesn't help if the user reloads
+  // while the agent is still streaming).
+  useEffect(() => {
+    if (!activeSessionId) return;
+    const fresh = agent.messages.filter(
+      m => m && m.id && m.role === 'user' && !eagerPersistedIdsRef.current.has(m.id)
+    );
+    if (fresh.length === 0) return;
+    fresh.forEach(m => eagerPersistedIdsRef.current.add(m.id));
+    setSessionMessages(activeSessionId, agent.messages);
+    serverSaveMessages(activeSessionId, fresh);
+  }, [agent.messages, activeSessionId]);
+
+  // Reset the eager-persist dedup set whenever the active session changes.
+  useEffect(() => {
+    eagerPersistedIdsRef.current = new Set();
+  }, [activeSessionId]);
 
   // Auto-save messages when agent finishes typing
   useEffect(() => {

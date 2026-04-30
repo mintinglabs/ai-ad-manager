@@ -90,8 +90,9 @@ export default function App() {
   }, [supaAuth.bootChecked, supaAuth.user]);
 
   // Block rendering until dev session attempt completes (so the dashboard
-  // doesn't briefly render in a logged-out state on localhost).
-  if (!devSessionReady || !bootChecked || !supaAuth.bootChecked) return null;
+  // doesn't briefly render in a logged-out state on localhost). Show a
+  // branded loading state instead of a blank screen.
+  if (!devSessionReady || !bootChecked || !supaAuth.bootChecked) return <BootSplash />;
 
   // Composite sign-out: clears Meta cookie session + Supabase + local
   // selected business/account so logging out actually drops all data
@@ -174,6 +175,45 @@ export default function App() {
         <Route path="*" element={dashboardEl} />
       </Routes>
     </ErrorBoundary>
+  );
+}
+
+// Boot-time splash. Mirrors the sidebar logo (orange Zap in a rounded
+// gradient tile) so the brand identity stays visible during the auth /
+// session-restore phase. The spinning ring + soft pulsing halo signal
+// "we're working on it" without faking progress (no determinate bar).
+function BootSplash() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50/70 via-white to-amber-50/50">
+      <div className="flex flex-col items-center gap-5">
+        <div className="relative">
+          {/* Pulsing halo */}
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-500 blur-xl opacity-40 animate-pulse" />
+          {/* Logo tile — same proportions as the sidebar header */}
+          <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-300/40">
+            <ZapIcon />
+          </div>
+        </div>
+        <p className="text-[13px] font-semibold text-slate-500 tracking-wide">
+          AI Ad Manager
+          <span className="ml-1 inline-flex">
+            <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
+            <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
+            <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
+          </span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Inline SVG so BootSplash doesn't pull in lucide-react before the main
+// bundle is parsed — keeps the splash on screen sooner.
+function ZapIcon() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="white" />
+    </svg>
   );
 }
 

@@ -45,8 +45,15 @@ export const resolveUser = async (req, _res, next) => {
     }
     const auth = req.headers.authorization;
     if (auth?.startsWith('Bearer ')) {
-      req.token = auth.slice(7);
-      req.fbUserId = await fetchFbUserId(req.token);
+      const candidate = auth.slice(7);
+      // Skip JWT-shaped tokens — those are Supabase access tokens carried
+      // for `resolveAppUser`. Trying to verify them via the FB Graph
+      // wastes a network call and burns the user-id cache slot. Meta
+      // long-lived tokens have no dots; JWTs have exactly two.
+      if ((candidate.match(/\./g) || []).length !== 2) {
+        req.token = candidate;
+        req.fbUserId = await fetchFbUserId(req.token);
+      }
     }
     next();
   } catch (err) {

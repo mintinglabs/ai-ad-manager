@@ -3,6 +3,8 @@ import { runner, sessionService } from '../services/adAgent.js';
 import { getOrCreateBus, getBus } from '../lib/sessionBus.js';
 import { extractPdfText } from '../lib/pdfExtract.js';
 import { createBlockFilter } from '../lib/streamFilter.js';
+import { deductCreditsClamped, getBalance, InsufficientCreditsError } from '../lib/credits.js';
+import { costForTool, COST_BASE_PER_TURN, COST_MIN_PRECHECK } from '../lib/creditCosts.js';
 
 // M1 — enable structured-block validation by default. Set
 // CHAT_BLOCK_VALIDATION=off to bypass and reproduce pre-M1 behavior (useful
@@ -210,6 +212,48 @@ router.post('/', async (req, res) => {
       return res.status(500).json({ error: 'GEMINI_API_KEY not configured on server' });
     }
 
+    // ── Credit gate (pre-flight) ────────────────────────────────────────
+    // Authed (Supabase Google sign-in) users only — anonymous demo callers
+    // (req.appUserId undefined) bypass charging so the public landing demo
+    // still works. Credits are keyed on the app account, NOT the Meta
+    // connection, so users without Meta linked still have persistent credits.
+    //
+    // Phase 2: settle-on-completion with per-tool weights. We don't know
+    // the final cost until the agent finishes, so the pre-flight just
+    // verifies the user can cover the base fee. Real charges are
+    // accumulated during the run and deducted in one atomic call after
+    // SSE 'done'. Pre-flight runs BEFORE writeHead so we can return a
+    // plain-JSON 402 instead of stuffing the error into an SSE stream.
+    let creditsEnabled = false;
+    if (req.appUserId) {
+      try {
+        const bal = await getBalance(req.appUserId);
+        if (bal && bal.balance < COST_MIN_PRECHECK) {
+          console.log(`[chat] BLOCKED user=${req.appUserId.slice(0,8)} balance=${bal.balance} < precheck=${COST_MIN_PRECHECK}`);
+          return res.status(402).json({
+            error: 'Insufficient credits',
+            code: 'INSUFFICIENT_CREDITS',
+            required: COST_MIN_PRECHECK,
+            balance: bal.balance,
+          });
+        }
+        creditsEnabled = !!bal; // false if Supabase / tables missing → skip charging
+        console.log(`[chat] credit gate PASSED user=${req.appUserId.slice(0,8)} balance=${bal?.balance ?? '?'} enabled=${creditsEnabled}`);
+      } catch (err) {
+        // Supabase down → log + continue. Don't block product on credit infra outage.
+        console.warn('[chat] credit pre-check skipped:', err.message);
+      }
+    } else {
+      console.warn('[chat] no appUserId — request will not be charged (anonymous or JWT missing)');
+    }
+
+    // Accumulator for end-of-turn settlement. Seeded with the base fee;
+    // each tool_call adds its own line. summary metadata flushes to the
+    // ledger as a single 'usage' transaction so the audit row says
+    // "Chat turn · base + 3 tools = 14 credits" instead of N rows.
+    const charges = creditsEnabled ? [{ name: 'base', label: 'Chat message', cost: COST_BASE_PER_TURN }] : [];
+    const accCost = () => charges.reduce((s, c) => s + c.cost, 0);
+
     // Set up SSE
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -409,6 +453,20 @@ router.post('/', async (req, res) => {
               const label = toolCallLabel(name, args);
               const payload = { type: 'tool_call', name, label };
               if (name === 'transfer_to_agent') payload.target = args.agentName || args.agent_name;
+
+              // Per-tool credit charge — only attach cost when credits
+              // are active for this user. A `cost: 0` (transfer_to_agent,
+              // workflow context) still rides along so the UI can show
+              // the action without misleading users into thinking it's
+              // free of *all* cost (the base fee already covers it).
+              if (creditsEnabled) {
+                const toolCost = costForTool(name);
+                payload.cost = toolCost;
+                if (toolCost > 0) {
+                  charges.push({ name, label, cost: toolCost });
+                }
+              }
+
               publish(payload);
               console.log(`[chat] tool call: ${name}`);
               if (name === 'update_workflow_context') {
@@ -437,6 +495,47 @@ router.post('/', async (req, res) => {
 
     // Flush any residual text / report unclosed blocks before closing.
     filter?.flush();
+
+    // ── End-of-turn credit settlement ───────────────────────────────────
+    // Skip when credits are inactive (anonymous user / Supabase down) or
+    // the agent crashed without producing any output (no charge for
+    // failed turns). Otherwise atomic-deduct the accumulated total and
+    // publish a `credit_summary` event so the UI can update the sidebar
+    // pill + show the per-turn breakdown in the activity log.
+    if (creditsEnabled && fullText && charges.length > 0) {
+      const total = accCost();
+      const itemSummary = charges
+        .map(c => c.name === 'base' ? 'base' : c.name)
+        .slice(0, 5)
+        .join(', ');
+      try {
+        const result = await deductCreditsClamped(req.appUserId, total, {
+          type: 'usage',
+          description: `Chat · ${itemSummary}${charges.length > 5 ? `, +${charges.length - 5}` : ''}`,
+          metadata: {
+            session_id: clientSessionId,
+            ad_account_id: adAccountId || null,
+            charges,
+            base: COST_BASE_PER_TURN,
+            tools: total - COST_BASE_PER_TURN,
+          },
+        });
+        console.log(`[chat] SETTLED user=${req.appUserId.slice(0,8)} wanted=${total} deducted=${result.deducted} balance=${result.balance} partial=${result.partial}`);
+        bus.publish({
+          type: 'credit_summary',
+          base: COST_BASE_PER_TURN,
+          tools: total - COST_BASE_PER_TURN,
+          total,
+          deducted: result.deducted,
+          balance: result.balance,
+          partial: result.partial,
+        });
+      } catch (err) {
+        console.error('[chat] settlement failed:', err.message);
+      }
+    } else if (req.appUserId) {
+      console.log(`[chat] no settlement: creditsEnabled=${creditsEnabled} fullText.len=${fullText.length} charges=${charges.length}`);
+    }
 
     // Mark the bus done — every subscriber (the original POST response +
     // any GET /stream reattach clients) gets a final 'done' event.

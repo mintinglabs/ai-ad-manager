@@ -23,6 +23,8 @@ import catalogsRouter from './api/meta/catalogs.js';
 import previewsRouter from './api/meta/previews.js';
 import chatRouter, { chatStreamRouter } from './api/chat.js';
 import chatHistoryRouter from './api/chatHistory.js';
+import creditsRouter from './api/credits.js';
+import { resolveAppUser } from './middleware/resolveAppUser.js';
 import confirmationsRouter from './api/confirmations.js';
 import skillsRouter from './api/skills.js';
 import brandLibraryRouter from './api/brandLibrary.js';
@@ -56,6 +58,11 @@ app.use(cors({
 }));
 app.use(cookieParser());
 app.use(express.json({ limit: '50mb' }));
+
+// Resolve Supabase auth user (req.appUserId) globally — any route that
+// needs to key data on the app account (credits / billing / future
+// per-account settings) can read it without a per-router mount.
+app.use(resolveAppUser);
 
 app.get('/api/ping', (_req, res) => res.json({ ok: true }));
 
@@ -119,6 +126,7 @@ app.use('/api/leads', requireToken, limitDefault, leadsRouter);
 app.use('/api/catalogs', requireToken, limitDefault, catalogsRouter);
 app.use('/api/previews', requireToken, limitDefault, previewsRouter);
 app.use('/api/chat/history', chatHistoryRouter);  // mount BEFORE /api/chat catch-all
+app.use('/api/credits', creditsRouter);
 app.use('/api/confirmations', confirmationsRouter);
 // Mid-stream reattach (status probe + reattach SSE). Mounted BEFORE the
 // rate-limited /api/chat catch-all so a tab refresh doesn't burn the

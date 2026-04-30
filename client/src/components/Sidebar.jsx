@@ -3,6 +3,8 @@ import { Zap, Plus, MessageSquare, Trash2, ChevronDown, ChevronLeft, ChevronRigh
 import { groupSessionsByDate } from '../hooks/useChatSessions.js';
 import { useAdAccounts } from '../hooks/useAdAccounts.js';
 import { useBusinesses } from '../hooks/useBusinesses.js';
+import { CreditsBadge } from './CreditsBadge.jsx';
+import { useCredits } from '../hooks/useCredits.js';
 
 // Sidebar bottom: app-level user menu. Two visual modes:
 //   - collapsed=true  → just a 36×36 avatar that opens a flyout menu
@@ -21,6 +23,8 @@ const SidebarUserMenu = ({
   userAvatarUrl = '',
   onOpenAccountSettings,
   onOpenConnectedPlatforms,
+  onOpenSubscriptions,
+  onOpenBuyCredits,
   showUserMenu,
   setShowUserMenu,
 }) => {
@@ -114,6 +118,18 @@ const SidebarUserMenu = ({
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-slate-700 hover:bg-slate-50 transition-colors">
                 <Plug size={13} className="text-slate-400" />
                 Connected Platforms
+              </button>
+              <button
+                onClick={() => { setShowUserMenu(false); onOpenSubscriptions?.(); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-slate-700 hover:bg-slate-50 transition-colors">
+                <Sparkles size={13} className="text-slate-400" />
+                Plans & Billing
+              </button>
+              <button
+                onClick={() => { setShowUserMenu(false); onOpenBuyCredits?.(); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-slate-700 hover:bg-slate-50 transition-colors">
+                <Zap size={13} className="text-slate-400" />
+                Buy Credits
               </button>
             </div>
             <div className="border-t border-slate-100 py-1">
@@ -372,8 +388,15 @@ export const Sidebar = ({
   appUserAvatarUrl = '',
   onOpenAccountSettings,
   onOpenConnectedPlatforms,
+  onOpenSubscriptions,
+  onOpenBuyCredits,
 }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
+  // Credit system — phase 1 mock. Sidebar reads its own copy so it stays
+  // self-contained; the same hook instance is read by Subscriptions /
+  // BuyCredits pages (state lives at hook level for now, will move to a
+  // shared provider once the API ships).
+  const { balance: creditBalance, monthlyQuota: creditQuota, usedPct: creditUsedPct, plan: creditPlan, isLoading: creditsLoading } = useCredits();
   const [openFolders, setOpenFolders] = useState({});
   const [hoveredSession, setHoveredSession] = useState(null);
   const [contextMenu, setContextMenu] = useState(null); // { sessionId, x, y }
@@ -562,8 +585,19 @@ export const Sidebar = ({
           )}
         </div>
         <div className="flex-1" />
-        {/* Collapsed sidebar — user avatar at bottom */}
-        <div className="pb-3 px-1.5">
+        {/* Collapsed sidebar — credits + user avatar at bottom */}
+        <div className="pb-3 px-1.5 space-y-1">
+          {isAppAuthed && (
+            <CreditsBadge collapsed
+              balance={creditBalance}
+              monthlyQuota={creditQuota}
+              usedPct={creditUsedPct}
+              planName={creditPlan?.name}
+              isLoading={creditsLoading}
+              onOpenBuyCredits={onOpenBuyCredits}
+              onOpenSubscriptions={onOpenSubscriptions}
+            />
+          )}
           <SidebarUserMenu collapsed
             isAppAuthed={isAppAuthed}
             onAppSignIn={onAppSignIn}
@@ -573,6 +607,8 @@ export const Sidebar = ({
             userAvatarUrl={appUserAvatarUrl}
             onOpenAccountSettings={onOpenAccountSettings}
             onOpenConnectedPlatforms={onOpenConnectedPlatforms}
+            onOpenSubscriptions={onOpenSubscriptions}
+            onOpenBuyCredits={onOpenBuyCredits}
             showUserMenu={showUserMenu}
             setShowUserMenu={setShowUserMenu}
           />
@@ -596,7 +632,7 @@ export const Sidebar = ({
       </div>
 
       {/* New Task */}
-      <div className="px-3 mb-2 shrink-0">
+      <div className="px-3 mb-1.5 shrink-0">
         <button
           onClick={onNewChat}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-[13px] font-semibold text-white transition-all shadow-sm shadow-orange-500/15 hover:shadow-md hover:shadow-orange-500/25"
@@ -606,12 +642,14 @@ export const Sidebar = ({
         </button>
       </div>
 
-      {/* Navigation — fixed */}
-      <div className="px-3 mb-2 shrink-0">
+      {/* Navigation — fixed. Tightened paddings (py-2 → py-1.5 on group headers,
+          py-1.5 → py-1 on module rows) so the All Tasks list below has more
+          vertical room without scrolling Manage Ads off-screen. */}
+      <div className="px-3 mb-1 shrink-0">
         {/* Skills */}
         <button
           onClick={onOpenSkillsLibrary}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border mb-1
+          className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all border
             ${activeView?.type === 'skillsLibrary' || activeView?.type === 'skillConfig'
               ? 'bg-orange-50 text-orange-700 border-orange-200'
               : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border-transparent'}`}
@@ -624,7 +662,7 @@ export const Sidebar = ({
         {/* Manage Ads — collapsible group */}
         <button
           onClick={() => setManageAdsOpen(v => !v)}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all border mt-1
+          className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all border mt-0.5
             ${modules.some(m => m.type && activeView?.type === m.type)
               ? 'bg-orange-50 text-orange-700 border-orange-200'
               : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-transparent'}`}
@@ -640,7 +678,7 @@ export const Sidebar = ({
               const isActive = type && activeView?.type === type;
               return (
                 <button key={label} onClick={action}
-                  className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all
+                  className={`w-full flex items-center gap-2.5 px-3 py-1 rounded-lg text-[12px] font-medium transition-all
                     ${isActive ? 'bg-orange-50 text-orange-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}>
                   <Icon size={13} className={isActive ? 'text-orange-500' : 'text-slate-400'} />
                   <span className="flex-1 text-left">{label}</span>
@@ -663,9 +701,12 @@ export const Sidebar = ({
         </button>
       </div>
 
-      {/* All Tasks list — scrolls internally */}
-      {allTasksOpen && (
+      {/* All Tasks list — scrolls internally. The flex-1 wrapper always
+          renders (even when collapsed) so it absorbs the leftover vertical
+          space and keeps the credits + user pills pinned to the bottom of
+          the sidebar. Only the inner list is conditional on allTasksOpen. */}
       <div className="flex-1 overflow-y-auto min-h-0 px-2 pb-2">
+        {allTasksOpen && (
         <div>
           {!isAppAuthed ? (
             <div className="px-3 py-6 text-center">
@@ -735,12 +776,22 @@ export const Sidebar = ({
             })
           )}
         </div>
+        )}
       </div>
-      )}
 
-      {/* Expanded sidebar — user pill always pinned to bottom (outside the
-          scrollable All Tasks list so it never moves). */}
-      <div className="px-3 pb-3 pt-2 shrink-0 border-t border-slate-100 bg-white/60 backdrop-blur-sm">
+      {/* Expanded sidebar — credits pill + user pill pinned to bottom
+          (outside the scrollable All Tasks list so they never move). */}
+      <div className="px-3 pb-3 pt-2 shrink-0 border-t border-slate-100 bg-white/60 backdrop-blur-sm space-y-2">
+        {isAppAuthed && (
+          <CreditsBadge
+            balance={creditBalance}
+            monthlyQuota={creditQuota}
+            usedPct={creditUsedPct}
+            planName={creditPlan?.name}
+            onOpenBuyCredits={onOpenBuyCredits}
+            onOpenSubscriptions={onOpenSubscriptions}
+          />
+        )}
         <SidebarUserMenu
           isAppAuthed={isAppAuthed}
           onAppSignIn={onAppSignIn}
@@ -750,6 +801,8 @@ export const Sidebar = ({
           userAvatarUrl={appUserAvatarUrl}
           onOpenAccountSettings={onOpenAccountSettings}
           onOpenConnectedPlatforms={onOpenConnectedPlatforms}
+          onOpenSubscriptions={onOpenSubscriptions}
+          onOpenBuyCredits={onOpenBuyCredits}
           showUserMenu={showUserMenu}
           setShowUserMenu={setShowUserMenu}
         />

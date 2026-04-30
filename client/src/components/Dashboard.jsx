@@ -17,6 +17,8 @@ import { AutomationRules } from './AutomationRules.jsx';
 import { InstantForms } from './InstantForms.jsx';
 import { EventsManager } from './EventsManager.jsx';
 import { Optimizations } from './Optimizations.jsx';
+import { Subscriptions } from './Subscriptions.jsx';
+import { BuyCredits } from './BuyCredits.jsx';
 import { AdLibrary } from './AdLibrary.jsx';
 import { BrandLibrary } from './BrandLibrary.jsx';
 import { ReportDashboard } from './ReportDashboard.jsx';
@@ -625,6 +627,21 @@ export const Dashboard = ({
   const handleOpenOptimizations  = useCallback(() => gatedNav('/optimizations'),  [gatedNav]);
   const handleOpenAdLibrary      = useCallback(() => gatedNav('/ad-gallery'),     [gatedNav]);
   const handleOpenReports        = useCallback(() => gatedNav('/reports'),        [gatedNav]);
+  // Subscriptions + Buy Credits are modals (not routes) — closing them
+  // shouldn't push the user back through history. Anonymous users still
+  // hit the sign-in gate before the modal opens, mirroring gatedNav.
+  const [showSubscriptions, setShowSubscriptions] = useState(false);
+  const [showBuyCredits, setShowBuyCredits] = useState(false);
+  const handleOpenSubscriptions  = useCallback(() => {
+    if (!isAppAuthed) { requestSignIn(); return; }
+    setShowSubscriptions(true);
+  }, [isAppAuthed, requestSignIn]);
+  const handleCloseSubscriptions = useCallback(() => setShowSubscriptions(false), []);
+  const handleOpenBuyCredits     = useCallback(() => {
+    if (!isAppAuthed) { requestSignIn(); return; }
+    setShowBuyCredits(true);
+  }, [isAppAuthed, requestSignIn]);
+  const handleCloseBuyCredits    = useCallback(() => setShowBuyCredits(false), []);
 
   const [pendingInput, setPendingInput] = useState(null);
   const [pendingSlashSkill, setPendingSlashSkill] = useState(null);
@@ -748,6 +765,16 @@ export const Dashboard = ({
         />
       )}
 
+      {/* Subscriptions + Buy Credits modals — overlays so dismissing
+          doesn't pop history. Buy Credits' "Manage subscription" link
+          chains into the Subscriptions modal via onOpenSubscriptions. */}
+      <Subscriptions open={showSubscriptions} onClose={handleCloseSubscriptions} />
+      <BuyCredits
+        open={showBuyCredits}
+        onClose={handleCloseBuyCredits}
+        onOpenSubscriptions={() => { setShowBuyCredits(false); handleOpenSubscriptions(); }}
+      />
+
       {/* Sidebar */}
       <Sidebar
         open={sidebarOpen}
@@ -804,6 +831,8 @@ export const Dashboard = ({
         appUserAvatarUrl={userAvatarUrl}
         onOpenAccountSettings={() => openSettings('account')}
         onOpenConnectedPlatforms={() => openSettings('connections')}
+        onOpenSubscriptions={handleOpenSubscriptions}
+        onOpenBuyCredits={handleOpenBuyCredits}
       />
 
       {/* Main Content */}
