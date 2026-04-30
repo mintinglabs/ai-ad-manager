@@ -415,12 +415,18 @@ export const KeywordsManager = ({
 
       {/* Body */}
       <div className="flex-1 overflow-auto px-6 py-4">
-        {!campaignId ? (
+        {/* Campaign-list errors get top billing — the "pick a campaign"
+            empty state was swallowing the actual reason (manager account,
+            permissions, etc.) at the bottom in tiny rose text. Surface it
+            full-width so the user sees WHY the dropdown is empty. */}
+        {!campaignId && campaignsError ? (
+          <ErrorState message={campaignsError} />
+        ) : !campaignId ? (
           <EmptyState
             icon={Filter}
-            title="Pick a campaign to get started"
+            title={campaignsLoading ? 'Loading campaigns…' : 'Pick a campaign to get started'}
             subtitle={campaigns.length === 0 && !campaignsLoading
-              ? 'No campaigns found in this account.'
+              ? 'No campaigns found in this account. If this is a Manager (MCC) account, switch to one of its child accounts in the picker above.'
               : 'Keyword data is scoped per-campaign — pick one from the bar above.'} />
         ) : error ? (
           <ErrorState message={error} onRetry={handleRefresh} />
@@ -444,7 +450,9 @@ export const KeywordsManager = ({
             onBlock={(text) => openModal({ mode: 'negative-camp', prefill: text, defaultMatchType: 'PHRASE' })}
             onAskAI={(text) => onSendToChat?.(`Should I add "${text}" as a negative keyword? Look at its performance and recommend.`)} />
         )}
-        {campaignsError && <p className="text-[11px] text-rose-500 mt-2">Campaign list error: {campaignsError}</p>}
+        {/* Removed: bottom-of-page tiny rose error line. Errors are now
+            shown via the full-width ErrorState above when no campaign is
+            picked, which is more discoverable. */}
       </div>
 
       {/* Add modal */}
@@ -488,8 +496,11 @@ const Header = ({ onBack, customerId, pickerProps }) => (
         </p>
       </div>
     </div>
-    {/* Right side: same dual-platform picker the other Google modules
-        use, so the user has one consistent way to switch accounts. */}
+    {/* Right side: same dual-platform picker the other Google modules use.
+        We pass variant="chat" instead of "header" because the Keywords
+        page header is on a white background — the "header" variant
+        assumes a dark gradient surface (CampaignManager / Reports) and
+        renders text-white on white-15-tint, which is invisible here. */}
     {pickerProps && (
       <div className="flex items-center gap-2">
         <span className="text-[11px] text-slate-400">Ad Account:</span>
@@ -506,7 +517,7 @@ const Header = ({ onBack, customerId, pickerProps }) => (
           onGoogleConnect={pickerProps.onGoogleConnect}
           onGoogleDisconnect={pickerProps.onGoogleDisconnect}
           onSelectGoogleAccount={pickerProps.onSelectGoogleAccount}
-          variant="header"
+          variant="chat"
         />
       </div>
     )}
